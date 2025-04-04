@@ -184,6 +184,7 @@ export default function Community() {
         {/* Content Header */}
         <div className="mb-3 mb-md-4">
           <h1 className="h3 h2-md mb-1 mb-md-2 font-inter fw-bold">Community</h1>
+          
           <p className="text-muted small">
             Stay Connected and On Track
           </p>
