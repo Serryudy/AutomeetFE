@@ -169,10 +169,10 @@ export default function Community() {
 
       {/* Main content */}
       <div 
-        className="flex-grow-1 p-2 p-md-4"
+        className="flex-grow-1 p-3 p-md-4"
         style={{
           marginLeft: isMobile ? 0 : (isSidebarCollapsed ? '90px' : '340px'),
-          maxWidth: isMobile ? '100%' : (isSidebarCollapsed ? 'calc(100% - 90px)' : 'calc(100% - 340px)'),
+          maxWidth: isMobile ? '100%' : (isSidebarCollapsed ? 'calc(100% - 120px)' : 'calc(100% - 360px)'),
           transition: 'margin-left 0.3s ease-in-out, max-width 0.3s ease-in-out'
         }}
       >
@@ -184,7 +184,6 @@ export default function Community() {
         {/* Content Header */}
         <div className="mb-3 mb-md-4">
           <h1 className="h3 h2-md mb-1 mb-md-2 font-inter fw-bold">Community</h1>
-          
           <p className="text-muted small">
             Stay Connected and On Track
           </p>
