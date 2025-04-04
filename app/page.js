@@ -1,10 +1,10 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import SidebarMenu from '../components/SideMenucollapse'
-import WeeklyCalendar from '../components/WeeklyCalendar'
+import SidebarMenu from '@/components/SideMenucollapse'
+import WeeklyCalendar from '@/components/WeeklyCalendar'
 import ProfileHeader from '@/components/profileHeader'
 import 'bootstrap/dist/css/bootstrap.min.css'
-import '../styles/global.css'
+import '@/styles/global.css'
 import { FaBars } from 'react-icons/fa'
 
 const CalendarPage = () => {
