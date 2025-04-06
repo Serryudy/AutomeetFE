@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperPlane } from "react-icons/fa";
@@ -65,7 +64,6 @@ const MessageComponent = ({ onClose }) => {
   }, [showChatView]);
 
   // Sample message data
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const messages = [
     {
       id: 1,
@@ -76,15 +74,15 @@ const MessageComponent = ({ onClose }) => {
       repeat: true,
       keywords: ["meeting", "schedule", "project", "discuss"],
       conversation: [
-        { sender: "David Miler", message: "Hey, did you hear about the meeting tomorrow?", time: "Nov 30 10:25 AM", isSelf: false },
-        { sender: "You", message: "Yup. We're supposed to bring our ideas.", time: "Nov 30 10:27 AM", isSelf: true },
-        { sender: "David Miler", message: "Yeah, it's about the class project, right?", time: "Nov 30 10:28 AM", isSelf: false },
-        { sender: "You", message: "Yup. We're supposed to bring our ideas.", time: "Nov 30 10:29 AM", isSelf: true },
-        { sender: "David Miler", message: "I've been thinking about a Web project.", time: "Nov 30 10:29 AM", isSelf: false },
-        { sender: "You", message: "That's a great idea!", time: "Nov 30 10:30 AM", isSelf: true },
-        { sender: "David Miler", message: "Hmm, both ideas are cool. Maybe we can combine them!", time: "Nov 30 10:30 AM", isSelf: false },
-        { sender: "You", message: "See you tomorrow!", time: "Nov 30 10:31 AM", isSelf: true },
-        { sender: "David Miler", message: "Sure", time: "Nov 30 10:31 AM", isSelf: false },
+        { sender: "David Miler", message: "Hey, did you hear about the meeting tomorrow?", time: "10:25 AM", isSelf: false },
+        { sender: "You", message: "Yup. We're supposed to bring our ideas.", time: "10:27 AM", isSelf: true },
+        { sender: "David Miler", message: "Yeah, it's about the class project, right?", time: "10:28 AM", isSelf: false },
+        { sender: "You", message: "Yup. We're supposed to bring our ideas.", time: "10:29 AM", isSelf: true },
+        { sender: "David Miler", message: "I've been thinking about a Web project.", time: "10:29 AM", isSelf: false },
+        { sender: "You", message: "That's a great idea!", time: "10:30 AM", isSelf: true },
+        { sender: "David Miler", message: "Hmm, both ideas are cool. Maybe we can combine them!", time: "10:30 AM", isSelf: false },
+        { sender: "You", message: "See you tomorrow!", time: "10:31 AM", isSelf: true },
+        { sender: "David Miler", message: "Sure", time: "10:31 AM", isSelf: false },
       ]
     },
     {
@@ -143,12 +141,13 @@ const MessageComponent = ({ onClose }) => {
       ]
     },
     {
-      id: 6, // that should genarate acording to final msg time(since prensent to past)
-      sender: "Batch 22", //name   (if participant ==2 fetch second user Name, if participant >2 return as example.jpg)
-      avatar: "/profile.png", //img url (if participant ==2 fetch second user image url, if participant >2 dont return url)
-      message: "Sure, I can join that time. Should we invite the client too?",//Final msg
-      time: "Nov 5", // Final msg time(if time more than one day, show date like that Nov 5, if it is yesterday, show Yesterday, if today, show time 10:30 AM like that)
-      isTeam: true,  // if participant ==2 false, if participant >2 true
+      id: 6,
+      sender: "Batch 22",
+      avatar: "/profile.png",
+      message: "Sure, I can join that time. Should we invite the client too?",
+      time: "Nov 5",
+      isTeam: true,
+      keywords: ["join", "invite", "client", "meeting"],
       conversation: [
         { sender: "You", message: "We need to schedule a review for the project", time: "Nov 5", isSelf: true },
         { sender: "Batch 22", message: "How about Friday at 3pm?", time: "Nov 5", isSelf: false },
@@ -216,8 +215,7 @@ const MessageComponent = ({ onClose }) => {
         item: isNarrow ? '0.5rem' : isSmall ? '0.5rem 0.75rem' : '0.75rem 1rem',
         chat: isNarrow ? '0.4rem' : isSmall ? '0.5rem' : '0.75rem'
       },
-      buttonSize: isNarrow ? '40px' : isSmall ? '40px' : '46px',
-      buttonSize1: isNarrow ? '41px' : isSmall ? '41px' : '47px',
+      buttonSize: isNarrow ? '40px' : isSmall ? '40px' : '47px',
       sendButtonSize: isNarrow ? '36px' : isSmall ? '40px' : '50px'
     };
   };
@@ -301,8 +299,7 @@ const MessageComponent = ({ onClose }) => {
         <div className="message-header d-flex justify-content-between align-items-center p-3 border-bottom"
           style={{ padding: sizes.padding.container }}>
           {showSearch ? (
-            <div className="search-container d-flex align-items-center w-100 "
-            style={{padding:"1px 0"}}>
+            <div className="search-container d-flex align-items-center w-100">
               <div className="position-relative w-100">
                 <input
                   ref={searchInputRef}
@@ -320,7 +317,6 @@ const MessageComponent = ({ onClose }) => {
                 className="btn btn-sm btn-link text-dark"
                 onClick={toggleSearch}
                 aria-label="Close search"
-                style={{ fontSize: '17px' }}
               >
                 <FaTimes />
               </button>
@@ -404,11 +400,20 @@ const MessageComponent = ({ onClose }) => {
                       width: sizes.avatarSize,
                       height: sizes.avatarSize,
                       objectFit: "cover",
-                      marginRight: '5px',
-                      border: message.isTeam ? '2px solid #007bff' : '2px solid #007bff',
+                      marginRight: '5px'
                     }}
                     onError={(e) => { e.target.src = "/avatars/placeholder.jpg" }}
                   />
+                  {message.isTeam && (
+                    <span className="position-absolute top-0 end-0 p-1 bg-primary rounded-circle"
+                      style={{ width: '12px', height: '12px', border: '2px solid white' }}>
+                    </span>
+                  )}
+                  {message.repeat && (
+                    <span className="position-absolute top-0 end-0 p-1 bg-danger rounded-circle"
+                      style={{ width: '12px', height: '12px', border: '2px solid white' }}>
+                    </span>
+                  )}
                 </div>
 
                 <div className="message-content flex-grow-1 overflow-hidden">
@@ -461,16 +466,17 @@ const MessageComponent = ({ onClose }) => {
         {/* New Message Button */}
         <div className="new-message-btn position-absolute bottom-0 end-0 m-4">
           <button
-            className="btn rounded-5 d-flex justify-content-center align-items-center"
+            className="btn btn-primary rounded-circle d-flex justify-content-center align-items-center shadow"
             style={{
               width: sizes.buttonSize,
               height: sizes.buttonSize,
-              backgroundColor: "#007bff",
-              color: "#ffffff",
+              transition: "all 0.2s ease",
+              backgroundColor: hover ? "#005599" : "", // Change color on hover
+              borderColor: hover ? "#005599" : "",
             }}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
             onClick={handleNewMessage}
-            onMouseEnter={(e) => (e.target.style.width = sizes.buttonSize1, e.target.style.height = sizes.buttonSize1)}
-            onMouseLeave={(e) => (e.target.style.width = sizes.buttonSize, e.target.style.height = sizes.buttonSize)}
             aria-label="New message"
           >
             <FaPlus size={windowWidth < 576 ? 16 : 20} />
@@ -483,8 +489,6 @@ const MessageComponent = ({ onClose }) => {
   // Function to render chat view
   const renderChatView = () => {
     if (!selectedMessage) return null;
-
-    let lastDate = null; // Track the last displayed date
 
     return (
       <>
@@ -528,37 +532,44 @@ const MessageComponent = ({ onClose }) => {
 
         {/* Chat Messages */}
         <div className="chat-messages flex-grow-1 overflow-auto p-4" style={{ backgroundColor: '#ffffff' }}>
-          {selectedMessage.conversation.map((msg, index) => {
-
-            return (
-              <div key={index}>
-
-                <div className={`chat-bubble mb-3 ${msg.isSelf ? 'ms-auto' : 'me-auto'}`}
-                  style={{ maxWidth: '70%', width: 'fit-content' }}>
-                  <div
-                    className={`shadow-sm ${msg.isSelf ? 'bg-primary text-white' : ''}`}
-                    style={{
-                      backgroundColor: msg.isSelf ? '' : '#e9ecef',
-                      borderBottomRightRadius: msg.isSelf ? '0px' : '15px',
-                      borderBottomLeftRadius: msg.isSelf ? '15px' : '0px',
-                      borderTopRightRadius: '15px',
-                      borderTopLeftRadius: '15px',
-                      fontSize: sizes.fontSize.chat,
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      padding: '8px 15px',
-                    }}
-                  >
-                    {msg.message}
-                    <div className={`${msg.isSelf ? 'bg-primary text-white' : ''} text-end`}
-                      style={{ fontSize: sizes.fontSize.time }}>
-                      {msg.time}
-                    </div>
-                  </div>
+          {selectedMessage.conversation.map((msg, index) => (
+            <div
+              key={index}
+              className={`chat-bubble mb-3 ${msg.isSelf ? 'ms-auto' : 'me-auto'}`}
+              style={{ maxWidth: '70%', width: 'fit-content' }}
+            >
+              {!msg.isSelf && (
+                <div className="d-flex align-items-center mb-1">
                 </div>
+              )}
+              <div
+                className={`shadow-sm  ${msg.isSelf ? 'bg-primary text-white' : ''}`}
+                style={{
+                  backgroundColor: msg.isSelf ? '' : '#e9ecef',
+                  borderBottomRightRadius: msg.isSelf ? '0px' : '15px',
+                  borderBottomLeftRadius: msg.isSelf ? '15px' : '0px',
+                  borderTopRightRadius: '15px',
+                  borderTopLeftRadius: '15px',
+                  fontSize: sizes.fontSize.chat,
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  padding: '8px 15px',
+                }}
+              >
+                {msg.message}
+                <div className={`${msg.isSelf ? 'bg-primary text-white' : ''} text-end`} style={{ fontSize: sizes.fontSize.time }}>
+                  {msg.time}
+                </div>
+
               </div>
-            );
-          })}
+              <div
+                className={`text-muted mt-1 ${msg.isSelf ? 'text-end' : ''}`}
+                style={{ fontSize: sizes.fontSize.time }}
+              >
+
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Chat Input */}
@@ -602,7 +613,6 @@ const MessageComponent = ({ onClose }) => {
       </>
     );
   };
-
 
   return (
     <div
