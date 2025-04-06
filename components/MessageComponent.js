@@ -143,13 +143,12 @@ const MessageComponent = ({ onClose }) => {
       ]
     },
     {
-      id: 6,
-      sender: "Batch 22",
-      avatar: "/profile.png",
-      message: "Sure, I can join that time. Should we invite the client too?",
-      time: "Nov 5",
-      isTeam: true,
-      keywords: ["join", "invite", "client", "meeting"],
+      id: 6, // that should genarate acording to final msg time(since prensent to past)
+      sender: "Batch 22", //name   (if participant ==2 fetch second user Name, if participant >2 return as example.jpg)
+      avatar: "/profile.png", //img url (if participant ==2 fetch second user image url, if participant >2 dont return url)
+      message: "Sure, I can join that time. Should we invite the client too?",//Final msg
+      time: "Nov 5", // Final msg time(if time more than one day, show date like that Nov 5, if it is yesterday, show Yesterday, if today, show time 10:30 AM like that)
+      isTeam: true,  // if participant ==2 false, if participant >2 true
       conversation: [
         { sender: "You", message: "We need to schedule a review for the project", time: "Nov 5", isSelf: true },
         { sender: "Batch 22", message: "How about Friday at 3pm?", time: "Nov 5", isSelf: false },
