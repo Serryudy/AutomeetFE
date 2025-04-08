@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../../styles/global.css';
-import SidebarMenu from '../../components/SideMenucollapse';
+import '@/styles/global.css';
+import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import Availability from '@/components/Availability';
 import { FaBars } from 'react-icons/fa';
+import { useParams } from 'next/navigation';
 
 // Define eventData which was missing in the original code
 const eventData = [
@@ -31,6 +32,9 @@ const eventData = [
 ];
 
 export default function AvailabilityPage() {
+  const params = useParams();
+  const meetingId = params.id;
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [showEventCards, setShowEventCards] = useState(false);
@@ -172,7 +176,7 @@ export default function AvailabilityPage() {
         <div className="d-flex flex-column flex-lg-row gap-4">
           {/* Calendar component */}
           <div className="flex-grow-1">
-            <Availability meetingId="01f013d3-a4a8-136e-87cd-b7fa6ad5a60e"/>
+            <Availability meetingId={meetingId}/>
           </div>
 
           {/* Event cards section */}

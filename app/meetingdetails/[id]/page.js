@@ -2,8 +2,8 @@
 
 import React from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../../../styles/global.css';
-import SidebarMenu from '../../../components/SideMenucollapse';
+import '@/styles/global.css';
+import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import Calendar from '@/components/calendar';
 import { FaEdit, FaCalendarAlt, FaChevronDown, FaSearch, FaFilter, FaCheckCircle, FaBars, FaTimes } from 'react-icons/fa';
@@ -11,13 +11,15 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
-const MeetingForm = ({ meetingId }) => {
+const MeetingForm = () => {
+    const params = useParams();
+    const meetingId = params.id;
+    
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState('');
     const [repeat, setRepeat] = useState('Does not repeat');
     const [status, setStatus] = useState('Confirmed');
-    const [meetingType, setMeetingType] = useState('');
     const [currentStep, setCurrentStep] = useState(1);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showCalendar, setShowCalendar] = useState(false);
@@ -28,111 +30,123 @@ const MeetingForm = ({ meetingId }) => {
     const [timeSlots, setTimeSlots] = useState([]);
     const [timeError, setTimeError] = useState('');
     const [participants, setParticipants] = useState([]);
-    const [hosts, setHosts] = useState([]);
-    const [duration, setDuration] = useState('');
     const [searchContact, setSearchContact] = useState('');
+    const [hosts, setHosts] = useState([]);
     const [isEditing, setIsEditing] = useState(false);
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
     const [isMobile, setIsMobile] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [meetingData, setMeetingData] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    
-    // Use the meeting ID for data fetching
+    const [userRole, setUserRole] = useState('');
+    const [meetingType, setMeetingType] = useState('');
+    const [roundRobinDuration, setRoundRobinDuration] = useState('');
+    const [participantsToAdd, setParticipantsToAdd] = useState([]);
+    const [searchResults, setSearchResults] = useState([]);
+    const [dateError, setDateError] = useState('');
+  
+    // Fetch meeting data
     useEffect(() => {
-      const fetchMeetingDetails = async () => {
-          setIsLoading(true);
-          try {  
-             const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
+      const fetchMeetingData = async () => {
+          
+          if (!meetingId) return;
+          
+          try {
+              setLoading(true);
+              console.log(meetingId);
+              // Fixed URL to properly access the endpoint
+              const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
                   method: 'GET',
                   headers: {
-                      'Content-Type': 'application/json'
+                      'Content-Type': 'application/json',
                   },
-                  credentials: 'include'
+                  credentials: 'include', // This ensures cookies are sent with the request
               });
               
               if (!response.ok) {
-                  throw new Error('Failed to fetch meeting details');
+                  throw new Error(`Error fetching meeting: ${response.status}`);
               }
               
               const data = await response.json();
-              console.log('Meeting data:', data);
+              console.log('Meeting data received:', data); // Add logging to debug
+              setMeetingData(data);
               
-              // Set common fields
+              // Update state with fetched data
               setTitle(data.title || '');
               setDescription(data.description || '');
               setLocation(data.location || '');
-              setMeetingType(data.meetingType || '');
               setRepeat(data.repeat || 'Does not repeat');
+              setMeetingType(data.meetingType || '');
+              setRoundRobinDuration(data.roundRobinDuration || '');
+              setUserRole(data.role || '');
               
-              // Parse participants
-              if (data.participants && Array.isArray(data.participants)) {
-                  const formattedParticipants = data.participants.map((p, index) => ({
+              // Format and set time slots if they exist in userAvailability
+              if (data.userAvailability && data.userAvailability.timeSlots) {
+                  const formattedTimeSlots = data.userAvailability.timeSlots.map((slot, index) => {
+                      // Convert ISO strings to Date objects
+                      const startDate = new Date(slot.startTime);
+                      const endDate = new Date(slot.endTime);
+                      
+                      // Format to 12 hour time
+                      const formatTime = (date) => {
+                          let hours = date.getHours();
+                          const minutes = date.getMinutes().toString().padStart(2, '0');
+                          const ampm = hours >= 12 ? 'PM' : 'AM';
+                          hours = hours % 12;
+                          hours = hours ? hours : 12; // the hour '0' should be '12'
+                          return `${hours}:${minutes} ${ampm}`;
+                      };
+                      
+                      return {
+                          id: index + 1,
+                          start: formatTime(startDate),
+                          end: formatTime(endDate),
+                          startTime: slot.startTime,
+                          endTime: slot.endTime,
+                          date: startDate.toDateString() // Add the date string for display
+                      };
+                  });
+                  
+                  setTimeSlots(formattedTimeSlots);
+                  // If there's at least one time slot, set the selected date to the first one
+                  if (formattedTimeSlots.length > 0) {
+                      setSelectedDate(new Date(formattedTimeSlots[0].startTime));
+                  }
+              }
+              
+              // Transform participants data
+              if (data.participants) {
+                  const formattedParticipants = data.participants.map((participant, index) => ({
                       id: index + 1,
-                      name: p.username || 'Unknown',
-                      group: `Access: ${p.access || 'unknown'}`
+                      name: participant.username,
+                      group: `Access: ${participant.access}`,
+                      access: participant.access
                   }));
                   setParticipants(formattedParticipants);
               }
               
-              // Handle meeting type specific data
-              if (data.meetingType === 'direct' && data.directTimeSlot) {
-                  // Format direct meeting time slots
-                  const startDate = new Date(data.directTimeSlot.startTime);
-                  const endDate = new Date(data.directTimeSlot.endTime);
-                  
-                  setSelectedDate(startDate);
-                  setStartTime(formatTimeString(startDate));
-                  setEndTime(formatTimeString(endDate));
-                  
-                  // Add as a time slot
-                  setTimeSlots([{
-                      id: Date.now(),
-                      start: formatTimeString(startDate),
-                      end: formatTimeString(endDate)
-                  }]);
-              } 
-              else if (data.meetingType === 'group') {
-                  setDuration(data.groupDuration || '60');
-              }
-              else if (data.meetingType === 'round_robin') {
-                  setDuration(data.roundRobinDuration || '60');
-                  
-                  // Format hosts
-                  if (data.hosts && Array.isArray(data.hosts)) {
-                      const formattedHosts = data.hosts.map((h, index) => ({
-                          id: index + 1,
-                          name: h.username || 'Unknown Host',
-                          group: `Access: ${h.access || 'unknown'}`
-                      }));
-                      setHosts(formattedHosts);
-                  }
+              // Transform hosts data
+              if (data.hosts) {
+                  const formattedHosts = data.hosts.map((host, index) => ({
+                      id: index + 1,
+                      name: host.username,
+                      group: 'Hosts',
+                      access: host.access
+                  }));
+                  setHosts(formattedHosts);
               }
               
-          } catch (error) {
-              console.error("Error fetching meeting details:", error);
-              setError(error.message);
-          } finally {
-              setIsLoading(false);
+              setLoading(false);
+          } catch (err) {
+              console.error('Error fetching meeting data:', err);
+              setError(err.message);
+              setLoading(false);
           }
       };
       
-      if (meetingId) {
-          fetchMeetingDetails();
-      }
-  }, [meetingId]);
-
-  // Function to format date objects to time strings
-  const formatTimeString = (date) => {
-      let hours = date.getHours();
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      
-      hours = hours % 12;
-      hours = hours ? hours : 12; // Convert 0 to 12
-      
-      return `${hours}:${minutes} ${ampm}`;
-  };
-  
+      fetchMeetingData();
+    }, [meetingId]);
+    
     // Track window width for responsive design
     useEffect(() => {
       const handleResize = () => {
@@ -144,6 +158,230 @@ const MeetingForm = ({ meetingId }) => {
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // to update the form
+    const handleSaveChanges = async () => {
+      try {
+        // Prepare the update payload based on form data
+        const updatePayload = {
+          title,
+          description,
+          location,
+          repeat
+        };
+    
+        // Format time slots if there are any
+        if (timeSlots.length > 0) {
+          // Transform time slots to the format expected by the API
+          const formattedTimeSlots = timeSlots.map(slot => {
+            return {
+              startTime: slot.startTime,
+              endTime: slot.endTime
+            };
+          });
+          
+          updatePayload.timeSlots = formattedTimeSlots;
+        }
+        
+        // Add participants to add if any
+        if (participantsToAdd.length > 0) {
+          updatePayload.addParticipants = participantsToAdd;
+        }
+        
+        // Determine which participants to remove by comparing current list with original
+        if (meetingData && meetingData.participants) {
+          const originalUsernames = meetingData.participants.map(p => p.username);
+          const currentUsernames = participants.map(p => p.name);
+          
+          const usernamesRemoved = originalUsernames.filter(
+            username => !currentUsernames.includes(username)
+          );
+          
+          if (usernamesRemoved.length > 0) {
+            updatePayload.removeParticipants = usernamesRemoved;
+          }
+        }
+        
+        // Make the API call to update the meeting
+        const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatePayload),
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error updating meeting: ${response.status}`);
+        }
+        
+        const updatedMeeting = await response.json();
+        console.log('Meeting updated successfully:', updatedMeeting);
+        
+        // Update the local state with the response
+        setMeetingData(updatedMeeting);
+        
+        // Update other related states if needed
+        if (updatedMeeting.participants) {
+          const formattedParticipants = updatedMeeting.participants.map((participant, index) => ({
+            id: index + 1,
+            name: participant.username,
+            group: `Access: ${participant.access}`,
+            access: participant.access
+          }));
+          setParticipants(formattedParticipants);
+        }
+        
+        if (updatedMeeting.hosts) {
+          const formattedHosts = updatedMeeting.hosts.map((host, index) => ({
+            id: index + 1,
+            name: host.username,
+            group: 'Hosts',
+            access: host.access
+          }));
+          setHosts(formattedHosts);
+        }
+        
+        // Reset participant management states
+        setParticipantsToAdd([]);
+        
+        // Clear time slots or update with the response if available
+        if (updatedMeeting.timeSlots) {
+          // Format the time slots from the response
+          const formattedTimeSlots = updatedMeeting.timeSlots.map((slot, index) => {
+            // Convert ISO strings to readable format
+            const startDate = new Date(slot.startTime);
+            const endDate = new Date(slot.endTime);
+            
+            // Format to 12 hour time
+            const formatTime = (date) => {
+              let hours = date.getHours();
+              const minutes = date.getMinutes().toString().padStart(2, '0');
+              const ampm = hours >= 12 ? 'PM' : 'AM';
+              hours = hours % 12;
+              hours = hours ? hours : 12; // the hour '0' should be '12'
+              return `${hours}:${minutes} ${ampm}`;
+            };
+            
+            return {
+              id: index + 1,
+              start: formatTime(startDate),
+              end: formatTime(endDate),
+              startTime: slot.startTime,
+              endTime: slot.endTime
+            };
+          });
+          
+          setTimeSlots(formattedTimeSlots);
+        }
+        
+        // Exit edit mode
+        setIsEditing(false);
+        
+        // Show success notification
+        alert('Meeting updated successfully!');
+        
+      } catch (err) {
+        console.error('Error updating meeting:', err);
+        alert(`Failed to update meeting: ${err.message}`);
+      }
+    };
+
+    //search contacts
+    const handleSearchContacts = async (query) => {
+      setSearchContact(query);
+      
+      if (query.length < 2) {
+        setSearchResults([]);
+        return;
+      }
+      
+      try {
+        // Replace with your actual API endpoint
+        const response = await fetch(`http://localhost:8080/create/contacts`, {
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error searching contacts: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setSearchResults(data);
+      } catch (err) {
+        console.error('Error searching contacts:', err);
+        setSearchResults([]);
+      }
+    };
+
+    //add participants
+    const addParticipant = (contact) => {
+      const newParticipant = {
+        id: Date.now(),
+        name: contact.username,
+        group: `Access: pending`,
+        access: "pending"
+      };
+      
+      const isDuplicate = participants.some(p => p.name === contact.username);
+      
+      if (!isDuplicate) {
+        setParticipants([...participants, newParticipant]);
+        setParticipantsToAdd([...participantsToAdd, contact.username]);
+      }
+      
+      // Clear search
+      setSearchContact('');
+      setSearchResults([]);
+    };
+
+    // cancel meeting functionality
+    const cancelMeeting = async () => {
+      // Confirm the cancellation
+      const isConfirmed = window.confirm(`Are you sure you want to cancel the meeting "${title}"? This action cannot be undone.`);
+      
+      if (!isConfirmed) return;
+      
+      try {
+        // Call the deletion API endpoint
+        const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // This ensures cookies are sent with the request
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error canceling meeting: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Meeting canceled successfully:', result);
+        
+        // Show success message
+        alert('Meeting has been canceled successfully');
+        
+        // Redirect to the meetings list page
+        window.location.href = '/meetings';
+        
+      } catch (err) {
+        console.error('Error canceling meeting:', err);
+        alert(`Failed to cancel meeting: ${err.message}`);
+      }
+    };
+    
+    // Add another function to handle participant access changes
+    const handleParticipantAccessChange = (participantId, checked) => {
+      setParticipants(
+        participants.map(participant => 
+          participant.id === participantId 
+            ? { ...participant, access: checked ? "accepted" : "pending" }
+            : participant
+        )
+      );
+    };
     
     const removeParticipant = (id) => {
       setParticipants(participants.filter(participant => participant.id !== id));
@@ -154,14 +392,21 @@ const MeetingForm = ({ meetingId }) => {
     const endTimeRef = useRef(null);
     const calendarRef = useRef(null);
 
-    const handleNext = () => {
-      if (currentStep < 3) setCurrentStep(currentStep + 1);
-    };
-
     const handleDateSelect = (date) => {
-      setSelectedDate(date);
-      setShowCalendar(false);
-    };
+  const newDate = date instanceof Date ? date : new Date(date);
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (newDate < today) {
+    setDateError('Please select a date from today or in the future');
+    return;
+  }
+
+  setDateError('');
+  setSelectedDate(newDate);
+  setShowCalendar(false);
+};
 
     const generateTimeOptions = () => {
       const times = [];
@@ -180,6 +425,27 @@ const MeetingForm = ({ meetingId }) => {
     const validateTimeFormat = (time) => {
       const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/i;
       return timeRegex.test(time);
+    };
+
+
+    // Convert 12-hour format to ISO format
+    const convertToISOFormat = (dateStr, timeStr) => {
+      const date = new Date(dateStr);
+      const [timePart, period] = timeStr.split(' ');
+      let [hours, minutes] = timePart.split(':');
+      
+      hours = parseInt(hours);
+      minutes = parseInt(minutes);
+
+      if (period.toLowerCase() === 'pm' && hours !== 12) {
+        hours += 12;
+      }
+      if (period.toLowerCase() === 'am' && hours === 12) {
+        hours = 0;
+      }
+
+      date.setHours(hours, minutes, 0, 0);
+      return date.toISOString();
     };
 
     // Convert time to 24-hour format for comparison
@@ -202,40 +468,46 @@ const MeetingForm = ({ meetingId }) => {
 
     const handleAddTimeSlot = () => {
       setTimeError('');
-
+    
       if (!validateTimeFormat(startTime)) {
-          setTimeError('Invalid start time format. Use HH:MM AM/PM');
-          return;
+        setTimeError('Invalid start time format. Use HH:MM AM/PM');
+        return;
       }
-
+    
       if (!validateTimeFormat(endTime)) {
-          setTimeError('Invalid end time format. Use HH:MM AM/PM');
-          return;
+        setTimeError('Invalid end time format. Use HH:MM AM/PM');
+        return;
       }
-
+    
       const startMinutes = convertTo24HourFormat(startTime);
       const endMinutes = convertTo24HourFormat(endTime);
-
+    
       if (endMinutes <= startMinutes) {
-          setTimeError('End time must be later than start time');
-          return;
+        setTimeError('End time must be later than start time');
+        return;
       }
-
+    
+      // Convert to ISO format for API
+      const startTimeISO = convertToISOFormat(selectedDate, startTime);
+      const endTimeISO = convertToISOFormat(selectedDate, endTime);
+    
       const newTimeSlot = {
-          id: Date.now(),
-          start: startTime,
-          end: endTime
+        id: Date.now(),
+        start: startTime,
+        end: endTime,
+        startTime: startTimeISO,
+        endTime: endTimeISO
       };
-
+    
       const isDuplicate = timeSlots.some(
-          slot => slot.start === newTimeSlot.start && slot.end === newTimeSlot.end
+        slot => slot.start === newTimeSlot.start && slot.end === newTimeSlot.end
       );
-
+    
       if (isDuplicate) {
-          setTimeError('This time slot has already been added');
-          return;
+        setTimeError('This time slot has already been added');
+        return;
       }
-
+    
       setTimeSlots([...timeSlots, newTimeSlot]);
     };
 
@@ -290,284 +562,439 @@ const MeetingForm = ({ meetingId }) => {
           document.removeEventListener("mousedown", handleClickOutside);
       };
     }, []);
+    
+    if (loading) return <div className="p-4 text-center">Loading meeting data...</div>;
+    if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
+    if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
   
     return (
       <div className="container-fluid p-0">
-        {isLoading ? (
-          <div className="d-flex justify-content-center align-items-center" style={{height: '300px'}}>
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="alert alert-danger">
-            Error loading meeting details: {error}
-          </div>
-        ) : (
-          <div className="card shadow-sm bg-white rounded-3 p-3 p-md-4">
-            <div className="card-body p-0">
-              <div className="d-flex justify-content-between align-items-center mb-3 mb-md-4 flex-wrap gap-2">
-                <h2 className="fw-bold mb-0 fs-4 fs-md-3">{title || 'Meeting name'}</h2>
+        <div className="card shadow-sm bg-white rounded-3 p-3 p-md-4">
+          <div className="card-body p-0">
+            <div className="d-flex justify-content-between align-items-center mb-3 mb-md-4 flex-wrap gap-2">
+              <h2 className="fw-bold mb-0 fs-4 fs-md-3">{title || 'Meeting name'}</h2>
+              <div className="d-flex align-items-center gap-2">
+                <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
                 <button 
                   className="btn btn-secondary d-flex align-items-center px-3 py-2"
                   onClick={() => setIsEditing(!isEditing)}
-                  >
+                  disabled={userRole === 'participant'}
+                >
                   <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
                 </button>
               </div>
-    
+            </div>
+  
+            <div className="mb-3 mb-md-4">
+              <p className="mb-1 fw-bold">Status</p>
+              <span className="badge bg-primary px-3 py-2">Confirmed</span>
+            </div>
+            
+            {meetingType && (
               <div className="mb-3 mb-md-4">
                 <p className="mb-1 fw-bold">Meeting Type</p>
-                <span className="badge bg-info px-3 py-2 text-capitalize">
-                  {meetingType.replace('_', ' ')}
-                </span>
+                <span className="badge bg-secondary px-3 py-2">{meetingType.replace('_', ' ')}</span>
+                {meetingType === 'round_robin' && roundRobinDuration && (
+                  <span className="badge bg-info ms-2 px-3 py-2">Duration: {roundRobinDuration} minutes</span>
+                )}
               </div>
-              
-              <div className="mb-3 mb-md-4">
-                <p className="mb-1 fw-bold">Status</p>
-                <span className="badge bg-primary px-3 py-2">Confirmed</span>
-              </div>
-    
-              <div className="mb-3 mb-md-4">
-                <label htmlFor="title" className="form-label">Title</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  readOnly={!isEditing}
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-    
-              {/* Meeting Type Specific Fields */}
-              {meetingType === 'direct' && (
-                <div className="mb-3 mb-md-4">
-                  <label className="form-label">Date & Time</label>
-                  <div className="p-2 bg-light rounded">
-                    <div className="d-flex align-items-center gap-2 flex-wrap">
-                      {/* Date Display */}
-                      <div className="d-flex align-items-center bg-white py-2 px-3 rounded calendar-toggle"
+            )}
+  
+            <div className="mb-3 mb-md-4">
+              <label htmlFor="title" className="form-label">Title</label>
+              <input
+                type="text"
+                className="form-control"
+                readOnly={!isEditing}
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+  
+            <div className="mb-3 mb-md-4">
+              <label className="form-label">Date & Time Range</label>
+              <div className="p-2 bg-light rounded">
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                  {/* Date Picker */}
+                  <div
+                    className="d-flex align-items-center bg-white py-2 px-3 rounded calendar-toggle"
+                    style={{ 
+                      cursor: "pointer", 
+                      minWidth: isMobile ? "100%" : "190px",
+                      maxWidth: "250px",
+                      flex: "1 1 auto" 
+                    }}
+                    onClick={() => setShowCalendar(!showCalendar)}
+                  >
+                    <div className="text-center flex-grow-1 text-truncate">
+                      {selectedDate ? selectedDate.toDateString() : "Select Date"}
+                    </div>
+                    <div className="ms-2">
+                      <FaCalendarAlt />
+                    </div>
+                  </div>
+
+                  {/* Calendar Popup */}
+                  {showCalendar && (
+                    <div
+                      ref={calendarRef}
+                      className="position-absolute shadow rounded bg-white"
+                      style={{ 
+                        top: isMobile ? "350px" : "350px", 
+                        left: isMobile ? "15px" : "30px", 
+                        zIndex: 10 
+                      }}
+                    >
+                      <Calendar onDateSelect={handleDateSelect} value={selectedDate} />
+                    </div>
+                  )}
+
+                  {/* Start Time Input */}
+                  <div 
+                        className="position-relative" 
+                        ref={startTimeRef} 
                         style={{ 
-                          cursor: isEditing ? "pointer" : "default", 
-                          minWidth: isMobile ? "100%" : "190px",
-                          maxWidth: "250px",
-                          flex: "1 1 auto" 
+                          flex: "1 1 120px", 
+                          maxWidth: isMobile ? "100%" : "150px",
+                          width: isMobile ? "100%" : "auto"
                         }}
-                        onClick={() => isEditing && setShowCalendar(!showCalendar)}
-                      >
-                        <div className="text-center flex-grow-1 text-truncate">
-                          {selectedDate ? selectedDate.toDateString() : "Select Date"}
-                        </div>
-                        {isEditing && (
-                          <div className="ms-2">
-                            <FaCalendarAlt />
-                          </div>
-                        )}
-                      </div>
-  
-                      {/* Calendar Popup */}
-                      {showCalendar && isEditing && (
-                        <div
-                          ref={calendarRef}
-                          className="position-absolute shadow rounded bg-white"
-                          style={{ 
-                            top: isMobile ? "350px" : "350px", 
-                            left: isMobile ? "15px" : "30px", 
-                            zIndex: 10 
-                          }}
-                        >
-                          <Calendar onChange={handleDateSelect} value={selectedDate} />
-                        </div>
-                      )}
-  
-                      {/* Time Slots Display */}
-                      <div className="d-flex align-items-center gap-2 bg-white py-2 px-3 rounded" style={{flex: "1"}}>
-                        {timeSlots.length > 0 ? `${timeSlots[0].start} - ${timeSlots[0].end}` : "No time set"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-  
-              {(meetingType === 'group' || meetingType === 'round_robin') && (
-                <div className="mb-3 mb-md-4">
-                  <label className="form-label">Duration</label>
-                  <div className="input-group">
-                    <input
-                      type="text"
-                      className="form-control"
-                      readOnly={!isEditing}
-                      value={`${duration} minutes`}
-                      onChange={(e) => setDuration(e.target.value.replace(/\D/g, ''))}
-                    />
-                    {isEditing && (
-                      <button className="btn btn-outline-secondary" type="button">
-                        <FaChevronDown />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-  
-              {/* Hosts Section for Round Robin */}
-              {meetingType === 'round_robin' && hosts.length > 0 && (
-                <div className="mb-3 mb-md-4">
-                  <label className="form-label">Hosts</label>
-                  {hosts.map((host) => (
-                    <div key={host.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
-                      <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
-                        <img 
-                          src="/profile.png" 
-                          alt="host" 
-                          className="rounded-circle me-2 me-md-3"
-                          style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}}
+                    >
+                        <input
+                        type="text"
+                        className="form-control bg-white py-2 px-3 rounded"
+                        readOnly={!isEditing}
+                        style={{ width: "100%", cursor: "pointer" }}
+                        placeholder="HH:MM AM/PM"
+                        value={startTime}
+                        onChange={(e) => handleTimeChange(e.target.value, "start")}
+                        onDoubleClick={() => handleDoubleClick("start")}
                         />
-                        <div>
-                          <div className="fw-bold">{host.name}</div>
-                          <small className="text-muted">{host.group}</small>
+                        {showStartTime && (
+                        <div
+                            className="position-absolute bg-white shadow p-3 rounded mt-1"
+                            style={{ 
+                            top: "100%", 
+                            left: "0", 
+                            zIndex: 10, 
+                            maxHeight: "150px", 
+                            overflowY: "auto",
+                            width: "100%" 
+                            }}
+                        >
+                            {generateTimeOptions().map((time, index) => (
+                            <div
+                                key={index}
+                                className="py-2 px-3 hover-bg-light"
+                                style={{ cursor: "pointer" }}
+                                onClick={() => handleTimeSelect(time, "start")}
+                            >
+                                {time}
+                            </div>
+                            ))}
                         </div>
+                        )}
+                    </div>
+
+                    {/* End Time Input */}
+                    <div 
+                        className="position-relative" 
+                        ref={endTimeRef} 
+                        style={{ 
+                          flex: "1 1 120px", 
+                          maxWidth: isMobile ? "100%" : "150px",
+                          width: isMobile ? "100%" : "auto"
+                        }}
+                    >
+                        <input
+                        type="text"
+                        className="form-control bg-white py-2 px-3 rounded"
+                        readOnly={!isEditing}
+                        style={{ width: "100%", cursor: "pointer" }}
+                        placeholder="HH:MM AM/PM"
+                        value={endTime}
+                        onChange={(e) => handleTimeChange(e.target.value, "end")}
+                        onDoubleClick={() => handleDoubleClick("end")}
+                        />
+                        {showEndTime && (
+                        <div
+                            className="position-absolute bg-white shadow p-3 rounded mt-1"
+                            style={{ 
+                            top: "100%", 
+                            left: "0", 
+                            zIndex: 10, 
+                            maxHeight: "150px", 
+                            overflowY: "auto",
+                            width: "100%" 
+                            }}
+                        >
+                            {generateTimeOptions().map((time, index) => (
+                            <div
+                                key={index}
+                                className="py-2 px-3 hover-bg-light"
+                                style={{ cursor: "pointer" }}
+                                onClick={() => handleTimeSelect(time, "end")}
+                            >
+                                {time}
+                            </div>
+                            ))}
+                        </div>
+                        )}
+                    </div>
+
+                    {/* Add Button */}
+                    <button
+                        type="button"
+                        className="btn btn-primary d-flex align-items-center justify-content-center"
+                        style={{
+                        minWidth: "40px",
+                        height: "38px",
+                        flexShrink: 0,
+                        }}
+                        onClick={handleAddTimeSlot}
+                        disabled={!isEditing}
+                    >
+                        <FaCheckCircle />
+                    </button>
+                  </div>
+
+                  {/* Display date error if any */}
+                  {dateError && (
+                    <div className="text-danger mt-2 small">
+                      {dateError}
+                    </div>
+                  )}
+                  {/* Display time slots */}
+                  {timeSlots.length > 0 && (
+                    <div className="mt-3">
+                      <h6 className="mb-2">Added Time Slots:</h6>
+                      <div className="d-flex flex-wrap gap-2">
+                        {timeSlots.map((slot) => (
+                          <div key={slot.id} className="d-flex align-items-center bg-light p-2 rounded">
+                            <div>
+                              <span className="fw-bold">{new Date(slot.startTime).toLocaleDateString()}</span>
+                              <span className="mx-1">|</span>
+                              <span>{slot.start} - {slot.end}</span>
+                            </div>
+                            {isEditing && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger ms-2"
+                                onClick={() => handleRemoveTimeSlot(slot.id)}
+                                aria-label="Remove time slot"
+                              >
+                                <FaTimes />
+                              </button>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-    
-              <div className="mb-3 mb-md-4">
+              </div>
+  
+            <div className="mb-3 mb-md-4">
                 <label htmlFor="participants" className="form-label">Participants</label>
                 
                 {isEditing && (
                   <div className="mb-3 position-relative">
-                    <div className="input-group">
-                      <span className="input-group-text bg-white">
-                        <FaSearch />
-                      </span>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Search by contact"
-                        value={searchContact}
-                        onChange={(e) => setSearchContact(e.target.value)}
-                      />
-                      <span className="input-group-text bg-white">
-                        <FaChevronDown />
-                      </span>
-                    </div>
-                  </div>
-                )}
-  
-                {participants.length > 0 ? participants.map((participant) => (
-                  <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
-                    <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
-                      <img 
-                        src="/profile.png" 
-                        alt="participant" 
-                        className="rounded-circle me-2 me-md-3"
-                        style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}}
-                      />
-                      <div>
-                        <div className="fw-bold">{participant.name}</div>
-                        <small className="text-muted">{participant.group}</small>
+                    <div className="position-relative">
+                      <div className="input-group">
+                        <span className="input-group-text bg-white">
+                          <FaSearch />
+                        </span>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Search by contact"
+                          value={searchContact}
+                          onChange={(e) => handleSearchContacts(e.target.value)}
+                        />
+                        <span className="input-group-text bg-white">
+                          <FaChevronDown />
+                        </span>
                       </div>
-                    </div>
-                    {isEditing && (
-                      <div className="d-flex gap-2 align-items-center mt-2 mt-md-0">
-                        <div className="form-check form-switch me-3">
-                          <input 
-                            className="form-check-input"
-                            type="checkbox" 
-                            id={`accessSwitch-${participant.id}`}
-                          />
-                          <label className="form-check-label" htmlFor={`accessSwitch-${participant.id}`}>
-                            Give access
-                          </label>
+                      
+                      {/* Search Results Dropdown */}
+                      {searchResults.length > 0 && (
+                        <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{zIndex: 1000, maxHeight: '200px', overflowY: 'auto'}}>
+                          {searchResults.map(contact => (
+                            <div 
+                              key={contact.username} 
+                              className="p-2 border-bottom d-flex align-items-center hover-bg-light" 
+                              style={{cursor: 'pointer'}}
+                              onClick={() => addParticipant(contact)}
+                            >
+                              <img 
+                                src="/profile.png" 
+                                alt={contact.username} 
+                                className="rounded-circle me-2"
+                                style={{width: '30px', height: '30px'}}
+                              />
+                              <div>
+                                <div className="fw-bold">{contact.username}</div>
+                                {contact.email && <small className="text-muted">{contact.email}</small>}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <button 
-                          type="button" 
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => removeParticipant(participant.id)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )) : (
-                  <div className="alert alert-info">
-                    No participants have been added to this meeting.
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
-    
-              <div className="mb-3 mb-md-4">
-                <label htmlFor="description" className="form-label">Description</label>
-                <textarea
+
+                {/* Display hosts section */}
+                {hosts.length > 0 && (
+                  <div className="mb-3">
+                    <h6 className="text-muted mb-2">Hosts</h6>
+                    {hosts.map((host) => (
+                      <div key={host.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
+                        <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
+                          <img 
+                            src="/profile.png" 
+                            alt="host" 
+                            className="rounded-circle me-2 me-md-3"
+                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}}
+                          />
+                          <div>
+                            <div className="fw-bold">{host.name}</div>
+                            <small className="text-muted">Host - {host.access}</small>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Display participants section */}
+                {participants.length > 0 && (
+                  <div>
+                    <h6 className="text-muted mb-2">Participants</h6>
+                    {participants.map((participant) => (
+                      <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
+                        <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
+                          <img 
+                            src="/profile.png" 
+                            alt="participant" 
+                            className="rounded-circle me-2 me-md-3"
+                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}}
+                          />
+                          <div>
+                            <div className="fw-bold">{participant.name}</div>
+                            <small className="text-muted">{participant.group}</small>
+                          </div>
+                        </div>
+                        {isEditing && (
+                          <div className="d-flex gap-2 align-items-center mt-2 mt-md-0">
+                            <div className="form-check form-switch me-3">
+                              <input 
+                                className="form-check-input"
+                                type="checkbox" 
+                                id={`accessSwitch-${participant.id}`}
+                                checked={participant.access === "accepted"}
+                                onChange={(e) => handleParticipantAccessChange(participant.id, e.target.checked)}
+                              />
+                              <label className="form-check-label" htmlFor={`accessSwitch-${participant.id}`}>
+                                Give access
+                              </label>
+                            </div>
+                            <button 
+                              type="button" 
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => removeParticipant(participant.id)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {participants.length === 0 && hosts.length === 0 && (
+                  <div className="alert alert-info">No participants or hosts added to this meeting.</div>
+                )}
+            </div>
+  
+            <div className="mb-3 mb-md-4">
+              <label htmlFor="description" className="form-label">Description</label>
+              <textarea
+                className="form-control"
+                id="description"
+                rows="3"
+                placeholder="A short description for the meeting"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                readOnly={!isEditing}
+              ></textarea>
+            </div>
+  
+            <div className="mb-3 mb-md-4">
+              <label htmlFor="location" className="form-label">Location</label>
+              <div className="input-group">
+                <input
+                  type="text"
                   className="form-control"
-                  id="description"
-                  rows="3"
                   readOnly={!isEditing}
-                  placeholder="A short description for the meeting"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                ></textarea>
-              </div>
-    
-              <div className="mb-3 mb-md-4">
-                <label htmlFor="location" className="form-label">Location</label>
-                <div className="input-group">
-                  <input
-                    type="text"
-                    className="form-control"
-                    readOnly={!isEditing}
-                    placeholder="Choose a place for the meeting"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                  />
-                  {isEditing && (
-                    <button className="btn btn-outline-secondary" type="button">
-                      <FaChevronDown />
-                    </button>
-                  )}
-                </div>
-              </div>
-    
-              <div className="mb-4">
-                <label htmlFor="repeat" className="form-label">Repeat</label>
-                <div className="input-group">
-                  <input
-                    type="text"
-                    className="form-control"
-                    readOnly={!isEditing}
-                    placeholder="Does not repeat"
-                    value={repeat || 'Does not repeat'}
-                    onChange={(e) => setRepeat(e.target.value)}
-                  />
-                  {isEditing && (
-                    <button className="btn btn-outline-secondary" type="button">
-                      <FaChevronDown />
-                    </button>
-                  )}
-                </div>
-              </div>
-    
-              <div className="d-flex flex-wrap gap-2 mt-4">
-                <Link href={'/content'}><button className="btn btn-primary me-2">Upload</button></Link>
-                <Link href={'/notes'}><button className="btn btn-primary">Take notes</button></Link>
+                  placeholder="Choose a place for the meeting"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
                 {isEditing && (
-                  <button className="btn btn-success ms-auto">Save Changes</button>
+                  <button className="btn btn-outline-secondary" type="button">
+                    <FaChevronDown />
+                  </button>
                 )}
               </div>
             </div>
+  
+            <div className="mb-4">
+              <label htmlFor="repeat" className="form-label">Repeat</label>
+              <div className="input-group">
+                <input
+                  type="text"
+                  className="form-control"
+                  readOnly={!isEditing}
+                  placeholder="Does not repeat"
+                  value={repeat}
+                  onChange={(e) => setRepeat(e.target.value)}
+                />
+                {isEditing && (
+                  <button className="btn btn-outline-secondary" type="button">
+                    <FaChevronDown />
+                  </button>
+                )}
+              </div>
+            </div>
+  
+            <div className="d-flex flex-wrap gap-2 mt-4">
+              {isEditing ? (
+                <>
+                  <button className="btn btn-success me-2" onClick={handleSaveChanges}>Save Changes</button>
+                  <button className="btn btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  {/* Show Cancel Meeting button only if user is the creator */}
+                  {userRole === 'creator' && (
+                    <button className="btn btn-danger me-2" onClick={cancelMeeting}>
+                      Cancel Meeting
+                    </button>
+                  )}
+                  <Link href={'/content'}><button className="btn btn-primary me-2">Upload</button></Link>
+                  <Link href={'/notes'}><button className="btn btn-primary">Take notes</button></Link>
+                </>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     );
 };
 
 export default function Details() {
-  const params = useParams();
-  const meetingId = params.id;
-  
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [isMobile, setIsMobile] = useState(false);
@@ -669,7 +1096,7 @@ export default function Details() {
         </div>
         
         <div>
-            <MeetingForm meetingId={meetingId} />
+            <MeetingForm />
         </div>
       </div>
     </div>

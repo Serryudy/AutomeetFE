@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import Image from 'next/image';
 import { MdGroupAdd } from 'react-icons/md';
 import NotificationIcon from './NotificationIcon';
-import ProfileMenu from './profilemenu';
+import ProfileMenu from './profilemenu'; // This now imports just the ProfileMenu component
 import NotificationsComponent from './notification';
 
 const ProfileHeader = () => {
