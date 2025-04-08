@@ -1,25 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-<<<<<<< HEAD
 const Availability = () => {
-=======
-const Availability = ({ meetingId }) => {
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const [isMobile, setIsMobile] = useState(false);
   const [visibleDays, setVisibleDays] = useState(7);
   const [startDayIndex, setStartDayIndex] = useState(0);
   const [timeZone, setTimeZone] = useState('');
-<<<<<<< HEAD
   const [selectedSlots, setSelectedSlots] = useState([]); // Changed to array to store multiple slots
   const [nextSlotId, setNextSlotId] = useState(1); // To generate unique IDs for slots
-=======
-  const [selectedSlots, setSelectedSlots] = useState([]);
-  const [nextSlotId, setNextSlotId] = useState(1);
-  const [adminTimeRanges, setAdminTimeRanges] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [meetingDuration, setMeetingDuration] = useState(70);
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   
   const now = new Date();
   const currentHour = now.getHours();
@@ -29,106 +16,6 @@ const Availability = ({ meetingId }) => {
   // Constant for the duration of a selected time slot in minutes
   const SELECTED_SLOT_DURATION = 70; // 1 hour and 10 minutes
   
-<<<<<<< HEAD
-=======
-  
-  useEffect(() => {
-    const fetchMeetingDetails = async () => {
-      if (!meetingId || !jwtToken) {
-        setIsLoading(false);
-        return;
-      }
-      
-      try {
-        const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          withCredentials: true
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Meeting details API request failed with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Extract duration from meeting details
-        // Use groupDuration for group meetings, or check for other duration property
-        const duration = parseInt(data.groupDuration || data.duration || 60, 10);
-        
-        // Set the meeting duration state
-        setMeetingDuration(duration);
-        
-        // Continue with fetching availability data after getting the duration
-        await fetchTimeRanges();
-      } catch (err) {
-        console.error('Error fetching meeting details:', err);
-        setError('Failed to load meeting details. Please try again later.');
-        setIsLoading(false);
-      }
-    };
-    
-    // Fetch time ranges from API
-    const fetchTimeRanges = async () => {
-      try {
-        const response = await fetch(`http://localhost:8080/create/availability/${meetingId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          withCredentials: true
-        });
-        
-        if (!response.ok) {
-          throw new Error(`API request failed with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Transform API data to the format our component uses
-        const formattedRanges = [];
-        let adminId = 1;
-        
-        // Group time slots by username to assign consistent colors
-        const userMap = {};
-        
-        data.forEach(item => {
-          if (!userMap[item.username]) {
-            userMap[item.username] = adminId++;
-          }
-          
-          item.timeSlots.forEach(slot => {
-            const startDate = new Date(slot.startTime);
-            const endDate = new Date(slot.endTime);
-            
-            formattedRanges.push({
-              adminId: userMap[item.username], // Consistent color based on username
-              day: startDate.getDay(), // 0 for Sunday, 1 for Monday, etc.
-              startHour: startDate.getHours(),
-              startMinute: startDate.getMinutes(),
-              endHour: endDate.getHours(),
-              endMinute: endDate.getMinutes(),
-              username: item.username // Store username for display
-            });
-          });
-        });
-        
-        setAdminTimeRanges(formattedRanges);
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Error fetching availability data:', err);
-        setError('Failed to load availability data. Please try again later.');
-        setIsLoading(false);
-      }
-    };
-    
-    // Start the fetch chain with meeting details
-    fetchMeetingDetails();
-  }, [meetingId]);
-  
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   // Get user's time zone
   useEffect(() => {
     const getTimeZone = () => {
@@ -182,19 +69,11 @@ const Availability = ({ meetingId }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [currentDay]);
   
-<<<<<<< HEAD
-  // Generate time slots from 6:00 AM to 10:00 PM (used for display)
-  const timeSlots = Array.from({ length: 24 }, (_, i) => {
-    const hour = (i + 6) % 24; // Start from 6 AM and cycle back
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-=======
   // Generate time slots from 12:00 AM to 12:00 PM (updated)
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
     const hour = i; // Start from 0 (12 AM) to 23 (11 PM)
     const period = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour === 0 || hour === 12 ? 12 : hour % 12;
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     return `${displayHour} ${period}`;
   });
 
@@ -218,11 +97,10 @@ const Availability = ({ meetingId }) => {
   // Visible days
   const visibleDaysArray = days.slice(startDayIndex, startDayIndex + visibleDays);
   
-<<<<<<< HEAD
   // Admin time ranges data
   const adminTimeRanges = [
     // Admin 1 (Light Yellow)
-    { adminId: 1, day: 0, startHour: 6, startMinute: 0, endHour: 10, endMinute: 0 },
+    { adminId: 1, day: 0, startHour: 0, startMinute: 0, endHour: 10, endMinute: 0 },
     { adminId: 1, day: 1, startHour: 8, startMinute: 0, endHour: 12, endMinute: 0 },
     { adminId: 1, day: 2, startHour: 10, startMinute: 0, endHour: 14, endMinute: 0 },
     { adminId: 1, day: 3, startHour: 15, startMinute: 0, endHour: 17, endMinute: 0 },
@@ -241,51 +119,33 @@ const Availability = ({ meetingId }) => {
     { adminId: 3, day: 1, startHour: 18, startMinute: 0, endHour: 22, endMinute: 0 },
     { adminId: 3, day: 3, startHour: 8, startMinute: 0, endHour: 14, endMinute: 0 },
     { adminId: 3, day: 3, startHour: 17, startMinute: 0, endHour: 22, endMinute: 0 },
-    { adminId: 3, day: 4, startHour: 6, startMinute: 0, endHour: 12, endMinute: 0 },
-    { adminId: 3, day: 6, startHour: 6, startMinute: 0, endHour: 22, endMinute: 0 },
+    { adminId: 3, day: 4, startHour: 0, startMinute: 0, endHour: 12, endMinute: 0 },
+    { adminId: 3, day: 6, startHour: 0, startMinute: 0, endHour: 22, endMinute: 0 },
     
     // Admin 4 (Light Magenta)
     { adminId: 4, day: 0, startHour: 14, startMinute: 0, endHour: 20, endMinute: 0 },
     { adminId: 4, day: 0, startHour: 18, startMinute: 0, endHour: 22, endMinute: 0 },
     { adminId: 4, day: 1, startHour: 16, startMinute: 0, endHour: 18, endMinute: 0 },
-    { adminId: 4, day: 3, startHour: 6, startMinute: 0, endHour: 8, endMinute: 0 },
+    { adminId: 4, day: 3, startHour: 0, startMinute: 0, endHour: 8, endMinute: 0 },
     { adminId: 4, day: 3, startHour: 14, startMinute: 0, endHour: 15, endMinute: 0 },
   ];
   
-=======
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   // Function to get color based on adminId
   const getAdminColor = (adminId) => {
     const colors = {
       1: '#ffffcc', // Light Yellow
       2: '#ffe6cc', // Light Orange
       3: '#ffcccc', // Light Pink
-<<<<<<< HEAD
       4: '#ffccff'  // Light Magenta
-=======
-      4: '#ffccff',  // Light Magenta
-      5: '#ccffcc', // Light Green
-      6: '#ccffff', // Light Cyan
-      7: '#ccccff', // Light Blue
-      8: '#e6ccff', // Light Purple
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     };
     return colors[adminId] || '#f0f0f0';
   };
   
-<<<<<<< HEAD
-  // Function to calculate time range position and style
-  const getTimeRangeStyle = (timeRange) => {
-    const hourHeight = 60; // 60px per hour
-    // Calculate starting position (adjust for 6 AM start)
-    const startOffset = ((timeRange.startHour + timeRange.startMinute / 60) - 6) * hourHeight;
-=======
   // Function to calculate time range position and style - updated for 12am start
   const getTimeRangeStyle = (timeRange) => {
     const hourHeight = 60; // 60px per hour
     // Calculate starting position (adjust for 12 AM start)
     const startOffset = (timeRange.startHour + timeRange.startMinute / 60) * hourHeight;
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     // Calculate height based on duration
     const rangeHeight = ((timeRange.endHour - timeRange.startHour) + (timeRange.endMinute - timeRange.startMinute) / 60) * hourHeight;
     
@@ -304,16 +164,8 @@ const Availability = ({ meetingId }) => {
     };
   };
   
-<<<<<<< HEAD
-  // Click handler for time slots
-  // Click handler for time slots
-  // Click handler for time slots
   // Click handler for time slots
   const handleTimeRangeClick = (e, day, timeRange, dayIndex) => {
-=======
-   // Click handler for time slots - updated to use dynamic meetingDuration
-   const handleTimeRangeClick = (e, day, timeRange, dayIndex) => {
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     e.stopPropagation();
     
     // Calculate start time from click position
@@ -322,32 +174,18 @@ const Availability = ({ meetingId }) => {
     const hourHeight = 60;
     
     // Calculate hour based on click position
-<<<<<<< HEAD
-    const clickHour = 6 + clickY / hourHeight;
+    const clickHour = clickY / hourHeight; // Updated to start from 0 (12 AM)
     const hour = Math.floor(clickHour);
     const minute = Math.floor((clickHour - hour) * 60);
     
     // Calculate end time
     const endHour = hour + Math.floor(SELECTED_SLOT_DURATION / 60);
     const endMinute = minute + (SELECTED_SLOT_DURATION % 60);
-=======
-    const clickHour = clickY / hourHeight; // Updated to start from 0 (12 AM)
-    const hour = Math.floor(clickHour);
-    const minute = Math.floor((clickHour - hour) * 60);
-    
-    // Calculate end time using the dynamic meetingDuration
-    const endHour = hour + Math.floor(meetingDuration / 60);
-    const endMinute = minute + (meetingDuration % 60);
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     
     // Calculate positions for validation
     const timeRangeTop = parseFloat(getTimeRangeStyle(timeRange).top);
     const startPosition = timeRangeTop + clickY;
-<<<<<<< HEAD
     const endPosition = startPosition + (SELECTED_SLOT_DURATION / 60) * hourHeight;
-=======
-    const endPosition = startPosition + (meetingDuration / 60) * hourHeight;
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     
     // Validate that the entire slot is within the admin time range
     if (!isSlotWithinAdminTimeRange(day, startPosition, endPosition)) {
@@ -367,10 +205,6 @@ const Availability = ({ meetingId }) => {
       day: day,
       dayIndex: dayIndex,
       admin: timeRange.adminId,
-<<<<<<< HEAD
-=======
-      adminName: timeRange.username || `Admin ${timeRange.adminId}`,
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
       startTime: startTime,
       endTime: endTime,
       verticalPosition: startPosition,
@@ -414,18 +248,10 @@ const Availability = ({ meetingId }) => {
     setSelectedSlots(selectedSlots.filter(slot => slot.id !== slotId));
   };
   
-<<<<<<< HEAD
-  // Function to check if a position is within any admin time range for a given day
-  // Function to check if a slot is completely within any admin time range for a given day
-  const isSlotWithinAdminTimeRange = (day, startPosition, endPosition) => {
-    const startHour = 6 + startPosition / 60; // Convert position to hour (6AM is the start)
-    const endHour = 6 + endPosition / 60; // Convert end position to hour
-=======
   // Function to check if a slot is completely within any admin time range for a given day
   const isSlotWithinAdminTimeRange = (day, startPosition, endPosition) => {
     const startHour = startPosition / 60; // Convert position to hour (0 = 12 AM)
     const endHour = endPosition / 60; // Convert end position to hour
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     
     // Get all admin time ranges for this day
     const dayTimeRanges = adminTimeRanges.filter(range => range.day === day);
@@ -437,14 +263,9 @@ const Availability = ({ meetingId }) => {
       return startHour >= rangeStartHour && endHour <= rangeEndHour;
     });
   };
-<<<<<<< HEAD
-  // Current time indicator
-  const currentTimePosition = ((currentHour + currentMinute / 60) - 6) * 60; // Adjust for 6 AM start
-=======
   
   // Current time indicator - updated for 12am start
   const currentTimePosition = (currentHour + currentMinute / 60) * 60;
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   
   // Scroll to current time on load
   const calendarRef = useRef(null);
@@ -455,21 +276,13 @@ const Availability = ({ meetingId }) => {
 
   const calculateTimeFromPosition = (position) => {
     const hourHeight = 60;
-<<<<<<< HEAD
-    const timeHour = 6 + position / hourHeight; // 6 is the starting hour (6 AM)
-=======
     const timeHour = position / hourHeight; // Updated for 12 AM start
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     const hour = Math.floor(timeHour);
     const minute = Math.floor((timeHour - hour) * 60);
     
     return { hour, minute };
   };
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const startDragging = (e, slot) => {
     e.stopPropagation();
     
@@ -505,31 +318,18 @@ const Availability = ({ meetingId }) => {
       prevSlots.map(slot => {
         if (slot.id === draggedSlot.id) {
           // Calculate new position with proper bounds checking
-<<<<<<< HEAD
-          const totalGridHeight = 17 * 60; // Total grid height (17 time slots * 60px)
-=======
           const totalGridHeight = 24 * 60; // Total grid height (24 time slots * 60px)
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
           const newPosition = Math.max(0, Math.min(totalGridHeight - 1, draggedSlot.initialPosition + deltaY));
           
           // Calculate new time based on position
           const { hour, minute } = calculateTimeFromPosition(newPosition);
           
-<<<<<<< HEAD
           // Calculate end time (adding the fixed duration)
           const endHour = hour + Math.floor(SELECTED_SLOT_DURATION / 60);
           const endMinute = minute + (SELECTED_SLOT_DURATION % 60);
           
           // Calculate end position for validation
           const endPosition = newPosition + (SELECTED_SLOT_DURATION / 60) * 60;
-=======
-          // Calculate end time (adding the dynamic duration)
-          const endHour = hour + Math.floor(meetingDuration / 60);
-          const endMinute = minute + (meetingDuration % 60);
-          
-          // Calculate end position for validation
-          const endPosition = newPosition + (meetingDuration / 60) * 60;
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
           
           return {
             ...slot,
@@ -551,13 +351,8 @@ const Availability = ({ meetingId }) => {
       const slot = selectedSlots.find(s => s.id === draggedSlot.id);
       
       if (slot) {
-<<<<<<< HEAD
         // Calculate end position based on the slot duration
         const endPosition = slot.verticalPosition + (SELECTED_SLOT_DURATION / 60) * 60;
-=======
-        // Calculate end position based on the dynamic slot duration
-        const endPosition = slot.verticalPosition + (meetingDuration / 60) * 60;
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
         
         // Check if the entire slot is within a valid admin time range
         const isValid = isSlotWithinAdminTimeRange(slot.day, slot.verticalPosition, endPosition);
@@ -584,11 +379,7 @@ const Availability = ({ meetingId }) => {
   };
 
   // Set up event listeners for dragging
-<<<<<<< HEAD
-useEffect(() => {
-=======
   useEffect(() => {
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     const handleMouseMove = (e) => handleDrag(e);
     const handleMouseUp = () => endDragging();
     
@@ -605,17 +396,8 @@ useEffect(() => {
   
   useEffect(() => {
     if (calendarRef.current) {
-<<<<<<< HEAD
-      // Scroll to current time (with some offset) if it's between 6 AM and 10 PM
-      if (currentHour >= 6 && currentHour <= 22) {
-        calendarRef.current.scrollTop = currentTimePosition - 100;
-      } else {
-        calendarRef.current.scrollTop = 0; // Default to 6 AM
-      }
-=======
       // Scroll to current time (with some offset)
       calendarRef.current.scrollTop = currentTimePosition - 100;
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     }
   }, [currentTimePosition]);
   
@@ -631,13 +413,8 @@ useEffect(() => {
     // The minimum position is 0 (top of the grid) plus half the popup height
     const minPosition = popupHeight / 2;
     
-<<<<<<< HEAD
-    // Calculate total grid height (17 time slots * 60px per hour)
-    const gridHeight = 17 * 60;
-=======
     // Calculate total grid height (24 time slots * 60px per hour)
     const gridHeight = 24 * 60;
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     
     // The maximum position is the grid height minus half the popup height
     const maxPosition = gridHeight - popupHeight / 2;
@@ -646,27 +423,6 @@ useEffect(() => {
     return Math.min(Math.max(position, minPosition), maxPosition);
   };
   
-<<<<<<< HEAD
-=======
-  if (isLoading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '300px' }}>
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-  
-  if (error) {
-    return (
-      <div className="alert alert-danger" role="alert">
-        {error}
-      </div>
-    );
-  }
-  
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   return (
     <div className="container-fluid p-0 position-relative">
       {/* Calendar Content */}
@@ -795,33 +551,10 @@ useEffect(() => {
                           ...getTimeRangeStyle(timeRange),
                           pointerEvents: 'auto' // Enable clicks on this element
                         }}
-<<<<<<< HEAD
                       />
                     ))}
                     
                     {/* Place multiple popups inside the day column */}
-                    {/* Place multiple popups inside the day column */}
-=======
-                      >
-                        {/* Add a small label for the username if available */}
-                        {timeRange.username && (
-                          <div style={{ 
-                            position: 'absolute', 
-                            top: '2px', 
-                            left: '5px', 
-                            fontSize: '10px',
-                            color: '#333',
-                            fontWeight: 'bold',
-                            textShadow: '0 0 2px white'
-                          }}>
-                            {timeRange.username}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    
-                    {/* Place multiple popups inside the day column */}
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     {daySlotsToDisplay.map((slot, index) => (
                       <div 
                         key={`slot-${slot.id}`}
@@ -852,14 +585,6 @@ useEffect(() => {
                           {slot.startTime}
                           <br />
                           {slot.endTime}
-<<<<<<< HEAD
-=======
-                          {slot.adminName && (
-                            <div className="mt-1 small text-muted">
-                              Host: {slot.adminName}
-                            </div>
-                          )}
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                         </div>
                       </div>
                     ))}
@@ -868,25 +593,6 @@ useEffect(() => {
               })}
               
               {/* Current Time Indicator */}
-<<<<<<< HEAD
-              {currentHour >= 6 && currentHour <= 22 && (
-                <div className="position-absolute d-flex align-items-center"
-                     style={{ 
-                       top: `${currentTimePosition}px`, 
-                       height: '2px', 
-                       backgroundColor: '#1a1aff', 
-                       zIndex: 3, 
-                       left: '0',
-                       right: '0',
-                       width: '100%'
-                     }}>
-                  <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
-                       style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
-                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              )}
-=======
               <div className="position-absolute d-flex align-items-center"
                    style={{ 
                      top: `${currentTimePosition}px`, 
@@ -902,7 +608,6 @@ useEffect(() => {
                   {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
             </div>
           </div>
         </div>
@@ -937,10 +642,6 @@ useEffect(() => {
           </div>
         </div>
       )}
-<<<<<<< HEAD
-=======
-      
->>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
       {/* Error Toast */}
       {showError && (
         <div 

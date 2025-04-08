@@ -5,6 +5,12 @@ import { RiMovie2Line } from 'react-icons/ri';
 import Calendar from './calendar';
 import 'react-datepicker/dist/react-datepicker.css';
 import Link from 'next/link';
+<<<<<<< HEAD
+=======
+import axios from 'axios';
+
+
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
 const FormStepNavigator = ({ currentStep, totalSteps, onNext }) => {
   return (
@@ -64,22 +70,43 @@ const SuccessStep = ({ onToCalendar }) => {
 
 const DirectScheduleForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
+<<<<<<< HEAD
   const [selectedDate, setSelectedDate] = useState(new Date());
+=======
+  const [selectedDate, setSelectedDate] = useState(null);
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const [showCalendar, setShowCalendar] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
   const [startTime, setStartTime] = useState("09:00 AM");
   const [endTime, setEndTime] = useState("10:00 AM");
+<<<<<<< HEAD
   const [timeSlots, setTimeSlots] = useState([]);
   const [timeError, setTimeError] = useState('');
   const [participants, setParticipants] = useState([
     { id: 1, name: 'John_doe', group: 'Group name if any' }
   ]);
   const [searchContact, setSearchContact] = useState('');
+=======
+  const [timeSlot, setTimeSlot] = useState(null);
+  const [timeError, setTimeError] = useState('');
+  const [dateError, setDateError] = useState('');
+  const [participants, setParticipants] = useState([]);
+  const [searchContact, setSearchContact] = useState(''); // Restored searchContact
+  const [contacts, setContacts] = useState([]); 
+  const [showContactDropdown, setShowContactDropdown] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
+  const [repeat, setRepeat] = useState('none');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
   // Refs for detecting clicks outside the dropdown
   const startTimeRef = useRef(null);
   const endTimeRef = useRef(null);
+<<<<<<< HEAD
 
   const handleNext = () => {
     if (currentStep < 3) setCurrentStep(currentStep + 1);
@@ -90,6 +117,111 @@ const DirectScheduleForm = () => {
     setShowCalendar(false);
   };
 
+=======
+  const contactDropdownRef = useRef(null);
+
+  // Fetch contacts when component mounts
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const response = await axios.get('http://localhost:8080/create/contacts', {
+          withCredentials: true
+        });
+
+        // Ensure response.data is an array
+        const contactsData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data.contacts || []); // Handle different response structures
+
+        setContacts(contactsData);
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+        setError('Failed to load contacts');
+        setContacts([]); // Ensure contacts is always an array
+      }
+    };
+
+    fetchContacts();
+
+    // Click outside handler for contact dropdown
+    const handleClickOutside = (event) => {
+      if (contactDropdownRef.current && 
+          !contactDropdownRef.current.contains(event.target)) {
+        setShowContactDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Handle creating a meeting
+  const handleCreateMeeting = async () => {
+    // Validate required fields
+    if (!selectedDate || !startTime || !endTime || participants.length === 0) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Convert local time to UTC ISO string
+      const formatTimeToUTC = (date, time) => {
+        const [timeStr, period] = time.split(' ');
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        
+        // Adjust hours for 12-hour format
+        let adjustedHours = hours;
+        if (period === 'PM' && hours !== 12) {
+          adjustedHours += 12;
+        }
+        if (period === 'AM' && hours === 12) {
+          adjustedHours = 0;
+        }
+
+        const meetingDateTime = new Date(date);
+        meetingDateTime.setHours(adjustedHours, minutes, 0, 0);
+
+        return meetingDateTime.toISOString();
+      };
+
+      const meetingPayload = {
+        title,
+        location,
+        description,
+        directTimeSlot: {
+          startTime: formatTimeToUTC(selectedDate, startTime),
+          endTime: formatTimeToUTC(selectedDate, endTime)
+        },
+        participantIds: participants.map(p => p.id),
+        repeat
+      };
+
+      const response = await axios.post('http://localhost:8080/create/direct/meetings', meetingPayload, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      });
+
+      // Move to success step
+      setCurrentStep(3);
+    } catch (error) {
+      console.error('Error creating meeting:', error);
+      setError('Failed to create meeting. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  
+
+  // Time-related utility functions
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const generateTimeOptions = () => {
     const times = [];
     let hour = 12;
@@ -103,6 +235,7 @@ const DirectScheduleForm = () => {
     return times;
   };
 
+<<<<<<< HEAD
   // Time validation function
   const validateTimeFormat = (time) => {
     const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/i;
@@ -125,10 +258,57 @@ const DirectScheduleForm = () => {
     }
 
     return hours * 60 + minutes;
+=======
+  const handleDateSelect = (date) => {
+    const newDate = date instanceof Date ? date : new Date(date);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (newDate < today) {
+      setDateError('Please select a date from today or in the future');
+      return;
+    }
+
+    setDateError('');
+    setSelectedDate(newDate);
+    setShowCalendar(false);
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   };
 
   const handleAddTimeSlot = () => {
     setTimeError('');
+<<<<<<< HEAD
+=======
+    setDateError('');
+
+    if (!selectedDate) {
+      setDateError('Please select a date');
+      return;
+    }
+
+    const validateTimeFormat = (time) => {
+      const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/i;
+      return timeRegex.test(time);
+    };
+
+    const convertTo24HourFormat = (time) => {
+      const [timePart, period] = time.split(' ');
+      let [hours, minutes] = timePart.split(':');
+      
+      hours = parseInt(hours);
+      minutes = parseInt(minutes);
+
+      if (period.toLowerCase() === 'pm' && hours !== 12) {
+        hours += 12;
+      }
+      if (period.toLowerCase() === 'am' && hours === 12) {
+        hours = 0;
+      }
+
+      return hours * 60 + minutes;
+    };
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
     if (!validateTimeFormat(startTime)) {
       setTimeError('Invalid start time format. Use HH:MM AM/PM');
@@ -149,6 +329,7 @@ const DirectScheduleForm = () => {
     }
 
     const newTimeSlot = {
+<<<<<<< HEAD
       id: Date.now(),
       start: startTime,
       end: endTime
@@ -168,6 +349,23 @@ const DirectScheduleForm = () => {
 
   const handleRemoveTimeSlot = (id) => {
     setTimeSlots(timeSlots.filter(slot => slot.id !== id));
+=======
+      date: selectedDate,
+      startTime: startTime,
+      endTime: endTime
+    };
+
+    setTimeSlot(newTimeSlot);
+  };
+
+  // Handlers for time selection and navigation
+  const handleNext = () => {
+    if (currentStep === 2) {
+      handleCreateMeeting();
+    } else if (currentStep < 3) {
+      setCurrentStep(currentStep + 1);
+    }
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   };
 
   const handleTimeSelect = (time, type) => {
@@ -180,6 +378,7 @@ const DirectScheduleForm = () => {
     }
   };
 
+<<<<<<< HEAD
   const handleTimeChange = (value, type) => {
     if (type === "start") {
       setStartTime(value);
@@ -193,6 +392,13 @@ const DirectScheduleForm = () => {
       setShowStartTime(true);
     } else if (type === "end") {
       setShowEndTime(true);
+=======
+  const handleAddParticipant = (contact) => {
+    if (!participants.some(p => p.id === contact.id)) {
+      setParticipants([...participants, contact]);
+      setShowContactDropdown(false);
+      setSearchContact(''); // Reset search
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     }
   };
 
@@ -200,6 +406,7 @@ const DirectScheduleForm = () => {
     setParticipants(participants.filter(participant => participant.id !== id));
   };
 
+<<<<<<< HEAD
   const handleToCalendar = () => {
     console.log('Redirecting to calendar');
   };
@@ -221,6 +428,27 @@ const DirectScheduleForm = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+=======
+
+  // Filtered contacts for search functionality
+  const filteredContacts = contacts.filter(contact => 
+    contact.username.toLowerCase().includes(searchContact.toLowerCase()) ||
+    (contact.name && contact.name.toLowerCase().includes(searchContact.toLowerCase()))
+  );
+
+  // Render date and time slot display
+  const renderDateDisplay = () => {
+    if (dateError) {
+      return <div className="text-danger">{dateError}</div>;
+    }
+    return selectedDate ? selectedDate.toLocaleDateString() : "Select Date";
+  };
+
+  const formatTimeSlotDisplay = () => {
+    if (!timeSlot) return null;
+    return `${timeSlot.date.toLocaleDateString()} | ${timeSlot.startTime} - ${timeSlot.endTime}`;
+  };
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
   return (
     <div className="h-100 font-inter d-flex flex-column">
@@ -230,7 +458,18 @@ const DirectScheduleForm = () => {
         </h3>
       )}
 
+<<<<<<< HEAD
       <form className="flex-grow-1">
+=======
+      {error && (
+        <div className="alert alert-danger mb-3">
+          {error}
+        </div>
+      )}
+
+      <form className="flex-grow-1">
+        {/* Step 1: Meeting Details */}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
@@ -238,10 +477,20 @@ const DirectScheduleForm = () => {
               <input
                 type="text"
                 className="form-control form-control-lg"
+<<<<<<< HEAD
                 placeholder="John Doe"
               />
             </div>
 
+=======
+                placeholder="Meeting title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+
+            {/* Time Slot Selection */}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
             <div className="mb-4">
               <label className="form-label fw-medium">Time slot</label>
               <div className="p-2 bg-light rounded position-relative">
@@ -252,7 +501,11 @@ const DirectScheduleForm = () => {
                     onClick={() => setShowCalendar(!showCalendar)}
                   >
                     <div className="text-center flex-grow-1">
+<<<<<<< HEAD
                       {selectedDate ? selectedDate.toDateString() : "Select Date"}
+=======
+                      {renderDateDisplay()}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     </div>
                     <div className="ms-2">
                       <FaCalendarAlt />
@@ -264,10 +517,21 @@ const DirectScheduleForm = () => {
                       className="position-absolute shadow rounded"
                       style={{ top: "60px", left: "10px", zIndex: 10 }}
                     >
+<<<<<<< HEAD
                       <Calendar onChange={handleDateSelect} value={selectedDate} />
                     </div>
                   )}
 
+=======
+                      <Calendar 
+                        onDateSelect={handleDateSelect} 
+                        value={selectedDate} 
+                      />
+                    </div>
+                  )}
+
+                  {/* Start Time Selection */}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                   <div className="position-relative" ref={startTimeRef}>
                     <input
                       type="text"
@@ -275,8 +539,13 @@ const DirectScheduleForm = () => {
                       style={{ minWidth: "100px", cursor: "pointer" }}
                       placeholder="HH:MM AM/PM"
                       value={startTime}
+<<<<<<< HEAD
                       onChange={(e) => handleTimeChange(e.target.value, "start")}
                       onDoubleClick={() => handleDoubleClick("start")}
+=======
+                      onChange={(e) => setStartTime(e.target.value)}
+                      onFocus={() => setShowStartTime(true)}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     />
                     {showStartTime && (
                       <div
@@ -297,6 +566,10 @@ const DirectScheduleForm = () => {
                     )}
                   </div>
 
+<<<<<<< HEAD
+=======
+                  {/* End Time Selection */}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                   <div className="position-relative" ref={endTimeRef}>
                     <input
                       type="text"
@@ -304,8 +577,13 @@ const DirectScheduleForm = () => {
                       style={{ minWidth: "100px", cursor: "pointer" }}
                       placeholder="HH:MM AM/PM"
                       value={endTime}
+<<<<<<< HEAD
                       onChange={(e) => handleTimeChange(e.target.value, "end")}
                       onDoubleClick={() => handleDoubleClick("end")}
+=======
+                      onChange={(e) => setEndTime(e.target.value)}
+                      onFocus={() => setShowEndTime(true)}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     />
                     {showEndTime && (
                       <div
@@ -346,6 +624,7 @@ const DirectScheduleForm = () => {
                   </div>
                 )}
 
+<<<<<<< HEAD
                 {timeSlots.length > 0 && (
                   <div className="mt-3">
                     <h6 className="text-muted mb-2">Added Time Slots</h6>
@@ -366,33 +645,62 @@ const DirectScheduleForm = () => {
                           </button>
                         </div>
                       ))}
+=======
+                {timeSlot && (
+                  <div className="mt-3">
+                    <h6 className="text-muted mb-2">Selected Time Slot</h6>
+                    <div className="badge bg-white text-dark d-flex align-items-center gap-2 p-2">
+                      {formatTimeSlotDisplay()}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
+<<<<<<< HEAD
+=======
+            {/* Description and Other Details */}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
             <div className="mb-4">
               <label className="form-label fw-medium">Description</label>
               <textarea
                 className="form-control"
                 rows="3"
                 placeholder="A short description for the meeting"
+<<<<<<< HEAD
+=======
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               />
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Location</label>
+<<<<<<< HEAD
               <select className="form-select">
                 <option>Choose a place for the meeting</option>
                 <option>Conference Room</option>
                 <option>Virtual Meeting</option>
                 <option>Office</option>
+=======
+              <select 
+                className="form-select"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              >
+                <option value="">Choose a place for the meeting</option>
+                <option value="Conference Room">Conference Room</option>
+                <option value="Virtual Meeting">Virtual Meeting</option>
+                <option value="Office">Office</option>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               </select>
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Repeat</label>
+<<<<<<< HEAD
               <select className="form-select">
                 <option>Does not repeat</option>
                 <option>Daily</option>
@@ -401,11 +709,26 @@ const DirectScheduleForm = () => {
                 <option>Annually on exact Day</option>
                 <option>Every weekday</option>
                 <option>Custom</option>
+=======
+              <select 
+                className="form-select"
+                value={repeat}
+                onChange={(e) => setRepeat(e.target.value)}
+              >
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly on the Day</option>
+                <option value="monthly">Monthly on which Day</option>
+                <option value="annually">Annually on exact Day</option>
+                <option value="weekday">Every weekday</option>
+                <option value="custom">Custom</option>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               </select>
             </div>
           </div>
         )}
 
+<<<<<<< HEAD
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4">
@@ -473,22 +796,130 @@ const DirectScheduleForm = () => {
           <SuccessStep onToCalendar={handleToCalendar} />
         )}
 
+=======
+        {/* Step 2: Add Participants */}
+        {currentStep === 2 && (
+        <div className="animate-fade-in">
+          <div className="mb-4">
+            <h4 className="form-label fw-medium mb-3">Add participants</h4>
+            
+            <div className="mb-3 position-relative" ref={contactDropdownRef}>
+              <div className="input-group">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search contacts"
+                  value={searchContact}
+                  onChange={(e) => {
+                    setSearchContact(e.target.value);
+                    setShowContactDropdown(true);
+                  }}
+                  onFocus={() => setShowContactDropdown(true)}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowContactDropdown(!showContactDropdown)}
+                >
+                  <FaChevronDown />
+                </button>
+              </div>
+
+              {showContactDropdown && (
+                <div 
+                  className="position-absolute w-100 bg-white shadow rounded mt-1 max-h-200 overflow-auto"
+                  style={{ zIndex: 1000 }}
+                >
+                  {filteredContacts.map(contact => (
+                    <div 
+                      key={contact.id} 
+                      className={`p-2 hover-bg-light cursor-pointer ${
+                        participants.some(p => p.id === contact.id) ? 'bg-light' : ''
+                      }`}
+                      onClick={() => handleAddParticipant(contact)}
+                    >
+                      <div className="d-flex align-items-center">
+                        <img 
+                          src="/profile.png" 
+                          alt="participant" 
+                          className="rounded-circle me-3"
+                          style={{width: '30px', height: '30px'}}
+                        />
+                        <div>
+                          <div className="fw-bold">{contact.name || contact.username}</div>
+                          <small className="text-muted">{contact.role || 'No group'}</small>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {participants.map((participant) => (
+              <div 
+                key={participant.id} 
+                className="d-flex align-items-center bg-light p-3 rounded mb-2"
+              >
+                <div className="me-auto d-flex align-items-center">
+                  <img 
+                    src="/profile.png" 
+                    alt="participant" 
+                    className="rounded-circle me-3"
+                    style={{width: '40px', height: '40px'}}
+                  />
+                  <div>
+                    <div className="fw-bold">{participant.name || participant.username}</div>
+                    <small className="text-muted">{participant.role || 'No group'}</small>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  className="btn btn-outline-danger"
+                  onClick={() => handleRemoveParticipant(participant.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+        {/* Success Step */}
+        {currentStep === 3 && (
+          <SuccessStep onToCalendar={() => console.log('Redirecting to calendar')} />
+        )}
+
+        {/* Step Navigator */}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
         {currentStep !== 3 && (
           <FormStepNavigator 
             currentStep={currentStep} 
             totalSteps={3} 
+<<<<<<< HEAD
             onNext={handleNext} 
+=======
+            onNext={handleNext}
+            isLoading={isLoading}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
           />
         )}
       </form>
     </div>
   );
 };
+<<<<<<< HEAD
 
 
 const GroupMeetingForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(new Date());
+=======
+const GroupMeetingForm = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedDate, setSelectedDate] = useState(null);
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const [showCalendar, setShowCalendar] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
@@ -496,14 +927,30 @@ const GroupMeetingForm = () => {
   const [endTime, setEndTime] = useState("10:00 AM");
   const [timeSlots, setTimeSlots] = useState([]);
   const [timeError, setTimeError] = useState('');
+<<<<<<< HEAD
   const [participants, setParticipants] = useState([
     { id: 1, name: 'John_doe', group: 'Group name if any' }
   ]);
   const [searchContact, setSearchContact] = useState('');
+=======
+  const [dateError, setDateError] = useState('');
+  const [participants, setParticipants] = useState([]);
+  const [searchContact, setSearchContact] = useState('');
+  const [contacts, setContacts] = useState([]);
+  const [showContactDropdown, setShowContactDropdown] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
+  const [repeat, setRepeat] = useState('none');
+  const [duration, setDuration] = useState('60');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
   // Refs for detecting clicks outside the dropdown
   const startTimeRef = useRef(null);
   const endTimeRef = useRef(null);
+<<<<<<< HEAD
 
   const handleNext = () => {
     if (currentStep < 3) setCurrentStep(currentStep + 1);
@@ -511,6 +958,142 @@ const GroupMeetingForm = () => {
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
+=======
+  const contactDropdownRef = useRef(null);
+
+  // Fetch contacts when component mounts
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const response = await axios.get('http://localhost:8080/create/contacts', {
+          withCredentials: true
+        });
+
+        const contactsData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data.contacts || []);
+        setContacts(contactsData);
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+        setError('Failed to load contacts');
+        setContacts([]);
+      }
+    };
+
+    fetchContacts();
+
+    // Click outside handler for all dropdowns
+    const handleClickOutside = (event) => {
+      if (contactDropdownRef.current && !contactDropdownRef.current.contains(event.target)) {
+        setShowContactDropdown(false);
+      }
+      if (startTimeRef.current && !startTimeRef.current.contains(event.target)) {
+        setShowStartTime(false);
+      }
+      if (endTimeRef.current && !endTimeRef.current.contains(event.target)) {
+        setShowEndTime(false);
+      }
+      if (!event.target.closest('.calendar-container')) {
+        setShowCalendar(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleCreateGroupMeeting = async () => {
+    if (!timeSlots.length || participants.length === 0) {
+      setError('Please add at least one time slot and participant');
+      return;
+    }
+
+    if (!title.trim()) {
+      setError('Please enter a meeting title');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const formatTimeToUTC = (date, time) => {
+        const [timeStr, period] = time.split(' ');
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        
+        let adjustedHours = hours;
+        if (period === 'PM' && hours !== 12) {
+          adjustedHours += 12;
+        }
+        if (period === 'AM' && hours === 12) {
+          adjustedHours = 0;
+        }
+
+        const meetingDateTime = new Date(date);
+        meetingDateTime.setHours(adjustedHours, minutes, 0, 0);
+        return meetingDateTime.toISOString();
+      };
+
+      const formattedTimeSlots = timeSlots.map(slot => ({
+        startTime: formatTimeToUTC(slot.date, slot.startTime),
+        endTime: formatTimeToUTC(slot.date, slot.endTime)
+      }));
+
+      const meetingPayload = {
+        title: title.trim(),
+        location,
+        description,
+        groupTimeSlots: formattedTimeSlots,
+        groupDuration: duration,
+        participantIds: participants.map(p => p.id),
+        repeat
+      };
+
+      await axios.post('http://localhost:8080/create/group/meetings', meetingPayload, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      });
+
+      setCurrentStep(3);
+    } catch (error) {
+      console.error('Error creating group meeting:', error);
+      setError(error.response?.data?.message || 'Failed to create group meeting. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentStep === 2) {
+      handleCreateGroupMeeting();
+    } else if (currentStep < 3) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleDateSelect = (date) => {
+    const newDate = date instanceof Date ? date : new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (newDate < today) {
+      setDateError('Please select a date from today or in the future');
+      return;
+    }
+
+    setDateError('');
+    setSelectedDate(newDate);
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     setShowCalendar(false);
   };
 
@@ -521,19 +1104,29 @@ const GroupMeetingForm = () => {
 
     for (let i = 0; i < 24; i++) {
       times.push(`${hour}:00 ${period}`);
+<<<<<<< HEAD
+=======
+      times.push(`${hour}:30 ${period}`);
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
       hour = hour === 12 ? 1 : hour + 1;
       if (hour === 12) period = period === "AM" ? "PM" : "AM";
     }
     return times;
   };
 
+<<<<<<< HEAD
   // Time validation function
+=======
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const validateTimeFormat = (time) => {
     const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/i;
     return timeRegex.test(time);
   };
 
+<<<<<<< HEAD
   // Convert time to 24-hour format for comparison
+=======
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const convertTo24HourFormat = (time) => {
     const [timePart, period] = time.split(' ');
     let [hours, minutes] = timePart.split(':');
@@ -553,6 +1146,15 @@ const GroupMeetingForm = () => {
 
   const handleAddTimeSlot = () => {
     setTimeError('');
+<<<<<<< HEAD
+=======
+    setDateError('');
+
+    if (!selectedDate) {
+      setDateError('Please select a date');
+      return;
+    }
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
     if (!validateTimeFormat(startTime)) {
       setTimeError('Invalid start time format. Use HH:MM AM/PM');
@@ -574,12 +1176,25 @@ const GroupMeetingForm = () => {
 
     const newTimeSlot = {
       id: Date.now(),
+<<<<<<< HEAD
       start: startTime,
       end: endTime
     };
 
     const isDuplicate = timeSlots.some(
       slot => slot.start === newTimeSlot.start && slot.end === newTimeSlot.end
+=======
+      date: selectedDate,
+      startTime: startTime,
+      endTime: endTime
+    };
+
+    const isDuplicate = timeSlots.some(
+      slot => 
+        slot.date.toDateString() === newTimeSlot.date.toDateString() &&
+        slot.startTime === newTimeSlot.startTime && 
+        slot.endTime === newTimeSlot.endTime
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
     );
 
     if (isDuplicate) {
@@ -588,6 +1203,12 @@ const GroupMeetingForm = () => {
     }
 
     setTimeSlots([...timeSlots, newTimeSlot]);
+<<<<<<< HEAD
+=======
+    // Reset times for next slot
+    setStartTime("09:00 AM");
+    setEndTime("10:00 AM");
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   };
 
   const handleRemoveTimeSlot = (id) => {
@@ -620,10 +1241,27 @@ const GroupMeetingForm = () => {
     }
   };
 
+<<<<<<< HEAD
+=======
+  const filteredContacts = contacts.filter(contact => 
+    (contact.username && contact.username.toLowerCase().includes(searchContact.toLowerCase())) ||
+    (contact.name && contact.name.toLowerCase().includes(searchContact.toLowerCase()))
+  );
+
+  const handleAddParticipant = (contact) => {
+    if (!participants.some(p => p.id === contact.id)) {
+      setParticipants([...participants, contact]);
+      setShowContactDropdown(false);
+      setSearchContact('');
+    }
+  };
+
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const handleRemoveParticipant = (id) => {
     setParticipants(participants.filter(participant => participant.id !== id));
   };
 
+<<<<<<< HEAD
   const handleToCalendar = () => {
     console.log('Redirecting to calendar');
   };
@@ -645,6 +1283,31 @@ const GroupMeetingForm = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+=======
+  const renderDateDisplay = () => {
+    if (dateError) {
+      return <div className="text-danger">{dateError}</div>;
+    }
+    return selectedDate ? selectedDate.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    }) : "Select Date";
+  };
+
+  const formatTimeSlotDisplay = (slot) => {
+    return `${slot.date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    })} | ${slot.startTime} - ${slot.endTime}`;
+  };
+
+  const handleToCalendar = () => {
+    console.log('Redirecting to calendar');
+    // Implement actual redirection logic here
+  };
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
   return (
     <div className="h-100 font-inter d-flex flex-column">
@@ -654,20 +1317,44 @@ const GroupMeetingForm = () => {
         </h3>
       )}
 
+<<<<<<< HEAD
+=======
+      {error && (
+        <div className="alert alert-danger mb-3">
+          {error}
+        </div>
+      )}
+
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
       <form className="flex-grow-1">
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Title</label>
               <input
                 type="text"
                 className="form-control form-control-lg"
                 placeholder="John Doe"
+=======
+              <label className="form-label fw-medium">Title*</label>
+              <input
+                type="text"
+                className="form-control form-control-lg"
+                placeholder="Meeting title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               />
             </div>
 
             <div className="mb-4">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Time slot</label>
+=======
+              <label className="form-label fw-medium">Time slot*</label>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -676,7 +1363,11 @@ const GroupMeetingForm = () => {
                     onClick={() => setShowCalendar(!showCalendar)}
                   >
                     <div className="text-center flex-grow-1">
+<<<<<<< HEAD
                       {selectedDate ? selectedDate.toDateString() : "Select Date"}
+=======
+                      {renderDateDisplay()}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     </div>
                     <div className="ms-2">
                       <FaCalendarAlt />
@@ -685,10 +1376,20 @@ const GroupMeetingForm = () => {
 
                   {showCalendar && (
                     <div
+<<<<<<< HEAD
                       className="position-absolute shadow rounded"
                       style={{ top: "60px", left: "10px", zIndex: 10 }}
                     >
                       <Calendar onChange={handleDateSelect} value={selectedDate} />
+=======
+                      className="position-absolute shadow rounded calendar-container"
+                      style={{ top: "60px", left: "10px", zIndex: 10 }}
+                    >
+                      <Calendar 
+                        onDateSelect={handleDateSelect} 
+                        value={selectedDate} 
+                      />
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     </div>
                   )}
 
@@ -705,7 +1406,11 @@ const GroupMeetingForm = () => {
                     {showStartTime && (
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
+<<<<<<< HEAD
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+=======
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                       >
                         {generateTimeOptions().map((time, index) => (
                           <div
@@ -734,7 +1439,11 @@ const GroupMeetingForm = () => {
                     {showEndTime && (
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
+<<<<<<< HEAD
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+=======
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                       >
                         {generateTimeOptions().map((time, index) => (
                           <div
@@ -759,6 +1468,10 @@ const GroupMeetingForm = () => {
                       flexShrink: 0,
                     }}
                     onClick={handleAddTimeSlot}
+<<<<<<< HEAD
+=======
+                    disabled={!selectedDate}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                   >
                     <FaCheckCircle />
                   </button>
@@ -779,7 +1492,11 @@ const GroupMeetingForm = () => {
                           key={slot.id} 
                           className="badge bg-white text-dark d-flex align-items-center gap-2 p-2"
                         >
+<<<<<<< HEAD
                           {slot.start} - {slot.end}
+=======
+                          {formatTimeSlotDisplay(slot)}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                           <button 
                             type="button" 
                             className="btn btn-sm btn-outline-danger p-0 ms-2"
@@ -797,26 +1514,63 @@ const GroupMeetingForm = () => {
             </div>
 
             <div className="mb-4">
+<<<<<<< HEAD
+=======
+              <label className="form-label fw-medium">Duration*</label>
+              <select 
+                className="form-select"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              >
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               <label className="form-label fw-medium">Description</label>
               <textarea
                 className="form-control"
                 rows="3"
                 placeholder="A short description for the meeting"
+<<<<<<< HEAD
+=======
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               />
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Location</label>
+<<<<<<< HEAD
               <select className="form-select">
                 <option>Choose a place for the meeting</option>
                 <option>Conference Room</option>
                 <option>Virtual Meeting</option>
                 <option>Office</option>
+=======
+              <select 
+                className="form-select"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              >
+                <option value="">Choose a place for the meeting</option>
+                <option value="Conference Room">Conference Room</option>
+                <option value="Virtual Meeting">Virtual Meeting</option>
+                <option value="Office">Office</option>
+                <option value="Other">Other</option>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               </select>
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Repeat</label>
+<<<<<<< HEAD
               <select className="form-select">
                 <option>Does not repeat</option>
                 <option>Daily</option>
@@ -825,6 +1579,20 @@ const GroupMeetingForm = () => {
                 <option>Annually on exact Day</option>
                 <option>Every weekday</option>
                 <option>Custom</option>
+=======
+              <select 
+                className="form-select"
+                value={repeat}
+                onChange={(e) => setRepeat(e.target.value)}
+              >
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="annually">Annually</option>
+                <option value="weekday">Every weekday (Mon-Fri)</option>
+                <option value="custom">Custom</option>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               </select>
             </div>
           </div>
@@ -833,10 +1601,16 @@ const GroupMeetingForm = () => {
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4">
+<<<<<<< HEAD
               <h4 className="form-label fw-medium mb-3">Add participants</h4>
               
               {/* Search Contact Dropdown */}
               <div className="mb-3 position-relative">
+=======
+              <h4 className="form-label fw-medium mb-3">Add participants*</h4>
+              
+              <div className="mb-3 position-relative" ref={contactDropdownRef}>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                 <div className="input-group">
                   <span className="input-group-text bg-white">
                     <FaSearch />
@@ -844,6 +1618,7 @@ const GroupMeetingForm = () => {
                   <input
                     type="text"
                     className="form-control"
+<<<<<<< HEAD
                     placeholder="Search by contact"
                     value={searchContact}
                     onChange={(e) => setSearchContact(e.target.value)}
@@ -891,11 +1666,111 @@ const GroupMeetingForm = () => {
                   </button>
                 </div>
               ))}
+=======
+                    placeholder="Search contacts"
+                    value={searchContact}
+                    onChange={(e) => {
+                      setSearchContact(e.target.value);
+                      setShowContactDropdown(true);
+                    }}
+                    onFocus={() => setShowContactDropdown(true)}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowContactDropdown(!showContactDropdown)}
+                  >
+                    <FaChevronDown />
+                  </button>
+                </div>
+
+                {showContactDropdown && filteredContacts.length > 0 && (
+                  <div 
+                    className="position-absolute w-100 bg-white shadow rounded mt-1"
+                    style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
+                  >
+                    {filteredContacts.map(contact => (
+                      <div 
+                        key={contact.id} 
+                        className={`p-2 hover-bg-light cursor-pointer ${
+                          participants.some(p => p.id === contact.id) ? 'bg-light' : ''
+                        }`}
+                        onClick={() => handleAddParticipant(contact)}
+                      >
+                        <div className="d-flex align-items-center">
+                          <img 
+                            src={contact.profileImage || '/profile.png'} 
+                            alt="participant" 
+                            className="rounded-circle me-3"
+                            style={{width: '30px', height: '30px'}}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '/profile.png';
+                            }}
+                          />
+                          <div>
+                            <div className="fw-bold">{contact.name || contact.username}</div>
+                            <small className="text-muted">{contact.role || contact.email || 'No details'}</small>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {showContactDropdown && filteredContacts.length === 0 && (
+                  <div 
+                    className="position-absolute w-100 bg-white shadow rounded mt-1 p-2"
+                    style={{ zIndex: 1000 }}
+                  >
+                    <div className="text-muted">No contacts found</div>
+                  </div>
+                )}
+              </div>
+
+              {participants.length > 0 ? (
+                participants.map((participant) => (
+                  <div 
+                    key={participant.id} 
+                    className="d-flex align-items-center bg-light p-3 rounded mb-2"
+                  >
+                    <div className="me-auto d-flex align-items-center">
+                      <img 
+                        src={participant.profileImage || '/profile.png'} 
+                        alt="participant" 
+                        className="rounded-circle me-3"
+                        style={{width: '40px', height: '40px'}}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/profile.png';
+                        }}
+                      />
+                      <div>
+                        <div className="fw-bold">{participant.name || participant.username}</div>
+                        <small className="text-muted">{participant.role || participant.email || 'No details'}</small>
+                      </div>
+                    </div>
+                    <button 
+                      type="button" 
+                      className="btn btn-outline-danger"
+                      onClick={() => handleRemoveParticipant(participant.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-muted">
+                  No participants added yet
+                </div>
+              )}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
             </div>
           </div>
         )}
 
         {currentStep === 3 && (
+<<<<<<< HEAD
           <SuccessStep onToCalendar={handleToCalendar} />
         )}
 
@@ -905,6 +1780,26 @@ const GroupMeetingForm = () => {
             currentStep={currentStep}
             totalSteps={3}
             onNext={handleNext}
+=======
+          <SuccessStep 
+            onToCalendar={handleToCalendar}
+            message="Your group meeting has been successfully created!"
+          />
+        )}
+
+        {currentStep !== 3 && (
+          <FormStepNavigator 
+            currentStep={currentStep} 
+            totalSteps={3} 
+            onNext={handleNext}
+            onBack={handleBack}
+            isLoading={isLoading}
+            nextDisabled={
+              (currentStep === 1 && (!title.trim() || timeSlots.length === 0)) ||
+              (currentStep === 2 && participants.length === 0)
+            }
+            nextLabel={currentStep === 2 ? "Create Meeting" : "Next"}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
           />
         )}
       </form>
@@ -914,7 +1809,11 @@ const GroupMeetingForm = () => {
 
 const RoundRobinForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
+<<<<<<< HEAD
   const [selectedDate, setSelectedDate] = useState(new Date());
+=======
+  const [selectedDate, setSelectedDate] = useState(null);
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const [showCalendar, setShowCalendar] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
@@ -922,6 +1821,7 @@ const RoundRobinForm = () => {
   const [endTime, setEndTime] = useState("10:00 AM");
   const [timeSlots, setTimeSlots] = useState([]);
   const [timeError, setTimeError] = useState('');
+<<<<<<< HEAD
   const [participants, setParticipants] = useState([
     { id: 1, name: 'John_doe', group: 'Group name if any' }
   ]);
@@ -1024,6 +1924,101 @@ const RoundRobinForm = () => {
     setTimeSlots(timeSlots.filter(slot => slot.id !== id));
   };
 
+=======
+  const [dateError, setDateError] = useState('');
+  const [participants, setParticipants] = useState([]);
+  const [hosts, setHosts] = useState([]);
+  const [searchContact, setSearchContact] = useState('');
+  const [searchHost, setSearchHost] = useState('');
+  const [contacts, setContacts] = useState([]);
+  const [showContactDropdown, setShowContactDropdown] = useState(false);
+  const [showHostDropdown, setShowHostDropdown] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
+  const [repeat, setRepeat] = useState('none');
+  const [duration, setDuration] = useState('60');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [currentUserHosts, setCurrentUserHosts] = useState([]);
+
+  // Refs
+  const startTimeRef = useRef(null);
+  const endTimeRef = useRef(null);
+  const contactDropdownRef = useRef(null);
+  const hostDropdownRef = useRef(null);
+
+  // Fetch contacts and hosts
+  useEffect(() => {
+    const fetchContactsAndHosts = async () => {
+      try {        
+        // Fetch participants (contacts)
+        const participantsResponse = await axios.get('http://localhost:8080/create/contacts', {
+          withCredentials: true
+        });
+        setContacts(Array.isArray(participantsResponse.data) ? participantsResponse.data : (participantsResponse.data.contacts || []));
+
+        // Fetch current user's hosts
+        const hostsResponse = await axios.get('http://localhost:8080/create/contact/users', {
+          withCredentials: true
+        });
+        const fetchedHosts = Array.isArray(hostsResponse.data) ? hostsResponse.data : (hostsResponse.data.users || []);
+        
+        // Add a unique key to each host
+        const hostsWithKey = fetchedHosts.map(host => ({
+          ...host,
+          uniqueKey: `host-${host.username}`
+        }));
+
+        setCurrentUserHosts(hostsWithKey);
+      } catch (error) {
+        console.error('Error fetching contacts and hosts:', error);
+        setError('Failed to load contacts and hosts');
+      }
+    };
+
+    fetchContactsAndHosts();
+
+    const handleClickOutside = (event) => {
+      if (contactDropdownRef.current && !contactDropdownRef.current.contains(event.target)) {
+        setShowContactDropdown(false);
+      }
+      if (hostDropdownRef.current && !hostDropdownRef.current.contains(event.target)) {
+        setShowHostDropdown(false);
+      }
+      if (startTimeRef.current && !startTimeRef.current.contains(event.target)) {
+        setShowStartTime(false);
+      }
+      if (endTimeRef.current && !endTimeRef.current.contains(event.target)) {
+        setShowEndTime(false);
+      }
+      if (!event.target.closest('.calendar-container')) {
+        setShowCalendar(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Date selection handler
+  const handleDateSelect = (date) => {
+    const newDate = date instanceof Date ? date : new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (newDate < today) {
+      setDateError('Please select a date from today or in the future');
+      return;
+    }
+
+    setDateError('');
+    setSelectedDate(newDate);
+    setShowCalendar(false);
+  };
+
+  // Time selection handlers
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const handleTimeSelect = (time, type) => {
     if (type === "start") {
       setStartTime(time);
@@ -1050,10 +2045,87 @@ const RoundRobinForm = () => {
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Time slot management
+  const handleRemoveTimeSlot = (id) => {
+    setTimeSlots(timeSlots.filter(slot => slot.id !== id));
+  };
+
+  const generateTimeOptions = () => {
+    const times = [];
+    let hour = 12;
+    let period = "AM";
+
+    for (let i = 0; i < 24; i++) {
+      times.push(`${hour}:00 ${period}`);
+      times.push(`${hour}:30 ${period}`);
+      hour = hour === 12 ? 1 : hour + 1;
+      if (hour === 12) period = period === "AM" ? "PM" : "AM";
+    }
+    return times;
+  };
+
+  const validateTimeFormat = (time) => /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/i.test(time);
+
+  const convertTo24HourFormat = (time) => {
+    const [timePart, period] = time.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  const handleAddTimeSlot = () => {
+    setTimeError('');
+    setDateError('');
+
+    if (!selectedDate) {
+      setDateError('Please select a date');
+      return;
+    }
+
+    if (!validateTimeFormat(startTime) || !validateTimeFormat(endTime)) {
+      setTimeError('Invalid time format. Use HH:MM AM/PM');
+      return;
+    }
+
+    const startMinutes = convertTo24HourFormat(startTime);
+    const endMinutes = convertTo24HourFormat(endTime);
+
+    if (endMinutes <= startMinutes) {
+      setTimeError('End time must be later than start time');
+      return;
+    }
+
+    const newTimeSlot = {
+      id: Date.now(),
+      date: selectedDate,
+      startTime,
+      endTime
+    };
+
+    if (timeSlots.some(slot => 
+      slot.date.toDateString() === newTimeSlot.date.toDateString() &&
+      slot.startTime === newTimeSlot.startTime && 
+      slot.endTime === newTimeSlot.endTime
+    )) {
+      setTimeError('This time slot already exists');
+      return;
+    }
+
+    setTimeSlots([...timeSlots, newTimeSlot]);
+    setStartTime("09:00 AM");
+    setEndTime("10:00 AM");
+  };
+
+  // Participants and hosts management
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const handleRemoveParticipant = (id) => {
     setParticipants(participants.filter(participant => participant.id !== id));
   };
 
+<<<<<<< HEAD
   const handleToCalendar = () => {
     console.log('Redirecting to calendar');
   };
@@ -1080,6 +2152,146 @@ const RoundRobinForm = () => {
     };
   }, []);
 
+=======
+  const handleRemoveHost = (uniqueKey) => {
+    // Remove host using the unique key
+    setHosts(hosts.filter(host => host.uniqueKey !== uniqueKey));
+  };
+
+  const filteredContacts = contacts.filter(contact => 
+    (contact.username?.toLowerCase().includes(searchContact.toLowerCase()) ||
+    (contact.name?.toLowerCase().includes(searchContact.toLowerCase())))
+  );
+
+  const filteredHosts = currentUserHosts.filter(host => 
+    (host.username?.toLowerCase().includes(searchHost.toLowerCase()) ||
+    (host.name?.toLowerCase().includes(searchHost.toLowerCase())))
+  );
+
+  const handleAddParticipant = (contact) => {
+    if (!participants.some(p => p.id === contact.id)) {
+      setParticipants([...participants, contact]);
+      setShowContactDropdown(false);
+      setSearchContact('');
+    }
+  };
+
+  const handleAddHost = (host) => {
+    // Add a unique key when adding a host
+    const newHost = {
+      ...host,
+      uniqueKey: `host-${host.username}-${Date.now()}`
+    };
+
+    if (!hosts.some(h => h.username === host.username)) {
+      setHosts([...hosts, newHost]);
+      setShowHostDropdown(false);
+      setSearchHost('');
+    }
+  };
+
+  // Rendering helpers
+  const renderDateDisplay = () => {
+    if (dateError) return <div className="text-danger">{dateError}</div>;
+    return selectedDate ? selectedDate.toLocaleDateString('en-US', { 
+      weekday: 'short', month: 'short', day: 'numeric' 
+    }) : "Select Date";
+  };
+
+  const formatTimeSlotDisplay = (slot) => {
+    return `${slot.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} | ${slot.startTime} - ${slot.endTime}`;
+  };
+
+  // Create round robin meeting
+  const handleCreateRoundRobin = async () => {
+    if (!timeSlots.length || !hosts.length) {
+      setError('Please add at least one time slot and host');
+      return;
+    }
+  
+    setIsLoading(true);
+    setError('');
+  
+    try {  
+      const formatTimeToUTC = (date, time) => {
+        const [timeStr, period] = time.split(' ');
+        let [hours, minutes] = timeStr.split(':').map(Number);
+        
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+  
+        const meetingDateTime = new Date(date);
+        meetingDateTime.setHours(hours, minutes, 0, 0);
+        return meetingDateTime.toISOString();
+      };
+  
+      // Ensure host IDs are extracted correctly
+      const hostIds = hosts.map(h => h.username).filter(username => username != null);
+      
+      // Ensure participant IDs are extracted correctly
+      const participantIds = participants.map(p => p.id).filter(id => id != null);
+  
+      const payload = {
+        title: title || 'Untitled Meeting',
+        location: location || '',
+        description: description || '',
+        roundRobinTimeSlots: timeSlots.map(slot => ({
+          startTime: formatTimeToUTC(slot.date, slot.startTime),
+          endTime: formatTimeToUTC(slot.date, slot.endTime),
+          hostIds: hostIds // Ensure host IDs are included for each time slot
+        })),
+        roundRobinDuration: duration || '60',
+        hostIds: hostIds,
+        participantIds: participantIds,
+        repeat: repeat || 'none'
+      };
+  
+      // Log payload for debugging
+      console.log('Payload:', JSON.stringify(payload, null, 2));
+  
+      const response = await axios.post('http://localhost:8080/create/roundrobin/meetings', payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      });
+  
+      // Log response for additional debugging
+      console.log('Response:', response.data);
+  
+      setCurrentStep(3);
+    } catch (error) {
+      console.error('Error creating round robin:', error);
+      
+      // More detailed error logging
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+        
+        setError(error.response.data?.message || 'Failed to create round robin. Please check your input.');
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('Error request:', error.request);
+        setError('No response received from server. Please try again.');
+      } else {
+        // Something happened in setting up the request
+        console.error('Error message:', error.message);
+        setError('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Calendar redirect handler
+  const handleToCalendar = () => {
+    console.log('Redirecting to calendar');
+    // Add actual redirect logic here
+  };
+
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   return (
     <div className="h-100 font-inter d-flex flex-column">
       {currentStep !== 3 && (
@@ -1088,20 +2300,40 @@ const RoundRobinForm = () => {
         </h3>
       )}
 
+<<<<<<< HEAD
+=======
+      {error && <div className="alert alert-danger mb-3">{error}</div>}
+
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
       <form className="flex-grow-1">
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Title</label>
               <input
                 type="text"
                 className="form-control form-control-lg"
                 placeholder="John Doe"
+=======
+              <label className="form-label fw-medium">Title*</label>
+              <input
+                type="text"
+                className="form-control form-control-lg"
+                placeholder="Meeting title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               />
             </div>
 
             <div className="mb-4">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Time slot</label>
+=======
+              <label className="form-label fw-medium">Time slot*</label>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -1110,7 +2342,11 @@ const RoundRobinForm = () => {
                     onClick={() => setShowCalendar(!showCalendar)}
                   >
                     <div className="text-center flex-grow-1">
+<<<<<<< HEAD
                       {selectedDate ? selectedDate.toDateString() : "Select Date"}
+=======
+                      {renderDateDisplay()}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     </div>
                     <div className="ms-2">
                       <FaCalendarAlt />
@@ -1118,11 +2354,16 @@ const RoundRobinForm = () => {
                   </div>
 
                   {showCalendar && (
+<<<<<<< HEAD
                     <div
                       className="position-absolute shadow rounded"
                       style={{ top: "60px", left: "10px", zIndex: 10 }}
                     >
                       <Calendar onChange={handleDateSelect} value={selectedDate} />
+=======
+                    <div className="position-absolute shadow rounded calendar-container" style={{ top: "60px", left: "10px", zIndex: 10 }}>
+                      <Calendar onDateSelect={handleDateSelect} value={selectedDate} />
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                     </div>
                   )}
 
@@ -1137,6 +2378,7 @@ const RoundRobinForm = () => {
                       onDoubleClick={() => handleDoubleClick("start")}
                     />
                     {showStartTime && (
+<<<<<<< HEAD
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
@@ -1146,6 +2388,14 @@ const RoundRobinForm = () => {
                             key={index}
                             className="py-2 px-3 hover-bg-light"
                             style={{ cursor: "pointer" }}
+=======
+                      <div className="position-absolute bg-white shadow p-3 rounded mt-1" style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}>
+                        {generateTimeOptions().map((time, index) => (
+                          <div 
+                            key={index} 
+                            className="py-2 px-3 hover-bg-light" 
+                            style={{ cursor: "pointer" }} 
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                             onClick={() => handleTimeSelect(time, "start")}
                           >
                             {time}
@@ -1166,6 +2416,7 @@ const RoundRobinForm = () => {
                       onDoubleClick={() => handleDoubleClick("end")}
                     />
                     {showEndTime && (
+<<<<<<< HEAD
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
@@ -1175,6 +2426,14 @@ const RoundRobinForm = () => {
                             key={index}
                             className="py-2 px-3 hover-bg-light"
                             style={{ cursor: "pointer" }}
+=======
+                      <div className="position-absolute bg-white shadow p-3 rounded mt-1" style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}>
+                        {generateTimeOptions().map((time, index) => (
+                          <div 
+                            key={index} 
+                            className="py-2 px-3 hover-bg-light" 
+                            style={{ cursor: "pointer" }} 
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                             onClick={() => handleTimeSelect(time, "end")}
                           >
                             {time}
@@ -1187,38 +2446,57 @@ const RoundRobinForm = () => {
                   <button
                     type="button"
                     className="btn btn-primary d-flex align-items-center"
+<<<<<<< HEAD
                     style={{
                       minWidth: "40px",
                       height: "38px",
                       flexShrink: 0,
                     }}
                     onClick={handleAddTimeSlot}
+=======
+                    style={{ minWidth: "40px", height: "38px", flexShrink: 0 }}
+                    onClick={handleAddTimeSlot}
+                    disabled={!selectedDate}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                   >
                     <FaCheckCircle />
                   </button>
                 </div>
 
+<<<<<<< HEAD
                 {timeError && (
                   <div className="text-danger mt-2 small">
                     {timeError}
                   </div>
                 )}
+=======
+                {timeError && <div className="text-danger mt-2 small">{timeError}</div>}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
                 {timeSlots.length > 0 && (
                   <div className="mt-3">
                     <h6 className="text-muted mb-2">Added Time Slots</h6>
                     <div className="d-flex flex-wrap gap-2">
                       {timeSlots.map((slot) => (
+<<<<<<< HEAD
                         <div 
                           key={slot.id} 
                           className="badge bg-white text-dark d-flex align-items-center gap-2 p-2"
                         >
                           {slot.start} - {slot.end}
+=======
+                        <div key={slot.id} className="badge bg-white text-dark d-flex align-items-center gap-2 p-2">
+                          {formatTimeSlotDisplay(slot)}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                           <button 
                             type="button" 
                             className="btn btn-sm btn-outline-danger p-0 ms-2"
                             onClick={() => handleRemoveTimeSlot(slot.id)}
+<<<<<<< HEAD
                             style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+=======
+                            style={{ width: '20px', height: '20px' }}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                           >
                             &times;
                           </button>
@@ -1231,26 +2509,63 @@ const RoundRobinForm = () => {
             </div>
 
             <div className="mb-4">
+<<<<<<< HEAD
+=======
+              <label className="form-label fw-medium">Duration*</label>
+              <select 
+                className="form-select"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              >
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               <label className="form-label fw-medium">Description</label>
               <textarea
                 className="form-control"
                 rows="3"
+<<<<<<< HEAD
                 placeholder="A short description for the meeting"
+=======
+                placeholder="Meeting description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               />
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Location</label>
+<<<<<<< HEAD
               <select className="form-select">
                 <option>Choose a place for the meeting</option>
                 <option>Conference Room</option>
                 <option>Virtual Meeting</option>
                 <option>Office</option>
+=======
+              <select 
+                className="form-select"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              >
+                <option value="">Choose location</option>
+                <option value="Conference Room">Conference Room</option>
+                <option value="Virtual Meeting">Virtual Meeting</option>
+                <option value="Office">Office</option>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               </select>
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Repeat</label>
+<<<<<<< HEAD
               <select className="form-select">
                 <option>Does not repeat</option>
                 <option>Daily</option>
@@ -1259,6 +2574,20 @@ const RoundRobinForm = () => {
                 <option>Annually on exact Day</option>
                 <option>Every weekday</option>
                 <option>Custom</option>
+=======
+              <select 
+                className="form-select"
+                value={repeat}
+                onChange={(e) => setRepeat(e.target.value)}
+              >
+                <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="annually">Annually</option>
+                <option value="weekday">Every weekday</option>
+                <option value="custom">Custom</option>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
               </select>
             </div>
           </div>
@@ -1267,6 +2596,7 @@ const RoundRobinForm = () => {
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4">
+<<<<<<< HEAD
               <span className="form-label fw-medium mb-3 fs-5 text-muted">Add participants</span>
               {/* Search Contact Dropdown */}
               <div className="mb-3 position-relative">
@@ -1379,11 +2709,185 @@ const RoundRobinForm = () => {
                   </button>
                 </div>
               ))}
+=======
+              <h4 className="form-label fw-medium mb-3">Add Hosts</h4>
+              
+              <div className="mb-3 position-relative" ref={hostDropdownRef}>
+                <div className="input-group">
+                  <input
+                    type="text"
+                    className="form-control border-start-0"
+                    placeholder="Search hosts"
+                    value={searchHost}
+                    onChange={(e) => {
+                      setSearchHost(e.target.value);
+                      setShowHostDropdown(true);
+                      console.log(hosts);
+                    }}
+                    onFocus={() => setShowHostDropdown(true)}
+                  />
+                </div>
+
+                {showHostDropdown && (
+                  <div className="position-absolute w-100 bg-white shadow rounded mt-1" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
+                    {filteredHosts.length > 0 ? (
+                      filteredHosts.map(host => (
+                        <div 
+                          key={host.username} 
+                          className={`p-3 border-bottom hover-bg-light cursor-pointer d-flex align-items-center ${hosts.some(h => h.username === host.username) ? 'bg-light' : ''}`}
+                          onClick={() => handleAddHost(host)}
+                        >
+                          <div className="flex-shrink-0 me-3">
+                            <img 
+                              src={host.profileImage || '/profile.png'} 
+                              alt="host" 
+                              className="rounded-circle"
+                              style={{width: '40px', height: '40px', objectFit: 'cover'}}
+                              onError={(e) => { e.target.onerror = null; e.target.src = '/profile.png'; }}
+                            />
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="fw-bold">{host.name || host.username}</div>
+                            <small className="text-muted">{host.email || 'No email'}</small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 text-center text-muted">No hosts found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-4">
+                {hosts.length > 0 ? (
+                  <div className="border rounded">
+                    {hosts.map((host) => (
+                      <div 
+                        key={host.username} 
+                        className="d-flex align-items-center p-3 border-bottom last-child-border-bottom-0"
+                      >
+                        <div className="flex-shrink-0 me-3">
+                          <img 
+                            src={host.profileImage || '/profile.png'} 
+                            alt="host" 
+                            className="rounded-circle"
+                            style={{width: '40px', height: '40px', objectFit: 'cover'}}
+                            onError={(e) => { e.target.onerror = null; e.target.src = '/profile.png'; }}
+                          />
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="fw-bold">{host.name || host.username}</div>
+                          <small className="text-muted">{host.email || 'No email'}</small>
+                        </div>
+                        <button 
+                          type="button" 
+                          className="btn btn-outline-danger btn-sm"
+                          onClick={() => handleRemoveHost(host.uniqueKey)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted border rounded">No hosts added yet</div>
+                )}
+              </div>
+
+              <h4 className="form-label fw-medium mb-3">Add Participants</h4>
+              
+              <div className="mb-3 position-relative" ref={contactDropdownRef}>
+                <div className="input-group">
+                  <span className="input-group-text bg-white border-end-0">
+                    <FaSearch />
+                  </span>
+                  <input
+                    type="text"
+                    className="form-control border-start-0"
+                    placeholder="Search participants"
+                    value={searchContact}
+                    onChange={(e) => {
+                      setSearchContact(e.target.value);
+                      setShowContactDropdown(true);
+                    }}
+                    onFocus={() => setShowContactDropdown(true)}
+                  />
+                </div>
+
+                {showContactDropdown && (
+                  <div className="position-absolute w-100 bg-white shadow rounded mt-1" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
+                    {filteredContacts.length > 0 ? (
+                      filteredContacts.map(contact => (
+                        <div 
+                          key={contact.id} 
+                          className={`p-3 border-bottom hover-bg-light cursor-pointer d-flex align-items-center ${participants.some(p => p.id === contact.id) ? 'bg-light' : ''}`}
+                          onClick={() => handleAddParticipant(contact)}
+                        >
+                          <div className="flex-shrink-0 me-3">
+                            <img 
+                              src={contact.profileImage || '/profile.png'} 
+                              alt="participant" 
+                              className="rounded-circle"
+                              style={{width: '40px', height: '40px', objectFit: 'cover'}}
+                              onError={(e) => { e.target.onerror = null; e.target.src = '/profile.png'; }}
+                            />
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="fw-bold">{contact.name || contact.username}</div>
+                            <small className="text-muted">{contact.email || 'No email'}</small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 text-center text-muted">No participants found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-4">
+                {participants.length > 0 ? (
+                  <div className="border rounded">
+                    {participants.map((participant) => (
+                      <div 
+                        key={participant.id} 
+                        className="d-flex align-items-center p-3 border-bottom last-child-border-bottom-0"
+                      >
+                        <div className="flex-shrink-0 me-3">
+                          <img 
+                            src={participant.profileImage || '/profile.png'} 
+                            alt="participant" 
+                            className="rounded-circle"
+                            style={{width: '40px', height: '40px', objectFit: 'cover'}}
+                            onError={(e) => { e.target.onerror = null; e.target.src = '/profile.png'; }}
+                          />
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="fw-bold">{participant.name || participant.username}</div>
+                          <small className="text-muted">{participant.email || 'No email'}</small>
+                        </div>
+                        <button 
+                          type="button" 
+                          className="btn btn-outline-danger btn-sm"
+                          onClick={() => handleRemoveParticipant(participant.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted border rounded">No participants added yet</div>
+                )}
+              </div>
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
             </div>
           </div>
         )}
 
         {currentStep === 3 && (
+<<<<<<< HEAD
           <SuccessStep onToCalendar={handleToCalendar} />
         )}
 
@@ -1393,6 +2897,26 @@ const RoundRobinForm = () => {
             currentStep={currentStep}
             totalSteps={3}
             onNext={handleNext}
+=======
+          <SuccessStep 
+            onToCalendar={handleToCalendar}
+            message="Round robin meeting created successfully!"
+          />
+        )}
+
+        {currentStep !== 3 && (
+          <FormStepNavigator 
+            currentStep={currentStep} 
+            totalSteps={3} 
+            onNext={currentStep === 2 ? handleCreateRoundRobin : () => setCurrentStep(c => c + 1)}
+            onBack={() => setCurrentStep(c => c - 1)}
+            isLoading={isLoading}
+            nextDisabled={
+              (currentStep === 1 && (!title.trim() || timeSlots.length === 0)) ||
+              (currentStep === 2 && hosts.length === 0)
+            }
+            nextLabel={currentStep === 2 ? "Create Round Robin" : "Next"}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
           />
         )}
       </form>

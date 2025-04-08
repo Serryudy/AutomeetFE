@@ -9,12 +9,55 @@ import MeetingCard from '@/components/MeetingCard';
 import { FaSearch, FaFilter, FaCalendarAlt, FaBars } from 'react-icons/fa';
 
 export default function Meeting() {
+<<<<<<< HEAD
   const [activeTab, setActiveTab] = useState("ongoing");
+=======
+  const [activeTab, setActiveTab] = useState("all");
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [cardsPerRow, setCardsPerRow] = useState(3);
+<<<<<<< HEAD
+=======
+  const [meetings, setMeetings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch meetings from API
+  useEffect(() => {
+    const fetchMeetings = async () => {
+      try {
+        setIsLoading(true);
+        // Get JWT token from localStorage or wherever you store it
+
+        const response = await fetch('http://localhost:8080/create/meetings', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error fetching meetings: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setMeetings(data);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch meetings:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMeetings();
+  }, [activeTab]); // Re-fetch when tab changes
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
 
   useEffect(() => {
     const handleResize = () => {
@@ -54,6 +97,39 @@ export default function Meeting() {
     setIsSidebarCollapsed(collapsed);
   };
 
+<<<<<<< HEAD
+=======
+  // Helper function to check if a meeting is upcoming or past
+  const isMeetingUpcoming = (meeting) => {
+    if (meeting.meetingType === 'direct' && meeting.directTimeSlot) {
+      const startTime = new Date(meeting.directTimeSlot.startTime);
+      return startTime > new Date();
+    }
+    // For other meeting types, return true as a fallback
+    // You might want to add logic for group and round_robin types
+    return true;
+  };
+
+  // Filter meetings based on active tab
+  const filterMeetingsByTab = (meetings, tab) => {
+    switch(tab) {
+      case 'all':
+        return meetings;
+      case 'created':
+        return meetings.filter(meeting => meeting.role === 'creator');
+      case 'participating':
+        return meetings.filter(meeting => meeting.role === 'participant');
+      case 'hosting':
+        return meetings.filter(meeting => meeting.role === 'host');
+      default:
+        return meetings;
+    }
+  };
+
+
+  const filteredMeetings = filterMeetingsByTab(meetings, activeTab);
+
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
   return (
     <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>  
       {/* Mobile Menu Button */}
@@ -143,7 +219,11 @@ export default function Meeting() {
         <div className='w-100 d-flex flex-column bg-white py-2 py-md-3 rounded-3 rounded-md-4 shadow-sm'>
           <div className="border-bottom border-1 border-dark px-2 px-md-4 overflow-auto">
             <ul className="list-unstyled d-flex gap-3 gap-md-4 mb-0 flex-nowrap">
+<<<<<<< HEAD
               {["ongoing", "upcoming", "unconfirmed", "past"].map((tab) => (
+=======
+              {["all", "created", "participating", "hosting", "pending"].map((tab) => (
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
                 <li key={tab}>
                   <div
                     className={`text-black fw-semibold pb-2 pb-md-3 text-nowrap ${activeTab === tab ? "border-bottom border-3 border-primary" : ""}`}
@@ -163,6 +243,7 @@ export default function Meeting() {
           </div>
           
           <div className="px-2 px-md-4 py-3">
+<<<<<<< HEAD
             {/* Dynamic grid based on calculated cards per row */}
             <div className="row g-3">
               {[1, 2, 3, 4, 5, 6].map((item) => (
@@ -189,6 +270,61 @@ export default function Meeting() {
                 </div>
               ))}
             </div>
+=======
+            {/* Loading state */}
+            {isLoading && (
+              <div className="text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-2">Loading meetings...</p>
+              </div>
+            )}
+            
+            {/* Error state */}
+            {!isLoading && error && (
+              <div className="alert alert-danger" role="alert">
+                <p className="mb-0">Failed to load meetings: {error}</p>
+                <p className="small mb-0 mt-2">Please check your internet connection or try again later.</p>
+              </div>
+            )}
+            
+            {/* No meetings state */}
+            {!isLoading && !error && filteredMeetings.length === 0 && (
+              <div className="text-center py-5">
+                <p className="mb-0">No {activeTab} meetings found.</p>
+              </div>
+            )}
+            
+            {/* Meetings grid */}
+            {!isLoading && !error && filteredMeetings.length > 0 && (
+              <div className="row g-3">
+                {filteredMeetings.map((meeting) => (
+                  <div 
+                    key={meeting.id} 
+                    className={`col-12 ${
+                      cardsPerRow === 1 ? '' : 
+                      cardsPerRow === 2 ? 'col-sm-6' : 
+                      'col-sm-6 col-lg-4'
+                    }`}
+                    style={{
+                      transition: 'width 0.3s ease-in-out'
+                    }}
+                  >
+                    <div 
+                      style={{ 
+                        height: '100%',
+                        maxWidth: '100%',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MeetingCard meeting={meeting} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+>>>>>>> 502af36 (the token was migrated as httponly cookie and meeting and meeting details were implemented)
           </div>
         </div>
       </div>
