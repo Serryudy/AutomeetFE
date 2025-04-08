@@ -200,6 +200,10 @@ const DirectScheduleForm = () => {
 
     for (let i = 0; i < 24; i++) {
       times.push(`${hour}:00 ${period}`);
+<<<<<<< HEAD
+      times.push(`${hour}:30 ${period}`);
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
       hour = hour === 12 ? 1 : hour + 1;
       if (hour === 12) period = period === "AM" ? "PM" : "AM";
     }
@@ -331,10 +335,23 @@ const DirectScheduleForm = () => {
     return `${timeSlot.date.toLocaleDateString()} | ${timeSlot.startTime} - ${timeSlot.endTime}`;
   };
 
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   return (
     <div className="h-100 font-inter d-flex flex-column">
       {currentStep !== 3 && (
         <h3 className="mb-4 fw-bold">
+<<<<<<< HEAD
+          Create Group <br /> Meeting
+        </h3>
+      )}
+
+      {error && (
+        <div className="alert alert-danger mb-3">
+          {error}
+        </div>
+      )}
+
+=======
           Direct Schedule <br /> A Meeting
         </h3>
       )}
@@ -350,6 +367,16 @@ const DirectScheduleForm = () => {
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
+<<<<<<< HEAD
+              <label className="form-label fw-medium">Title*</label>
+              <input
+                type="text"
+                className="form-control form-control-lg"
+                placeholder="Meeting title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+=======
               <label className="form-label fw-medium">Title</label>
               <input
                 type="text"
@@ -362,7 +389,11 @@ const DirectScheduleForm = () => {
 
             {/* Time Slot Selection */}
             <div className="mb-4">
+<<<<<<< HEAD
+              <label className="form-label fw-medium">Time slot*</label>
+=======
               <label className="form-label fw-medium">Time slot</label>
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -380,6 +411,15 @@ const DirectScheduleForm = () => {
 
                   {showCalendar && (
                     <div
+<<<<<<< HEAD
+                      className="position-absolute shadow rounded calendar-container"
+                      style={{ top: "60px", left: "10px", zIndex: 10 }}
+                    >
+                      <Calendar 
+                        onDateSelect={handleDateSelect} 
+                        value={selectedDate} 
+                      />
+=======
                       className="position-absolute shadow rounded"
                       style={{ top: "60px", left: "10px", zIndex: 10 }}
                     >
@@ -404,7 +444,11 @@ const DirectScheduleForm = () => {
                     {showStartTime && (
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
+<<<<<<< HEAD
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
+=======
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                       >
                         {generateTimeOptions().map((time, index) => (
                           <div
@@ -434,7 +478,11 @@ const DirectScheduleForm = () => {
                     {showEndTime && (
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
+<<<<<<< HEAD
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
+=======
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                       >
                         {generateTimeOptions().map((time, index) => (
                           <div
@@ -459,6 +507,10 @@ const DirectScheduleForm = () => {
                       flexShrink: 0,
                     }}
                     onClick={handleAddTimeSlot}
+<<<<<<< HEAD
+                    disabled={!selectedDate}
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                   >
                     <FaCheckCircle />
                   </button>
@@ -483,6 +535,24 @@ const DirectScheduleForm = () => {
 
             {/* Description and Other Details */}
             <div className="mb-4">
+<<<<<<< HEAD
+              <label className="form-label fw-medium">Duration*</label>
+              <select 
+                className="form-select"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              >
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               <label className="form-label fw-medium">Description</label>
               <textarea
                 className="form-control"
@@ -888,6 +958,7 @@ const GroupMeetingForm = () => {
     setTimeSlots(timeSlots.filter(slot => slot.id !== id));
   };
 
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const handleTimeSelect = (time, type) => {
     if (type === "start") {
       setStartTime(time);
@@ -955,10 +1026,19 @@ const GroupMeetingForm = () => {
     // Implement actual redirection logic here
   };
 
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   return (
     <div className="h-100 font-inter d-flex flex-column">
       {currentStep !== 3 && (
         <h3 className="mb-4 fw-bold">
+<<<<<<< HEAD
+          Create Round Robin <br /> Meeting
+        </h3>
+      )}
+
+      {error && <div className="alert alert-danger mb-3">{error}</div>}
+
+=======
           Create Group <br /> Meeting
         </h3>
       )}
@@ -1002,6 +1082,10 @@ const GroupMeetingForm = () => {
                   </div>
 
                   {showCalendar && (
+<<<<<<< HEAD
+                    <div className="position-absolute shadow rounded calendar-container" style={{ top: "60px", left: "10px", zIndex: 10 }}>
+                      <Calendar onDateSelect={handleDateSelect} value={selectedDate} />
+=======
                     <div
                       className="position-absolute shadow rounded calendar-container"
                       style={{ top: "60px", left: "10px", zIndex: 10 }}
@@ -1024,6 +1108,14 @@ const GroupMeetingForm = () => {
                       onDoubleClick={() => handleDoubleClick("start")}
                     />
                     {showStartTime && (
+<<<<<<< HEAD
+                      <div className="position-absolute bg-white shadow p-3 rounded mt-1" style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}>
+                        {generateTimeOptions().map((time, index) => (
+                          <div 
+                            key={index} 
+                            className="py-2 px-3 hover-bg-light" 
+                            style={{ cursor: "pointer" }} 
+=======
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
@@ -1033,6 +1125,7 @@ const GroupMeetingForm = () => {
                             key={index}
                             className="py-2 px-3 hover-bg-light"
                             style={{ cursor: "pointer" }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                             onClick={() => handleTimeSelect(time, "start")}
                           >
                             {time}
@@ -1053,6 +1146,14 @@ const GroupMeetingForm = () => {
                       onDoubleClick={() => handleDoubleClick("end")}
                     />
                     {showEndTime && (
+<<<<<<< HEAD
+                      <div className="position-absolute bg-white shadow p-3 rounded mt-1" style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}>
+                        {generateTimeOptions().map((time, index) => (
+                          <div 
+                            key={index} 
+                            className="py-2 px-3 hover-bg-light" 
+                            style={{ cursor: "pointer" }} 
+=======
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
@@ -1062,6 +1163,7 @@ const GroupMeetingForm = () => {
                             key={index}
                             className="py-2 px-3 hover-bg-light"
                             style={{ cursor: "pointer" }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                             onClick={() => handleTimeSelect(time, "end")}
                           >
                             {time}
@@ -1074,6 +1176,11 @@ const GroupMeetingForm = () => {
                   <button
                     type="button"
                     className="btn btn-primary d-flex align-items-center"
+<<<<<<< HEAD
+                    style={{ minWidth: "40px", height: "38px", flexShrink: 0 }}
+                    onClick={handleAddTimeSlot}
+                    disabled={!selectedDate}
+=======
                     style={{
                       minWidth: "40px",
                       height: "38px",
@@ -1086,17 +1193,25 @@ const GroupMeetingForm = () => {
                   </button>
                 </div>
 
+<<<<<<< HEAD
+                {timeError && <div className="text-danger mt-2 small">{timeError}</div>}
+=======
                 {timeError && (
                   <div className="text-danger mt-2 small">
                     {timeError}
                   </div>
                 )}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
 
                 {timeSlots.length > 0 && (
                   <div className="mt-3">
                     <h6 className="text-muted mb-2">Added Time Slots</h6>
                     <div className="d-flex flex-wrap gap-2">
                       {timeSlots.map((slot) => (
+<<<<<<< HEAD
+                        <div key={slot.id} className="badge bg-white text-dark d-flex align-items-center gap-2 p-2">
+                          {formatTimeSlotDisplay(slot)}
+=======
                         <div 
                           key={slot.id} 
                           className="badge bg-white text-dark d-flex align-items-center gap-2 p-2"
@@ -1106,7 +1221,11 @@ const GroupMeetingForm = () => {
                             type="button" 
                             className="btn btn-sm btn-outline-danger p-0 ms-2"
                             onClick={() => handleRemoveTimeSlot(slot.id)}
+<<<<<<< HEAD
+                            style={{ width: '20px', height: '20px' }}
+=======
                             style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                           >
                             &times;
                           </button>
@@ -1138,6 +1257,11 @@ const GroupMeetingForm = () => {
               <textarea
                 className="form-control"
                 rows="3"
+<<<<<<< HEAD
+                placeholder="Meeting description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+=======
                 placeholder="A short description for the meeting"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -1186,10 +1310,90 @@ const GroupMeetingForm = () => {
               <div className="mb-3 position-relative" ref={contactDropdownRef}>
                 <div className="input-group">
                   <span className="input-group-text bg-white">
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                     <FaSearch />
                   </span>
                   <input
                     type="text"
+<<<<<<< HEAD
+                    className="form-control border-start-0"
+                    placeholder="Search participants"
+                    value={searchContact}
+                    onChange={(e) => {
+                      setSearchContact(e.target.value);
+                      setShowContactDropdown(true);
+                    }}
+                    onFocus={() => setShowContactDropdown(true)}
+                  />
+                </div>
+
+                {showContactDropdown && (
+                  <div className="position-absolute w-100 bg-white shadow rounded mt-1" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
+                    {filteredContacts.length > 0 ? (
+                      filteredContacts.map(contact => (
+                        <div 
+                          key={contact.id} 
+                          className={`p-3 border-bottom hover-bg-light cursor-pointer d-flex align-items-center ${participants.some(p => p.id === contact.id) ? 'bg-light' : ''}`}
+                          onClick={() => handleAddParticipant(contact)}
+                        >
+                          <div className="flex-shrink-0 me-3">
+                            <img 
+                              src={contact.profileImage || '/profile.png'} 
+                              alt="participant" 
+                              className="rounded-circle"
+                              style={{width: '40px', height: '40px', objectFit: 'cover'}}
+                              onError={(e) => { e.target.onerror = null; e.target.src = '/profile.png'; }}
+                            />
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="fw-bold">{contact.name || contact.username}</div>
+                            <small className="text-muted">{contact.email || 'No email'}</small>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 text-center text-muted">No participants found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-4">
+                {participants.length > 0 ? (
+                  <div className="border rounded">
+                    {participants.map((participant) => (
+                      <div 
+                        key={participant.id} 
+                        className="d-flex align-items-center p-3 border-bottom last-child-border-bottom-0"
+                      >
+                        <div className="flex-shrink-0 me-3">
+                          <img 
+                            src={participant.profileImage || '/profile.png'} 
+                            alt="participant" 
+                            className="rounded-circle"
+                            style={{width: '40px', height: '40px', objectFit: 'cover'}}
+                            onError={(e) => { e.target.onerror = null; e.target.src = '/profile.png'; }}
+                          />
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="fw-bold">{participant.name || participant.username}</div>
+                          <small className="text-muted">{participant.email || 'No email'}</small>
+                        </div>
+                        <button 
+                          type="button" 
+                          className="btn btn-outline-danger btn-sm"
+                          onClick={() => handleRemoveParticipant(participant.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted border rounded">No participants added yet</div>
+                )}
+              </div>
+=======
                     className="form-control"
                     placeholder="Search contacts"
                     value={searchContact}
