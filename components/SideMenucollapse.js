@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -26,7 +27,7 @@ const SidebarMenu = ({ showmenuicon = true, onToggle }) => {
     if (onToggle && typeof onToggle === "function") {
       onToggle(isCollapsed);
     }
-  }, [isCollapsed]);
+  }, [isCollapsed, onToggle]);
 
   const menuItems = [
     { icon: <img src="/icons/calendar.png" alt="Calendar" style={{ width: "22px" }} />, label: "Calendar", path: "/" },
@@ -192,22 +193,33 @@ const SidebarMenu = ({ showmenuicon = true, onToggle }) => {
 
       {/* Fixed Footer Section */}
       <div className="flex-shrink-0 mt-auto">
-        <button
-          onClick={() => setCurrentView("settings")}
-          className="list-group-item fw-semibold list-group-item-action border-0 d-flex align-items-center p-2"
-          style={{
-            color: "#000",
-            background: "none",
-            width: "100%",
-            textAlign: "left",
-            justifyContent: isCollapsed ? "center" : "flex-start",
-            paddingLeft: isCollapsed ? "0" : "16px",
-            transition: "all 0.3s ease-in-out",
-          }}
-        >
-          <FaCog size={20} />
-          {!isCollapsed && <span className="ms-3">Settings</span>}
-        </button>
+        <Link 
+        href={"/settings"}
+        className="list-group-item fw-semibold list-group-item-action border-0 d-flex align-items-center p-2"
+        style={{
+          color: "#000",
+          fontSize: "16px",
+          justifyContent: isCollapsed ? "center" : "flex-start",
+          paddingLeft: isCollapsed ? "0" : "16px",
+          transition: "all 0.3s ease-in-out",
+        }}>
+          <button
+            onClick={() => setCurrentView("settings")}
+            className="list-group-item fw-semibold list-group-item-action border-0 d-flex align-items-center p-2"
+            style={{
+              color: "#000",
+              background: "none",
+              width: "100%",
+              textAlign: "left",
+              justifyContent: isCollapsed ? "center" : "flex-start",
+              paddingLeft: isCollapsed ? "0" : "16px",
+              transition: "all 0.3s ease-in-out",
+            }}
+          >
+            <FaCog size={20} />
+            {!isCollapsed && <span className="ms-3">Settings</span>}
+          </button>
+        </Link>
       </div>
     </div>
   );

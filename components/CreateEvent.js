@@ -5,9 +5,12 @@ import { RiMovie2Line } from 'react-icons/ri';
 import Calendar from './calendar';
 import 'react-datepicker/dist/react-datepicker.css';
 import Link from 'next/link';
+<<<<<<< HEAD
 import axios from 'axios';
 
 
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
 
 const FormStepNavigator = ({ currentStep, totalSteps, onNext }) => {
   return (
@@ -67,6 +70,7 @@ const SuccessStep = ({ onToCalendar }) => {
 
 const DirectScheduleForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
+<<<<<<< HEAD
   const [selectedDate, setSelectedDate] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
@@ -636,6 +640,9 @@ const DirectScheduleForm = () => {
 const GroupMeetingForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
+=======
+  const [selectedDate, setSelectedDate] = useState(new Date());
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const [showCalendar, setShowCalendar] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
@@ -643,6 +650,7 @@ const GroupMeetingForm = () => {
   const [endTime, setEndTime] = useState("10:00 AM");
   const [timeSlots, setTimeSlots] = useState([]);
   const [timeError, setTimeError] = useState('');
+<<<<<<< HEAD
   const [dateError, setDateError] = useState('');
   const [participants, setParticipants] = useState([]);
   const [searchContact, setSearchContact] = useState('');
@@ -655,10 +663,17 @@ const GroupMeetingForm = () => {
   const [duration, setDuration] = useState('60');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+=======
+  const [participants, setParticipants] = useState([
+    { id: 1, name: 'John_doe', group: 'Group name if any' }
+  ]);
+  const [searchContact, setSearchContact] = useState('');
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
 
   // Refs for detecting clicks outside the dropdown
   const startTimeRef = useRef(null);
   const endTimeRef = useRef(null);
+<<<<<<< HEAD
   const contactDropdownRef = useRef(null);
 
   // Fetch contacts when component mounts
@@ -793,6 +808,15 @@ const GroupMeetingForm = () => {
 
     setDateError('');
     setSelectedDate(newDate);
+=======
+
+  const handleNext = () => {
+    if (currentStep < 3) setCurrentStep(currentStep + 1);
+  };
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
     setShowCalendar(false);
   };
 
@@ -803,18 +827,29 @@ const GroupMeetingForm = () => {
 
     for (let i = 0; i < 24; i++) {
       times.push(`${hour}:00 ${period}`);
+<<<<<<< HEAD
       times.push(`${hour}:30 ${period}`);
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
       hour = hour === 12 ? 1 : hour + 1;
       if (hour === 12) period = period === "AM" ? "PM" : "AM";
     }
     return times;
   };
 
+<<<<<<< HEAD
+=======
+  // Time validation function
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const validateTimeFormat = (time) => {
     const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/i;
     return timeRegex.test(time);
   };
 
+<<<<<<< HEAD
+=======
+  // Convert time to 24-hour format for comparison
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const convertTo24HourFormat = (time) => {
     const [timePart, period] = time.split(' ');
     let [hours, minutes] = timePart.split(':');
@@ -834,12 +869,15 @@ const GroupMeetingForm = () => {
 
   const handleAddTimeSlot = () => {
     setTimeError('');
+<<<<<<< HEAD
     setDateError('');
 
     if (!selectedDate) {
       setDateError('Please select a date');
       return;
     }
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
 
     if (!validateTimeFormat(startTime)) {
       setTimeError('Invalid start time format. Use HH:MM AM/PM');
@@ -861,6 +899,7 @@ const GroupMeetingForm = () => {
 
     const newTimeSlot = {
       id: Date.now(),
+<<<<<<< HEAD
       date: selectedDate,
       startTime: startTime,
       endTime: endTime
@@ -871,6 +910,14 @@ const GroupMeetingForm = () => {
         slot.date.toDateString() === newTimeSlot.date.toDateString() &&
         slot.startTime === newTimeSlot.startTime && 
         slot.endTime === newTimeSlot.endTime
+=======
+      start: startTime,
+      end: endTime
+    };
+
+    const isDuplicate = timeSlots.some(
+      slot => slot.start === newTimeSlot.start && slot.end === newTimeSlot.end
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
     );
 
     if (isDuplicate) {
@@ -879,9 +926,12 @@ const GroupMeetingForm = () => {
     }
 
     setTimeSlots([...timeSlots, newTimeSlot]);
+<<<<<<< HEAD
     // Reset times for next slot
     setStartTime("09:00 AM");
     setEndTime("10:00 AM");
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   };
 
   const handleRemoveTimeSlot = (id) => {
@@ -914,6 +964,7 @@ const GroupMeetingForm = () => {
     }
   };
 
+<<<<<<< HEAD
   const filteredContacts = contacts.filter(contact => 
     (contact.username && contact.username.toLowerCase().includes(searchContact.toLowerCase())) ||
     (contact.name && contact.name.toLowerCase().includes(searchContact.toLowerCase()))
@@ -927,10 +978,13 @@ const GroupMeetingForm = () => {
     }
   };
 
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const handleRemoveParticipant = (id) => {
     setParticipants(participants.filter(participant => participant.id !== id));
   };
 
+<<<<<<< HEAD
   const renderDateDisplay = () => {
     if (dateError) {
       return <div className="text-danger">{dateError}</div>;
@@ -955,10 +1009,35 @@ const GroupMeetingForm = () => {
     // Implement actual redirection logic here
   };
 
+=======
+  const handleToCalendar = () => {
+    console.log('Redirecting to calendar');
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (startTimeRef.current && !startTimeRef.current.contains(event.target)) {
+        setShowStartTime(false);
+      }
+      if (endTimeRef.current && !endTimeRef.current.contains(event.target)) {
+        setShowEndTime(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   return (
     <div className="h-100 font-inter d-flex flex-column">
       {currentStep !== 3 && (
         <h3 className="mb-4 fw-bold">
+<<<<<<< HEAD
           Create Group <br /> Meeting
         </h3>
       )}
@@ -969,10 +1048,17 @@ const GroupMeetingForm = () => {
         </div>
       )}
 
+=======
+          Direct Schedule <br /> A Meeting
+        </h3>
+      )}
+
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
       <form className="flex-grow-1">
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Title*</label>
               <input
                 type="text"
@@ -981,11 +1067,22 @@ const GroupMeetingForm = () => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
+=======
+              <label className="form-label fw-medium">Title</label>
+              <input
+                type="text"
+                className="form-control form-control-lg"
+                placeholder="John Doe"
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               />
             </div>
 
             <div className="mb-4">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Time slot*</label>
+=======
+              <label className="form-label fw-medium">Time slot</label>
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -994,7 +1091,11 @@ const GroupMeetingForm = () => {
                     onClick={() => setShowCalendar(!showCalendar)}
                   >
                     <div className="text-center flex-grow-1">
+<<<<<<< HEAD
                       {renderDateDisplay()}
+=======
+                      {selectedDate ? selectedDate.toDateString() : "Select Date"}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                     </div>
                     <div className="ms-2">
                       <FaCalendarAlt />
@@ -1003,6 +1104,7 @@ const GroupMeetingForm = () => {
 
                   {showCalendar && (
                     <div
+<<<<<<< HEAD
                       className="position-absolute shadow rounded calendar-container"
                       style={{ top: "60px", left: "10px", zIndex: 10 }}
                     >
@@ -1010,6 +1112,12 @@ const GroupMeetingForm = () => {
                         onDateSelect={handleDateSelect} 
                         value={selectedDate} 
                       />
+=======
+                      className="position-absolute shadow rounded"
+                      style={{ top: "60px", left: "10px", zIndex: 10 }}
+                    >
+                      <Calendar onChange={handleDateSelect} value={selectedDate} />
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                     </div>
                   )}
 
@@ -1026,7 +1134,11 @@ const GroupMeetingForm = () => {
                     {showStartTime && (
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
+<<<<<<< HEAD
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
+=======
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                       >
                         {generateTimeOptions().map((time, index) => (
                           <div
@@ -1055,7 +1167,11 @@ const GroupMeetingForm = () => {
                     {showEndTime && (
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
+<<<<<<< HEAD
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
+=======
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                       >
                         {generateTimeOptions().map((time, index) => (
                           <div
@@ -1080,7 +1196,10 @@ const GroupMeetingForm = () => {
                       flexShrink: 0,
                     }}
                     onClick={handleAddTimeSlot}
+<<<<<<< HEAD
                     disabled={!selectedDate}
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                   >
                     <FaCheckCircle />
                   </button>
@@ -1101,7 +1220,11 @@ const GroupMeetingForm = () => {
                           key={slot.id} 
                           className="badge bg-white text-dark d-flex align-items-center gap-2 p-2"
                         >
+<<<<<<< HEAD
                           {formatTimeSlotDisplay(slot)}
+=======
+                          {slot.start} - {slot.end}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                           <button 
                             type="button" 
                             className="btn btn-sm btn-outline-danger p-0 ms-2"
@@ -1119,6 +1242,7 @@ const GroupMeetingForm = () => {
             </div>
 
             <div className="mb-4">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Duration*</label>
               <select 
                 className="form-select"
@@ -1134,18 +1258,24 @@ const GroupMeetingForm = () => {
             </div>
 
             <div className="mb-4">
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               <label className="form-label fw-medium">Description</label>
               <textarea
                 className="form-control"
                 rows="3"
                 placeholder="A short description for the meeting"
+<<<<<<< HEAD
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               />
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Location</label>
+<<<<<<< HEAD
               <select 
                 className="form-select"
                 value={location}
@@ -1156,11 +1286,19 @@ const GroupMeetingForm = () => {
                 <option value="Virtual Meeting">Virtual Meeting</option>
                 <option value="Office">Office</option>
                 <option value="Other">Other</option>
+=======
+              <select className="form-select">
+                <option>Choose a place for the meeting</option>
+                <option>Conference Room</option>
+                <option>Virtual Meeting</option>
+                <option>Office</option>
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               </select>
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Repeat</label>
+<<<<<<< HEAD
               <select 
                 className="form-select"
                 value={repeat}
@@ -1173,6 +1311,16 @@ const GroupMeetingForm = () => {
                 <option value="annually">Annually</option>
                 <option value="weekday">Every weekday (Mon-Fri)</option>
                 <option value="custom">Custom</option>
+=======
+              <select className="form-select">
+                <option>Does not repeat</option>
+                <option>Daily</option>
+                <option>Weekly on the Day</option>
+                <option>Monthly on which Day</option>
+                <option>Annually on exact Day</option>
+                <option>Every weekday</option>
+                <option>Custom</option>
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               </select>
             </div>
           </div>
@@ -1181,9 +1329,15 @@ const GroupMeetingForm = () => {
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4">
+<<<<<<< HEAD
               <h4 className="form-label fw-medium mb-3">Add participants*</h4>
               
               <div className="mb-3 position-relative" ref={contactDropdownRef}>
+=======
+              <h4 className="form-label fw-medium mb-3">Add participants</h4>
+              
+              <div className="mb-3 position-relative">
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                 <div className="input-group">
                   <span className="input-group-text bg-white">
                     <FaSearch />
@@ -1191,6 +1345,7 @@ const GroupMeetingForm = () => {
                   <input
                     type="text"
                     className="form-control"
+<<<<<<< HEAD
                     placeholder="Search contacts"
                     value={searchContact}
                     onChange={(e) => {
@@ -1288,21 +1443,74 @@ const GroupMeetingForm = () => {
                   No participants added yet
                 </div>
               )}
+=======
+                    placeholder="Search by contact"
+                    value={searchContact}
+                    onChange={(e) => setSearchContact(e.target.value)}
+                  />
+                  <span className="input-group-text bg-white">
+                    <FaChevronDown />
+                  </span>
+                </div>
+              </div>
+
+              {participants.map((participant) => (
+                <div 
+                  key={participant.id} 
+                  className="d-flex align-items-center bg-light p-3 rounded mb-2"
+                >
+                  <div className="me-auto d-flex align-items-center">
+                    <img 
+                      src="/profile.png" 
+                      alt="participant" 
+                      className="rounded-circle me-3"
+                      style={{width: '40px', height: '40px'}}
+                    />
+                    <div>
+                      <div className="fw-bold">{participant.name}</div>
+                      <small className="text-muted">{participant.group}</small>
+                    </div>
+                  </div>
+                  <div className="form-check form-switch me-3">
+                    <input 
+                      className="form-check-input" 
+                      type="checkbox" 
+                      id="accessSwitch"
+                    />
+                    <label className="form-check-label" htmlFor="accessSwitch">
+                      Give access
+                    </label>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-danger"
+                    onClick={() => handleRemoveParticipant(participant.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
             </div>
           </div>
         )}
 
         {currentStep === 3 && (
+<<<<<<< HEAD
           <SuccessStep 
             onToCalendar={handleToCalendar}
             message="Your group meeting has been successfully created!"
           />
+=======
+          <SuccessStep onToCalendar={handleToCalendar} />
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
         )}
 
         {currentStep !== 3 && (
           <FormStepNavigator 
             currentStep={currentStep} 
             totalSteps={3} 
+<<<<<<< HEAD
             onNext={handleNext}
             onBack={handleBack}
             isLoading={isLoading}
@@ -1311,6 +1519,9 @@ const GroupMeetingForm = () => {
               (currentStep === 2 && participants.length === 0)
             }
             nextLabel={currentStep === 2 ? "Create Meeting" : "Next"}
+=======
+            onNext={handleNext} 
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
           />
         )}
       </form>
@@ -1318,9 +1529,16 @@ const GroupMeetingForm = () => {
   );
 };
 
+<<<<<<< HEAD
 const RoundRobinForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
+=======
+
+const GroupMeetingForm = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const [showCalendar, setShowCalendar] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
@@ -1328,6 +1546,7 @@ const RoundRobinForm = () => {
   const [endTime, setEndTime] = useState("10:00 AM");
   const [timeSlots, setTimeSlots] = useState([]);
   const [timeError, setTimeError] = useState('');
+<<<<<<< HEAD
   const [dateError, setDateError] = useState('');
   const [participants, setParticipants] = useState([]);
   const [hosts, setHosts] = useState([]);
@@ -1421,6 +1640,106 @@ const RoundRobinForm = () => {
   };
 
   // Time selection handlers
+=======
+  const [participants, setParticipants] = useState([
+    { id: 1, name: 'John_doe', group: 'Group name if any' }
+  ]);
+  const [searchContact, setSearchContact] = useState('');
+
+  // Refs for detecting clicks outside the dropdown
+  const startTimeRef = useRef(null);
+  const endTimeRef = useRef(null);
+
+  const handleNext = () => {
+    if (currentStep < 3) setCurrentStep(currentStep + 1);
+  };
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    setShowCalendar(false);
+  };
+
+  const generateTimeOptions = () => {
+    const times = [];
+    let hour = 12;
+    let period = "AM";
+
+    for (let i = 0; i < 24; i++) {
+      times.push(`${hour}:00 ${period}`);
+      hour = hour === 12 ? 1 : hour + 1;
+      if (hour === 12) period = period === "AM" ? "PM" : "AM";
+    }
+    return times;
+  };
+
+  // Time validation function
+  const validateTimeFormat = (time) => {
+    const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/i;
+    return timeRegex.test(time);
+  };
+
+  // Convert time to 24-hour format for comparison
+  const convertTo24HourFormat = (time) => {
+    const [timePart, period] = time.split(' ');
+    let [hours, minutes] = timePart.split(':');
+    
+    hours = parseInt(hours);
+    minutes = parseInt(minutes);
+
+    if (period.toLowerCase() === 'pm' && hours !== 12) {
+      hours += 12;
+    }
+    if (period.toLowerCase() === 'am' && hours === 12) {
+      hours = 0;
+    }
+
+    return hours * 60 + minutes;
+  };
+
+  const handleAddTimeSlot = () => {
+    setTimeError('');
+
+    if (!validateTimeFormat(startTime)) {
+      setTimeError('Invalid start time format. Use HH:MM AM/PM');
+      return;
+    }
+
+    if (!validateTimeFormat(endTime)) {
+      setTimeError('Invalid end time format. Use HH:MM AM/PM');
+      return;
+    }
+
+    const startMinutes = convertTo24HourFormat(startTime);
+    const endMinutes = convertTo24HourFormat(endTime);
+
+    if (endMinutes <= startMinutes) {
+      setTimeError('End time must be later than start time');
+      return;
+    }
+
+    const newTimeSlot = {
+      id: Date.now(),
+      start: startTime,
+      end: endTime
+    };
+
+    const isDuplicate = timeSlots.some(
+      slot => slot.start === newTimeSlot.start && slot.end === newTimeSlot.end
+    );
+
+    if (isDuplicate) {
+      setTimeError('This time slot has already been added');
+      return;
+    }
+
+    setTimeSlots([...timeSlots, newTimeSlot]);
+  };
+
+  const handleRemoveTimeSlot = (id) => {
+    setTimeSlots(timeSlots.filter(slot => slot.id !== id));
+  };
+
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const handleTimeSelect = (time, type) => {
     if (type === "start") {
       setStartTime(time);
@@ -1447,6 +1766,7 @@ const RoundRobinForm = () => {
     }
   };
 
+<<<<<<< HEAD
   // Time slot management
   const handleRemoveTimeSlot = (id) => {
     setTimeSlots(timeSlots.filter(slot => slot.id !== id));
@@ -1520,10 +1840,13 @@ const RoundRobinForm = () => {
   };
 
   // Participants and hosts management
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const handleRemoveParticipant = (id) => {
     setParticipants(participants.filter(participant => participant.id !== id));
   };
 
+<<<<<<< HEAD
   const handleRemoveHost = (uniqueKey) => {
     // Remove host using the unique key
     setHosts(hosts.filter(host => host.uniqueKey !== uniqueKey));
@@ -1662,20 +1985,52 @@ const RoundRobinForm = () => {
     // Add actual redirect logic here
   };
 
+=======
+  const handleToCalendar = () => {
+    console.log('Redirecting to calendar');
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (startTimeRef.current && !startTimeRef.current.contains(event.target)) {
+        setShowStartTime(false);
+      }
+      if (endTimeRef.current && !endTimeRef.current.contains(event.target)) {
+        setShowEndTime(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   return (
     <div className="h-100 font-inter d-flex flex-column">
       {currentStep !== 3 && (
         <h3 className="mb-4 fw-bold">
+<<<<<<< HEAD
           Create Round Robin <br /> Meeting
         </h3>
       )}
 
       {error && <div className="alert alert-danger mb-3">{error}</div>}
 
+=======
+          Create Group <br /> Meeting
+        </h3>
+      )}
+
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
       <form className="flex-grow-1">
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Title*</label>
               <input
                 type="text"
@@ -1684,11 +2039,22 @@ const RoundRobinForm = () => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
+=======
+              <label className="form-label fw-medium">Title</label>
+              <input
+                type="text"
+                className="form-control form-control-lg"
+                placeholder="John Doe"
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               />
             </div>
 
             <div className="mb-4">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Time slot*</label>
+=======
+              <label className="form-label fw-medium">Time slot</label>
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -1697,7 +2063,11 @@ const RoundRobinForm = () => {
                     onClick={() => setShowCalendar(!showCalendar)}
                   >
                     <div className="text-center flex-grow-1">
+<<<<<<< HEAD
                       {renderDateDisplay()}
+=======
+                      {selectedDate ? selectedDate.toDateString() : "Select Date"}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                     </div>
                     <div className="ms-2">
                       <FaCalendarAlt />
@@ -1705,8 +2075,16 @@ const RoundRobinForm = () => {
                   </div>
 
                   {showCalendar && (
+<<<<<<< HEAD
                     <div className="position-absolute shadow rounded calendar-container" style={{ top: "60px", left: "10px", zIndex: 10 }}>
                       <Calendar onDateSelect={handleDateSelect} value={selectedDate} />
+=======
+                    <div
+                      className="position-absolute shadow rounded"
+                      style={{ top: "60px", left: "10px", zIndex: 10 }}
+                    >
+                      <Calendar onChange={handleDateSelect} value={selectedDate} />
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                     </div>
                   )}
 
@@ -1721,12 +2099,24 @@ const RoundRobinForm = () => {
                       onDoubleClick={() => handleDoubleClick("start")}
                     />
                     {showStartTime && (
+<<<<<<< HEAD
                       <div className="position-absolute bg-white shadow p-3 rounded mt-1" style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}>
                         {generateTimeOptions().map((time, index) => (
                           <div 
                             key={index} 
                             className="py-2 px-3 hover-bg-light" 
                             style={{ cursor: "pointer" }} 
+=======
+                      <div
+                        className="position-absolute bg-white shadow p-3 rounded mt-1"
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+                      >
+                        {generateTimeOptions().map((time, index) => (
+                          <div
+                            key={index}
+                            className="py-2 px-3 hover-bg-light"
+                            style={{ cursor: "pointer" }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                             onClick={() => handleTimeSelect(time, "start")}
                           >
                             {time}
@@ -1747,12 +2137,24 @@ const RoundRobinForm = () => {
                       onDoubleClick={() => handleDoubleClick("end")}
                     />
                     {showEndTime && (
+<<<<<<< HEAD
                       <div className="position-absolute bg-white shadow p-3 rounded mt-1" style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}>
                         {generateTimeOptions().map((time, index) => (
                           <div 
                             key={index} 
                             className="py-2 px-3 hover-bg-light" 
                             style={{ cursor: "pointer" }} 
+=======
+                      <div
+                        className="position-absolute bg-white shadow p-3 rounded mt-1"
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+                      >
+                        {generateTimeOptions().map((time, index) => (
+                          <div
+                            key={index}
+                            className="py-2 px-3 hover-bg-light"
+                            style={{ cursor: "pointer" }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                             onClick={() => handleTimeSelect(time, "end")}
                           >
                             {time}
@@ -1765,28 +2167,57 @@ const RoundRobinForm = () => {
                   <button
                     type="button"
                     className="btn btn-primary d-flex align-items-center"
+<<<<<<< HEAD
                     style={{ minWidth: "40px", height: "38px", flexShrink: 0 }}
                     onClick={handleAddTimeSlot}
                     disabled={!selectedDate}
+=======
+                    style={{
+                      minWidth: "40px",
+                      height: "38px",
+                      flexShrink: 0,
+                    }}
+                    onClick={handleAddTimeSlot}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                   >
                     <FaCheckCircle />
                   </button>
                 </div>
 
+<<<<<<< HEAD
                 {timeError && <div className="text-danger mt-2 small">{timeError}</div>}
+=======
+                {timeError && (
+                  <div className="text-danger mt-2 small">
+                    {timeError}
+                  </div>
+                )}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
 
                 {timeSlots.length > 0 && (
                   <div className="mt-3">
                     <h6 className="text-muted mb-2">Added Time Slots</h6>
                     <div className="d-flex flex-wrap gap-2">
                       {timeSlots.map((slot) => (
+<<<<<<< HEAD
                         <div key={slot.id} className="badge bg-white text-dark d-flex align-items-center gap-2 p-2">
                           {formatTimeSlotDisplay(slot)}
+=======
+                        <div 
+                          key={slot.id} 
+                          className="badge bg-white text-dark d-flex align-items-center gap-2 p-2"
+                        >
+                          {slot.start} - {slot.end}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                           <button 
                             type="button" 
                             className="btn btn-sm btn-outline-danger p-0 ms-2"
                             onClick={() => handleRemoveTimeSlot(slot.id)}
+<<<<<<< HEAD
                             style={{ width: '20px', height: '20px' }}
+=======
+                            style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                           >
                             &times;
                           </button>
@@ -1799,6 +2230,7 @@ const RoundRobinForm = () => {
             </div>
 
             <div className="mb-4">
+<<<<<<< HEAD
               <label className="form-label fw-medium">Duration*</label>
               <select 
                 className="form-select"
@@ -1814,18 +2246,25 @@ const RoundRobinForm = () => {
             </div>
 
             <div className="mb-4">
+=======
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               <label className="form-label fw-medium">Description</label>
               <textarea
                 className="form-control"
                 rows="3"
+<<<<<<< HEAD
                 placeholder="Meeting description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+=======
+                placeholder="A short description for the meeting"
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               />
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Location</label>
+<<<<<<< HEAD
               <select 
                 className="form-select"
                 value={location}
@@ -1835,11 +2274,19 @@ const RoundRobinForm = () => {
                 <option value="Conference Room">Conference Room</option>
                 <option value="Virtual Meeting">Virtual Meeting</option>
                 <option value="Office">Office</option>
+=======
+              <select className="form-select">
+                <option>Choose a place for the meeting</option>
+                <option>Conference Room</option>
+                <option>Virtual Meeting</option>
+                <option>Office</option>
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               </select>
             </div>
 
             <div className="mb-4">
               <label className="form-label fw-medium">Repeat</label>
+<<<<<<< HEAD
               <select 
                 className="form-select"
                 value={repeat}
@@ -1852,6 +2299,16 @@ const RoundRobinForm = () => {
                 <option value="annually">Annually</option>
                 <option value="weekday">Every weekday</option>
                 <option value="custom">Custom</option>
+=======
+              <select className="form-select">
+                <option>Does not repeat</option>
+                <option>Daily</option>
+                <option>Weekly on the Day</option>
+                <option>Monthly on which Day</option>
+                <option>Annually on exact Day</option>
+                <option>Every weekday</option>
+                <option>Custom</option>
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               </select>
             </div>
           </div>
@@ -1860,6 +2317,7 @@ const RoundRobinForm = () => {
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4">
+<<<<<<< HEAD
               <h4 className="form-label fw-medium mb-3">Add Hosts</h4>
               
               <div className="mb-3 position-relative" ref={hostDropdownRef}>
@@ -1950,10 +2408,19 @@ const RoundRobinForm = () => {
               <div className="mb-3 position-relative" ref={contactDropdownRef}>
                 <div className="input-group">
                   <span className="input-group-text bg-white border-end-0">
+=======
+              <h4 className="form-label fw-medium mb-3">Add participants</h4>
+              
+              {/* Search Contact Dropdown */}
+              <div className="mb-3 position-relative">
+                <div className="input-group">
+                  <span className="input-group-text bg-white">
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                     <FaSearch />
                   </span>
                   <input
                     type="text"
+<<<<<<< HEAD
                     className="form-control border-start-0"
                     placeholder="Search participants"
                     value={searchContact}
@@ -2031,11 +2498,62 @@ const RoundRobinForm = () => {
                   <div className="text-center py-4 text-muted border rounded">No participants added yet</div>
                 )}
               </div>
+=======
+                    className="form-control"
+                    placeholder="Search by contact"
+                    value={searchContact}
+                    onChange={(e) => setSearchContact(e.target.value)}
+                  />
+                  <span className="input-group-text bg-white">
+                    <FaChevronDown />
+                  </span>
+                </div>
+              </div>
+
+              {/* Participants List */}
+              {participants.map((participant) => (
+                <div 
+                  key={participant.id} 
+                  className="d-flex align-items-center bg-light p-3 rounded mb-2"
+                >
+                  <div className="me-auto d-flex align-items-center">
+                    <img 
+                      src="/profile.png" 
+                      alt="participant" 
+                      className="rounded-circle me-3"
+                      style={{width: '40px', height: '40px'}}
+                    />
+                    <div>
+                      <div className="fw-bold">{participant.name}</div>
+                      <small className="text-muted">{participant.group}</small>
+                    </div>
+                  </div>
+                  <div className="form-check form-switch me-3">
+                    <input 
+                      className="form-check-input" 
+                      type="checkbox" 
+                      id="accessSwitch"
+                    />
+                    <label className="form-check-label" htmlFor="accessSwitch">
+                      Give access
+                    </label>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-danger"
+                    onClick={() => handleRemoveParticipant(participant.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
             </div>
           </div>
         )}
 
         {currentStep === 3 && (
+<<<<<<< HEAD
           <SuccessStep 
             onToCalendar={handleToCalendar}
             message="Round robin meeting created successfully!"
@@ -2054,6 +2572,505 @@ const RoundRobinForm = () => {
               (currentStep === 2 && hosts.length === 0)
             }
             nextLabel={currentStep === 2 ? "Create Round Robin" : "Next"}
+=======
+          <SuccessStep onToCalendar={handleToCalendar} />
+        )}
+
+        {/* Navigation */}
+        {currentStep !== 3 && (
+          <FormStepNavigator 
+            currentStep={currentStep}
+            totalSteps={3}
+            onNext={handleNext}
+          />
+        )}
+      </form>
+    </div>
+  );
+};
+
+const RoundRobinForm = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showStartTime, setShowStartTime] = useState(false);
+  const [showEndTime, setShowEndTime] = useState(false);
+  const [startTime, setStartTime] = useState("09:00 AM");
+  const [endTime, setEndTime] = useState("10:00 AM");
+  const [timeSlots, setTimeSlots] = useState([]);
+  const [timeError, setTimeError] = useState('');
+  const [participants, setParticipants] = useState([
+    { id: 1, name: 'John_doe', group: 'Group name if any' }
+  ]);
+  const [searchContact, setSearchContact] = useState('');
+  const [hosts, setHosts] = useState([
+    { id: 1, name: 'organizer_user', group: 'Organizers' }
+  ]);
+  const [searchHost, setSearchHost] = useState('');
+
+  // Refs for detecting clicks outside the dropdown
+  const startTimeRef = useRef(null);
+  const endTimeRef = useRef(null);
+
+  const handleNext = () => {
+    if (currentStep < 3) setCurrentStep(currentStep + 1);
+  };
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    setShowCalendar(false);
+  };
+
+  const generateTimeOptions = () => {
+    const times = [];
+    let hour = 12;
+    let period = "AM";
+
+    for (let i = 0; i < 24; i++) {
+      times.push(`${hour}:00 ${period}`);
+      hour = hour === 12 ? 1 : hour + 1;
+      if (hour === 12) period = period === "AM" ? "PM" : "AM";
+    }
+    return times;
+  };
+
+  // Time validation function
+  const validateTimeFormat = (time) => {
+    const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/i;
+    return timeRegex.test(time);
+  };
+
+  // Convert time to 24-hour format for comparison
+  const convertTo24HourFormat = (time) => {
+    const [timePart, period] = time.split(' ');
+    let [hours, minutes] = timePart.split(':');
+    
+    hours = parseInt(hours);
+    minutes = parseInt(minutes);
+
+    if (period.toLowerCase() === 'pm' && hours !== 12) {
+      hours += 12;
+    }
+    if (period.toLowerCase() === 'am' && hours === 12) {
+      hours = 0;
+    }
+
+    return hours * 60 + minutes;
+  };
+
+  const handleAddTimeSlot = () => {
+    setTimeError('');
+
+    if (!validateTimeFormat(startTime)) {
+      setTimeError('Invalid start time format. Use HH:MM AM/PM');
+      return;
+    }
+
+    if (!validateTimeFormat(endTime)) {
+      setTimeError('Invalid end time format. Use HH:MM AM/PM');
+      return;
+    }
+
+    const startMinutes = convertTo24HourFormat(startTime);
+    const endMinutes = convertTo24HourFormat(endTime);
+
+    if (endMinutes <= startMinutes) {
+      setTimeError('End time must be later than start time');
+      return;
+    }
+
+    const newTimeSlot = {
+      id: Date.now(),
+      start: startTime,
+      end: endTime
+    };
+
+    const isDuplicate = timeSlots.some(
+      slot => slot.start === newTimeSlot.start && slot.end === newTimeSlot.end
+    );
+
+    if (isDuplicate) {
+      setTimeError('This time slot has already been added');
+      return;
+    }
+
+    setTimeSlots([...timeSlots, newTimeSlot]);
+  };
+
+  const handleRemoveTimeSlot = (id) => {
+    setTimeSlots(timeSlots.filter(slot => slot.id !== id));
+  };
+
+  const handleTimeSelect = (time, type) => {
+    if (type === "start") {
+      setStartTime(time);
+      setShowStartTime(false);
+    } else if (type === "end") {
+      setEndTime(time);
+      setShowEndTime(false);
+    }
+  };
+
+  const handleTimeChange = (value, type) => {
+    if (type === "start") {
+      setStartTime(value);
+    } else {
+      setEndTime(value);
+    }
+  };
+
+  const handleDoubleClick = (type) => {
+    if (type === "start") {
+      setShowStartTime(true);
+    } else if (type === "end") {
+      setShowEndTime(true);
+    }
+  };
+
+  const handleRemoveParticipant = (id) => {
+    setParticipants(participants.filter(participant => participant.id !== id));
+  };
+
+  const handleToCalendar = () => {
+    console.log('Redirecting to calendar');
+  };
+
+  const handleRemoveHost = (id) => {
+    setHosts(hosts.filter(host => host.id !== id));
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (startTimeRef.current && !startTimeRef.current.contains(event.target)) {
+        setShowStartTime(false);
+      }
+      if (endTimeRef.current && !endTimeRef.current.contains(event.target)) {
+        setShowEndTime(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  return (
+    <div className="h-100 font-inter d-flex flex-column">
+      {currentStep !== 3 && (
+        <h3 className="mb-4 fw-bold">
+          Create Round Robin <br /> Meeting
+        </h3>
+      )}
+
+      <form className="flex-grow-1">
+        {currentStep === 1 && (
+          <div className="animate-fade-in">
+            <div className="mb-4 fs-6">
+              <label className="form-label fw-medium">Title</label>
+              <input
+                type="text"
+                className="form-control form-control-lg"
+                placeholder="John Doe"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="form-label fw-medium">Time slot</label>
+              <div className="p-2 bg-light rounded position-relative">
+                <div className="d-flex align-items-center gap-2">
+                  <div
+                    className="d-flex align-items-center bg-white py-2 px-3 rounded"
+                    style={{ cursor: "pointer", minWidth: "190px" }}
+                    onClick={() => setShowCalendar(!showCalendar)}
+                  >
+                    <div className="text-center flex-grow-1">
+                      {selectedDate ? selectedDate.toDateString() : "Select Date"}
+                    </div>
+                    <div className="ms-2">
+                      <FaCalendarAlt />
+                    </div>
+                  </div>
+
+                  {showCalendar && (
+                    <div
+                      className="position-absolute shadow rounded"
+                      style={{ top: "60px", left: "10px", zIndex: 10 }}
+                    >
+                      <Calendar onChange={handleDateSelect} value={selectedDate} />
+                    </div>
+                  )}
+
+                  <div className="position-relative" ref={startTimeRef}>
+                    <input
+                      type="text"
+                      className="form-control bg-white py-2 px-3 rounded"
+                      style={{ minWidth: "100px", cursor: "pointer" }}
+                      placeholder="HH:MM AM/PM"
+                      value={startTime}
+                      onChange={(e) => handleTimeChange(e.target.value, "start")}
+                      onDoubleClick={() => handleDoubleClick("start")}
+                    />
+                    {showStartTime && (
+                      <div
+                        className="position-absolute bg-white shadow p-3 rounded mt-1"
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+                      >
+                        {generateTimeOptions().map((time, index) => (
+                          <div
+                            key={index}
+                            className="py-2 px-3 hover-bg-light"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleTimeSelect(time, "start")}
+                          >
+                            {time}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="position-relative" ref={endTimeRef}>
+                    <input
+                      type="text"
+                      className="form-control bg-white py-2 px-3 rounded"
+                      style={{ minWidth: "100px", cursor: "pointer" }}
+                      placeholder="HH:MM AM/PM"
+                      value={endTime}
+                      onChange={(e) => handleTimeChange(e.target.value, "end")}
+                      onDoubleClick={() => handleDoubleClick("end")}
+                    />
+                    {showEndTime && (
+                      <div
+                        className="position-absolute bg-white shadow p-3 rounded mt-1"
+                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
+                      >
+                        {generateTimeOptions().map((time, index) => (
+                          <div
+                            key={index}
+                            className="py-2 px-3 hover-bg-light"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleTimeSelect(time, "end")}
+                          >
+                            {time}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary d-flex align-items-center"
+                    style={{
+                      minWidth: "40px",
+                      height: "38px",
+                      flexShrink: 0,
+                    }}
+                    onClick={handleAddTimeSlot}
+                  >
+                    <FaCheckCircle />
+                  </button>
+                </div>
+
+                {timeError && (
+                  <div className="text-danger mt-2 small">
+                    {timeError}
+                  </div>
+                )}
+
+                {timeSlots.length > 0 && (
+                  <div className="mt-3">
+                    <h6 className="text-muted mb-2">Added Time Slots</h6>
+                    <div className="d-flex flex-wrap gap-2">
+                      {timeSlots.map((slot) => (
+                        <div 
+                          key={slot.id} 
+                          className="badge bg-white text-dark d-flex align-items-center gap-2 p-2"
+                        >
+                          {slot.start} - {slot.end}
+                          <button 
+                            type="button" 
+                            className="btn btn-sm btn-outline-danger p-0 ms-2"
+                            onClick={() => handleRemoveTimeSlot(slot.id)}
+                            style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="form-label fw-medium">Description</label>
+              <textarea
+                className="form-control"
+                rows="3"
+                placeholder="A short description for the meeting"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="form-label fw-medium">Location</label>
+              <select className="form-select">
+                <option>Choose a place for the meeting</option>
+                <option>Conference Room</option>
+                <option>Virtual Meeting</option>
+                <option>Office</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="form-label fw-medium">Repeat</label>
+              <select className="form-select">
+                <option>Does not repeat</option>
+                <option>Daily</option>
+                <option>Weekly on the Day</option>
+                <option>Monthly on which Day</option>
+                <option>Annually on exact Day</option>
+                <option>Every weekday</option>
+                <option>Custom</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 2 && (
+          <div className="animate-fade-in">
+            <div className="mb-4">
+              <span className="form-label fw-medium mb-3 fs-5 text-muted">Add participants</span>
+              {/* Search Contact Dropdown */}
+              <div className="mb-3 position-relative">
+                <div className="input-group">
+                  <span className="input-group-text bg-white">
+                    <FaSearch />
+                  </span>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search by contact"
+                    value={searchContact}
+                    onChange={(e) => setSearchContact(e.target.value)}
+                  />
+                  <span className="input-group-text bg-white">
+                    <FaChevronDown />
+                  </span>
+                </div>
+              </div>
+              {/* Participants List */}
+              {participants.map((participant) => (
+                <div 
+                  key={participant.id} 
+                  className="d-flex align-items-center bg-light p-3 rounded mb-2"
+                >
+                  <div className="me-auto d-flex align-items-center">
+                    <img 
+                      src="/profile.png" 
+                      alt="participant" 
+                      className="rounded-circle me-3"
+                      style={{width: '40px', height: '40px'}}
+                    />
+                    <div>
+                      <div className="fw-bold">{participant.name}</div>
+                      <small className="text-muted">{participant.group}</small>
+                    </div>
+                  </div>
+                  <div className="form-check form-switch me-3">
+                    <input 
+                      className="form-check-input" 
+                      type="checkbox" 
+                      id="accessSwitch"
+                    />
+                    <label className="form-check-label" htmlFor="accessSwitch">
+                      Give access
+                    </label>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-danger"
+                    onClick={() => handleRemoveParticipant(participant.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+
+              <span className="form-label fw-medium mb-3 fs-5 text-muted">Add hosts</span>
+              <div className="mb-3 position-relative">
+                <div className="input-group">
+                  <span className="input-group-text bg-white">
+                    <FaSearch />
+                  </span>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search by contact"
+                    value={searchHost}
+                    onChange={(e) => setSearchHost(e.target.value)}
+                  />
+                  <span className="input-group-text bg-white">
+                    <FaChevronDown />
+                  </span>
+                </div>
+              </div>
+              {hosts.map((host) => (
+                <div 
+                  key={host.id} 
+                  className="d-flex align-items-center bg-light p-3 rounded mb-2"
+                >
+                  <div className="me-auto d-flex align-items-center">
+                    <img 
+                      src="/profile.png" 
+                      alt="host" 
+                      className="rounded-circle me-3"
+                      style={{width: '40px', height: '40px'}}
+                    />
+                    <div>
+                      <div className="fw-bold">{host.name}</div>
+                      <small className="text-muted">{host.group}</small>
+                    </div>
+                  </div>
+                  <div className="form-check form-switch me-3">
+                    <input 
+                      className="form-check-input" 
+                      type="checkbox" 
+                      id="hostAccessSwitch"
+                      defaultChecked
+                    />
+                    <label className="form-check-label" htmlFor="hostAccessSwitch">
+                      Give access
+                    </label>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-danger"
+                    onClick={() => handleRemoveHost(host.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {currentStep === 3 && (
+          <SuccessStep onToCalendar={handleToCalendar} />
+        )}
+
+        {/* Navigation */}
+        {currentStep !== 3 && (
+          <FormStepNavigator 
+            currentStep={currentStep}
+            totalSteps={3}
+            onNext={handleNext}
+>>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
           />
         )}
       </form>
