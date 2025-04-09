@@ -1,12 +1,36 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const Availability = () => {
+const useDebounce = (callback, delay) => {
+  const timeoutRef = useRef(null);
+  
+  return (...args) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  };
+};
+
+const Availability = ({ meetingId }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [visibleDays, setVisibleDays] = useState(7);
   const [startDayIndex, setStartDayIndex] = useState(0);
   const [timeZone, setTimeZone] = useState('');
-  const [selectedSlots, setSelectedSlots] = useState([]); // Changed to array to store multiple slots
-  const [nextSlotId, setNextSlotId] = useState(1); // To generate unique IDs for slots
+  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [nextSlotId, setNextSlotId] = useState(1);
+  const [adminTimeRanges, setAdminTimeRanges] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [meetingDuration, setMeetingDuration] = useState(70);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showError, setShowError] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [draggedSlot, setDraggedSlot] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   
   const now = new Date();
   const currentHour = now.getHours();
@@ -15,6 +39,234 @@ const Availability = () => {
   
   // Constant for the duration of a selected time slot in minutes
   const SELECTED_SLOT_DURATION = 70; // 1 hour and 10 minutes
+  
+  // Submit availability to the server
+  const submitAvailabilityImmediate = async () => {
+    if (!meetingId || selectedSlots.length === 0 || submitting) return;
+    
+    try {
+      setSubmitting(true);
+      
+      // Convert selected slots to the format expected by the API
+      const timeSlots = selectedSlots.map(slot => {
+        // Convert from display format to ISO format
+        const startDate = convertTimeToISO(slot.day, slot.hour, slot.minute);
+        
+        // Calculate end time based on meeting duration
+        const endDate = new Date(startDate);
+        endDate.setMinutes(endDate.getMinutes() + meetingDuration);
+        
+        return {
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString()
+        };
+      });
+      
+      // Create the payload with all required fields
+      const payload = {
+        id: "", // Let the server generate ID
+        meetingId: meetingId,
+        timeSlots: timeSlots,
+        submittedAt: new Date().toISOString(), // Add current timestamp
+        username: "" // Server will fill this from authentication
+      };
+      
+      // Submit to the API using PUT instead of POST
+      const response = await fetch('http://localhost:8080/create/participant/availability', {
+        method: 'PUT', // Changed from POST to PUT
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      
+      // Show success message
+      setSuccessMessage("Your availability has been saved successfully!");
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+      
+    } catch (err) {
+      console.error('Error submitting availability:', err);
+      setErrorMessage("Failed to save your availability. Please try again.");
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitAvailability = useDebounce(submitAvailabilityImmediate, 500);
+  
+  // Helper function to convert time to ISO format
+  const convertTimeToISO = (dayOfWeek, hour, minute) => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    
+    // Calculate how many days to add/subtract to get to the specified day
+    let daysToAdd = dayOfWeek - currentDay;
+    if (daysToAdd < 0) daysToAdd += 7; // Ensure we're looking at the next occurrence
+    
+    // Create a new date for the target day
+    const targetDate = new Date(now);
+    targetDate.setDate(now.getDate() + daysToAdd);
+    
+    // Set the hour and minute
+    targetDate.setHours(hour, minute, 0, 0);
+    
+    return targetDate;
+  };
+  
+  useEffect(() => {
+    const fetchMeetingDetails = async () => {
+      if (!meetingId) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Meeting details API request failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Extract duration from meeting details
+        const duration = parseInt(data.groupDuration || data.duration || 70, 10);
+        
+        // Set the meeting duration state
+        setMeetingDuration(duration);
+        
+        // Continue with fetching time ranges and user availability
+        await fetchTimeRanges();
+        await fetchUserAvailability(); // Add this line
+      } catch (err) {
+        console.error('Error fetching meeting details:', err);
+        setError('Failed to load meeting details. Please try again later.');
+        setIsLoading(false);
+      }
+    };
+
+    const fetchUserAvailability = async () => {
+      try {
+        const response = await fetch(`http://localhost:8080/create/participant/availability/${meetingId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Participant availability API request failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // If user has existing availability, populate the slots
+        if (data.length > 0) {
+          // Assuming the first entry is the user's availability
+          const userAvailability = data[0];
+          
+          // Convert API time slots to the component's slot format
+          const formattedSlots = userAvailability.timeSlots.map((slot, index) => {
+            const startDate = new Date(slot.startTime);
+            const endDate = new Date(slot.endTime);
+            
+            return {
+              id: index + 1, // Generate unique ID
+              day: startDate.getDay(),
+              dayIndex: startDate.getDay(), // Assuming dayIndex is the same as day
+              startTime: formatTimeDisplay(startDate.getHours(), startDate.getMinutes()),
+              endTime: formatTimeDisplay(endDate.getHours(), endDate.getMinutes()),
+              hour: startDate.getHours(),
+              minute: startDate.getMinutes(),
+              verticalPosition: (startDate.getHours() + startDate.getMinutes() / 60) * 60,
+              endPosition: (endDate.getHours() + endDate.getMinutes() / 60) * 60,
+              admin: 1, // Default admin ID
+              adminName: userAvailability.username || 'You'
+            };
+          });
+          
+          // Set the slots and update the next slot ID
+          setSelectedSlots(formattedSlots);
+          setNextSlotId(formattedSlots.length + 1);
+        }
+      } catch (err) {
+        console.error('Error fetching participant availability:', err);
+        // Optionally set an error state or show a toast
+      }
+    };
+    
+    // Fetch time ranges from API
+    const fetchTimeRanges = async () => {
+      try {
+        const response = await fetch(`http://localhost:8080/create/availability/${meetingId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Transform API data to the format our component uses
+        const formattedRanges = [];
+        let adminId = 1;
+        
+        // Group time slots by username to assign consistent colors
+        const userMap = {};
+        
+        data.forEach(item => {
+          if (!userMap[item.username]) {
+            userMap[item.username] = adminId++;
+          }
+          
+          item.timeSlots.forEach(slot => {
+            const startDate = new Date(slot.startTime);
+            const endDate = new Date(slot.endTime);
+            
+            formattedRanges.push({
+              adminId: userMap[item.username], // Consistent color based on username
+              day: startDate.getDay(), // 0 for Sunday, 1 for Monday, etc.
+              startHour: startDate.getHours(),
+              startMinute: startDate.getMinutes(),
+              endHour: endDate.getHours(),
+              endMinute: endDate.getMinutes(),
+              username: item.username // Store username for display
+            });
+          });
+        });
+        
+        setAdminTimeRanges(formattedRanges);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error fetching availability data:', err);
+        setError('Failed to load availability data. Please try again later.');
+        setIsLoading(false);
+      }
+    };
+    
+    // Start the fetch chain with meeting details
+    fetchMeetingDetails();
+  }, [meetingId]);
   
   // Get user's time zone
   useEffect(() => {
@@ -69,11 +321,11 @@ const Availability = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [currentDay]);
   
-  // Generate time slots from 6:00 AM to 10:00 PM (used for display)
+  // Generate time slots from 12:00 AM to 12:00 PM (updated)
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
-    const hour = (i + 6) % 24; // Start from 6 AM and cycle back
+    const hour = i; // Start from 0 (12 AM) to 23 (11 PM)
     const period = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const displayHour = hour === 0 || hour === 12 ? 12 : hour % 12;
     return `${displayHour} ${period}`;
   });
 
@@ -97,55 +349,26 @@ const Availability = () => {
   // Visible days
   const visibleDaysArray = days.slice(startDayIndex, startDayIndex + visibleDays);
   
-  // Admin time ranges data
-  const adminTimeRanges = [
-    // Admin 1 (Light Yellow)
-    { adminId: 1, day: 0, startHour: 6, startMinute: 0, endHour: 10, endMinute: 0 },
-    { adminId: 1, day: 1, startHour: 8, startMinute: 0, endHour: 12, endMinute: 0 },
-    { adminId: 1, day: 2, startHour: 10, startMinute: 0, endHour: 14, endMinute: 0 },
-    { adminId: 1, day: 3, startHour: 15, startMinute: 0, endHour: 17, endMinute: 0 },
-    { adminId: 1, day: 4, startHour: 12, startMinute: 0, endHour: 16, endMinute: 0 },
-    { adminId: 1, day: 5, startHour: 8, startMinute: 0, endHour: 22, endMinute: 0 },
-    
-    // Admin 2 (Light Orange)
-    { adminId: 2, day: 0, startHour: 10, startMinute: 0, endHour: 12, endMinute: 0 },
-    { adminId: 2, day: 1, startHour: 12, startMinute: 0, endHour: 16, endMinute: 0 },
-    { adminId: 2, day: 2, startHour: 14, startMinute: 0, endHour: 16, endMinute: 0 },
-    { adminId: 2, day: 4, startHour: 16, startMinute: 0, endHour: 20, endMinute: 0 },
-    
-    // Admin 3 (Light Pink)
-    { adminId: 3, day: 0, startHour: 12, startMinute: 0, endHour: 14, endMinute: 0 },
-    { adminId: 3, day: 0, startHour: 16, startMinute: 0, endHour: 22, endMinute: 0 },
-    { adminId: 3, day: 1, startHour: 18, startMinute: 0, endHour: 22, endMinute: 0 },
-    { adminId: 3, day: 3, startHour: 8, startMinute: 0, endHour: 14, endMinute: 0 },
-    { adminId: 3, day: 3, startHour: 17, startMinute: 0, endHour: 22, endMinute: 0 },
-    { adminId: 3, day: 4, startHour: 6, startMinute: 0, endHour: 12, endMinute: 0 },
-    { adminId: 3, day: 6, startHour: 6, startMinute: 0, endHour: 22, endMinute: 0 },
-    
-    // Admin 4 (Light Magenta)
-    { adminId: 4, day: 0, startHour: 14, startMinute: 0, endHour: 20, endMinute: 0 },
-    { adminId: 4, day: 0, startHour: 18, startMinute: 0, endHour: 22, endMinute: 0 },
-    { adminId: 4, day: 1, startHour: 16, startMinute: 0, endHour: 18, endMinute: 0 },
-    { adminId: 4, day: 3, startHour: 6, startMinute: 0, endHour: 8, endMinute: 0 },
-    { adminId: 4, day: 3, startHour: 14, startMinute: 0, endHour: 15, endMinute: 0 },
-  ];
-  
   // Function to get color based on adminId
   const getAdminColor = (adminId) => {
     const colors = {
       1: '#ffffcc', // Light Yellow
       2: '#ffe6cc', // Light Orange
       3: '#ffcccc', // Light Pink
-      4: '#ffccff'  // Light Magenta
+      4: '#ffccff',  // Light Magenta
+      5: '#ccffcc', // Light Green
+      6: '#ccffff', // Light Cyan
+      7: '#ccccff', // Light Blue
+      8: '#e6ccff', // Light Purple
     };
     return colors[adminId] || '#f0f0f0';
   };
   
-  // Function to calculate time range position and style
+  // Function to calculate time range position and style - updated for 12am start
   const getTimeRangeStyle = (timeRange) => {
     const hourHeight = 60; // 60px per hour
-    // Calculate starting position (adjust for 6 AM start)
-    const startOffset = ((timeRange.startHour + timeRange.startMinute / 60) - 6) * hourHeight;
+    // Calculate starting position (adjust for 12 AM start)
+    const startOffset = (timeRange.startHour + timeRange.startMinute / 60) * hourHeight;
     // Calculate height based on duration
     const rangeHeight = ((timeRange.endHour - timeRange.startHour) + (timeRange.endMinute - timeRange.startMinute) / 60) * hourHeight;
     
@@ -164,11 +387,8 @@ const Availability = () => {
     };
   };
   
-  // Click handler for time slots
-  // Click handler for time slots
-  // Click handler for time slots
-  // Click handler for time slots
-  const handleTimeRangeClick = (e, day, timeRange, dayIndex) => {
+   // Click handler for time slots - updated to use dynamic meetingDuration
+   const handleTimeRangeClick = (e, day, timeRange, dayIndex) => {
     e.stopPropagation();
     
     // Calculate start time from click position
@@ -177,18 +397,18 @@ const Availability = () => {
     const hourHeight = 60;
     
     // Calculate hour based on click position
-    const clickHour = 6 + clickY / hourHeight;
+    const clickHour = clickY / hourHeight; // Updated to start from 0 (12 AM)
     const hour = Math.floor(clickHour);
     const minute = Math.floor((clickHour - hour) * 60);
     
-    // Calculate end time
-    const endHour = hour + Math.floor(SELECTED_SLOT_DURATION / 60);
-    const endMinute = minute + (SELECTED_SLOT_DURATION % 60);
+    // Calculate end time using the dynamic meetingDuration
+    const endHour = hour + Math.floor(meetingDuration / 60);
+    const endMinute = minute + (meetingDuration % 60);
     
     // Calculate positions for validation
     const timeRangeTop = parseFloat(getTimeRangeStyle(timeRange).top);
     const startPosition = timeRangeTop + clickY;
-    const endPosition = startPosition + (SELECTED_SLOT_DURATION / 60) * hourHeight;
+    const endPosition = startPosition + (meetingDuration / 60) * hourHeight;
     
     // Validate that the entire slot is within the admin time range
     if (!isSlotWithinAdminTimeRange(day, startPosition, endPosition)) {
@@ -208,6 +428,7 @@ const Availability = () => {
       day: day,
       dayIndex: dayIndex,
       admin: timeRange.adminId,
+      adminName: timeRange.username || `Admin ${timeRange.adminId}`,
       startTime: startTime,
       endTime: endTime,
       verticalPosition: startPosition,
@@ -221,6 +442,9 @@ const Availability = () => {
     
     // Increment the slot ID for the next slot
     setNextSlotId(nextSlotId + 1);
+    
+    // Submit the updated availability
+    submitAvailability();
   };
   
   // Format time for display (7:30am format)
@@ -249,13 +473,15 @@ const Availability = () => {
   const closeSelectedSlot = (e, slotId) => {
     e.stopPropagation(); // Stop event propagation to prevent triggering parent onClick handlers
     setSelectedSlots(selectedSlots.filter(slot => slot.id !== slotId));
+    
+    // Submit updated availability after removing a slot (with debounce)
+    submitAvailability();
   };
   
-  // Function to check if a position is within any admin time range for a given day
   // Function to check if a slot is completely within any admin time range for a given day
   const isSlotWithinAdminTimeRange = (day, startPosition, endPosition) => {
-    const startHour = 6 + startPosition / 60; // Convert position to hour (6AM is the start)
-    const endHour = 6 + endPosition / 60; // Convert end position to hour
+    const startHour = startPosition / 60; // Convert position to hour (0 = 12 AM)
+    const endHour = endPosition / 60; // Convert end position to hour
     
     // Get all admin time ranges for this day
     const dayTimeRanges = adminTimeRanges.filter(range => range.day === day);
@@ -267,25 +493,22 @@ const Availability = () => {
       return startHour >= rangeStartHour && endHour <= rangeEndHour;
     });
   };
-  // Current time indicator
-  const currentTimePosition = ((currentHour + currentMinute / 60) - 6) * 60; // Adjust for 6 AM start
+  
+  // Current time indicator - updated for 12am start
+  const currentTimePosition = (currentHour + currentMinute / 60) * 60;
   
   // Scroll to current time on load
   const calendarRef = useRef(null);
-  const [draggedSlot, setDraggedSlot] = useState(null); 
   const gridContainerRef = useRef(null);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [showError, setShowError] = useState(false);
 
   const calculateTimeFromPosition = (position) => {
     const hourHeight = 60;
-    const timeHour = 6 + position / hourHeight; // 6 is the starting hour (6 AM)
+    const timeHour = position / hourHeight; // Updated for 12 AM start
     const hour = Math.floor(timeHour);
     const minute = Math.floor((timeHour - hour) * 60);
     
     return { hour, minute };
   };
-
 
   const startDragging = (e, slot) => {
     e.stopPropagation();
@@ -322,18 +545,18 @@ const Availability = () => {
       prevSlots.map(slot => {
         if (slot.id === draggedSlot.id) {
           // Calculate new position with proper bounds checking
-          const totalGridHeight = 17 * 60; // Total grid height (17 time slots * 60px)
+          const totalGridHeight = 24 * 60; // Total grid height (24 time slots * 60px)
           const newPosition = Math.max(0, Math.min(totalGridHeight - 1, draggedSlot.initialPosition + deltaY));
           
           // Calculate new time based on position
           const { hour, minute } = calculateTimeFromPosition(newPosition);
           
-          // Calculate end time (adding the fixed duration)
-          const endHour = hour + Math.floor(SELECTED_SLOT_DURATION / 60);
-          const endMinute = minute + (SELECTED_SLOT_DURATION % 60);
+          // Calculate end time (adding the dynamic duration)
+          const endHour = hour + Math.floor(meetingDuration / 60);
+          const endMinute = minute + (meetingDuration % 60);
           
           // Calculate end position for validation
-          const endPosition = newPosition + (SELECTED_SLOT_DURATION / 60) * 60;
+          const endPosition = newPosition + (meetingDuration / 60) * 60;
           
           return {
             ...slot,
@@ -350,13 +573,14 @@ const Availability = () => {
     );
   };
 
+
   const endDragging = () => {
     if (draggedSlot) {
       const slot = selectedSlots.find(s => s.id === draggedSlot.id);
       
       if (slot) {
-        // Calculate end position based on the slot duration
-        const endPosition = slot.verticalPosition + (SELECTED_SLOT_DURATION / 60) * 60;
+        // Calculate end position based on the dynamic slot duration
+        const endPosition = slot.verticalPosition + (meetingDuration / 60) * 60;
         
         // Check if the entire slot is within a valid admin time range
         const isValid = isSlotWithinAdminTimeRange(slot.day, slot.verticalPosition, endPosition);
@@ -373,6 +597,9 @@ const Availability = () => {
           setTimeout(() => {
             setShowError(false);
           }, 3000);
+        } else {
+          // If the slot is valid, submit the updated availability
+          submitAvailability();
         }
       }
       
@@ -383,7 +610,7 @@ const Availability = () => {
   };
 
   // Set up event listeners for dragging
-useEffect(() => {
+  useEffect(() => {
     const handleMouseMove = (e) => handleDrag(e);
     const handleMouseUp = () => endDragging();
     
@@ -400,12 +627,8 @@ useEffect(() => {
   
   useEffect(() => {
     if (calendarRef.current) {
-      // Scroll to current time (with some offset) if it's between 6 AM and 10 PM
-      if (currentHour >= 6 && currentHour <= 22) {
-        calendarRef.current.scrollTop = currentTimePosition - 100;
-      } else {
-        calendarRef.current.scrollTop = 0; // Default to 6 AM
-      }
+      // Scroll to current time (with some offset)
+      calendarRef.current.scrollTop = currentTimePosition - 100;
     }
   }, [currentTimePosition]);
   
@@ -421,8 +644,8 @@ useEffect(() => {
     // The minimum position is 0 (top of the grid) plus half the popup height
     const minPosition = popupHeight / 2;
     
-    // Calculate total grid height (17 time slots * 60px per hour)
-    const gridHeight = 17 * 60;
+    // Calculate total grid height (24 time slots * 60px per hour)
+    const gridHeight = 24 * 60;
     
     // The maximum position is the grid height minus half the popup height
     const maxPosition = gridHeight - popupHeight / 2;
@@ -430,6 +653,24 @@ useEffect(() => {
     // Ensure the position stays within bounds
     return Math.min(Math.max(position, minPosition), maxPosition);
   };
+  
+  if (isLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '300px' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        {error}
+      </div>
+    );
+  }
   
   return (
     <div className="container-fluid p-0 position-relative">
@@ -559,10 +800,29 @@ useEffect(() => {
                           ...getTimeRangeStyle(timeRange),
                           pointerEvents: 'auto' // Enable clicks on this element
                         }}
-                      />
+                      >
+                        {/* Add a small label for the username if available */}
+                        {timeRange.username && (
+                          <div style={{ 
+                            position: 'absolute', 
+                            top: '2px', 
+                            left: '5px', 
+                            right: '5px', // Add right padding
+                            fontSize: '10px',
+                            color: '#333',
+                            fontWeight: 'bold',
+                            textShadow: '0 0 2px white',
+                            maxWidth: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {timeRange.username}
+                          </div>
+                        )}
+                      </div>
                     ))}
                     
-                    {/* Place multiple popups inside the day column */}
                     {/* Place multiple popups inside the day column */}
                     {daySlotsToDisplay.map((slot, index) => (
                       <div 
@@ -594,6 +854,7 @@ useEffect(() => {
                           {slot.startTime}
                           <br />
                           {slot.endTime}
+                          
                         </div>
                       </div>
                     ))}
@@ -602,23 +863,21 @@ useEffect(() => {
               })}
               
               {/* Current Time Indicator */}
-              {currentHour >= 6 && currentHour <= 22 && (
-                <div className="position-absolute d-flex align-items-center"
-                     style={{ 
-                       top: `${currentTimePosition}px`, 
-                       height: '2px', 
-                       backgroundColor: '#1a1aff', 
-                       zIndex: 3, 
-                       left: '0',
-                       right: '0',
-                       width: '100%'
-                     }}>
-                  <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
-                       style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
-                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
+              <div className="position-absolute d-flex align-items-center"
+                   style={{ 
+                     top: `${currentTimePosition}px`, 
+                     height: '2px', 
+                     backgroundColor: '#1a1aff', 
+                     zIndex: 3, 
+                     left: '0',
+                     right: '0',
+                     width: '100%'
+                   }}>
+                <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
+                     style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -653,6 +912,18 @@ useEffect(() => {
           </div>
         </div>
       )}
+      
+      {/* Submit Availability Button */}
+      <div className="d-flex justify-content-center mt-3">
+        <button 
+          className="btn btn-primary"
+          onClick={submitAvailability}
+          disabled={selectedSlots.length === 0}
+        >
+          Save My Availability
+        </button>
+      </div>
+      
       {/* Error Toast */}
       {showError && (
         <div 
@@ -660,6 +931,16 @@ useEffect(() => {
           style={{ zIndex: 1050, minWidth: '250px', textAlign: 'center' }}
         >
           {errorMessage}
+        </div>
+      )}
+      
+      {/* Success Toast */}
+      {showSuccess && (
+        <div 
+          className="position-fixed bottom-0 start-50 translate-middle-x mb-4 p-3 bg-success text-white rounded shadow"
+          style={{ zIndex: 1050, minWidth: '250px', textAlign: 'center' }}
+        >
+          {successMessage}
         </div>
       )}
     </div>

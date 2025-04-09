@@ -1,17 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { FaBell } from 'react-icons/fa';
+import axios from 'axios';
 
-const NotificationIcon = () => {
-  const [notificationCount, setNotificationCount] = useState(0); // State to keep track of notifications
+const NotificationIcon = ({ onClick }) => {
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Simulate notification arrival for demonstration purposes
-//   useEffect(() => {
-//     const interval = setInterval(() => {
-//       setNotificationCount((prevCount) => prevCount + 1); // Increment notification count
-//     }, 5000); // For demo, increment every 5 seconds
+  // Fetch notifications from the server
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('http://localhost:8080/create/notifications', {
+        withCredentials: true // Important to include cookies for authentication
+      });
+      
+      // Count only unread notifications
+      const unreadCount = response.data.filter(notification => !notification.isRead).length;
+      setNotificationCount(unreadCount);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setError('Failed to load notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-//     return () => clearInterval(interval); // Cleanup interval on component unmount
-//   }, []);
+  useEffect(() => {
+    // Initial fetch
+    fetchNotifications();
+
+    // Set up polling interval to check for new notifications
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000); // Check every 30 seconds
+
+    // Clean up on unmount
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="position-relative">
@@ -20,16 +47,20 @@ const NotificationIcon = () => {
         size="1.5em"
         style={{
           cursor: 'pointer',
-          color: notificationCount > 0 ? 'red' : 'black', // Change color to red when notifications are present
+          color: notificationCount > 0 ? 'red' : 'black',
+          opacity: loading ? 0.7 : 1,
         }}
+        onClick={onClick}
+        aria-label={`${notificationCount} unread notifications`}
       />
-      {/* Notification count */}
+      
+      {/* Notification count badge */}
       {notificationCount > 0 && (
         <span
           className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
           style={{ fontSize: '0.75rem', color: 'white' }}
         >
-          {notificationCount}
+          {notificationCount > 99 ? '99+' : notificationCount}
         </span>
       )}
     </div>
