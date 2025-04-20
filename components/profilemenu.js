@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   FaUser, 
@@ -8,6 +8,7 @@ import {
   FaAdjust, 
   FaSignOutAlt 
 } from 'react-icons/fa';
+import { UserProfileContext } from './profileHeader'; 
 
 export const AccountSettings = () => {
   return (
@@ -59,10 +60,73 @@ export const AccountSettings = () => {
 };
 
 const ProfileMenu = () => {
+  // Use the shared user profile context if available, otherwise fall back to local state
+  const userProfileContext = React.useContext(UserProfileContext);
+  
+  const [localUserProfile, setLocalUserProfile] = useState({
+    username: '',
+    name: '',
+    profile_pic: '',
+    calendar_connected: false,
+  });
+  const [localLoading, setLocalLoading] = useState(true);
+  const [localError, setLocalError] = useState(null);
+
+  // Determine if we should use context or local state
+  const useContextData = userProfileContext && userProfileContext.userProfile !== null;
+  
+  const userProfile = useContextData ? userProfileContext.userProfile : localUserProfile;
+  const loading = useContextData ? userProfileContext.loading : localLoading;
+  const error = useContextData ? userProfileContext.error : localError;
+
+  // Only fetch data locally if context is not available
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      // If context has data, don't fetch again
+      if (useContextData) {
+        return;
+      }
+      
+      try {
+        setLocalLoading(true);
+        
+        // Try to get data from localStorage first to avoid flash
+        const cachedProfile = localStorage.getItem('userProfile');
+        if (cachedProfile) {
+          setLocalUserProfile(JSON.parse(cachedProfile));
+          setLocalLoading(false);
+        }
+        
+        // Then fetch fresh data
+        const response = await fetch('http://localhost:8080/api/users/profile', {
+          method: 'GET',
+          credentials: 'include', // Important to include cookies for authentication
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch user profile');
+        }
+
+        const data = await response.json();
+        setLocalUserProfile(data);
+        setLocalLoading(false);
+        
+        // Cache the data
+        localStorage.setItem('userProfile', JSON.stringify(data));
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+        setLocalError(err.message);
+        setLocalLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [useContextData]);
+
   const handleLogout = async () => {
     try {
       // Call the server-side logout endpoint
-      const response = await fetch('http://localhost:8080/auth/logout', {
+      const response = await fetch('http://localhost:8080/api/auth/logout', {
         method: 'GET',
         credentials: 'include', // Important to include cookies
       });
@@ -78,6 +142,57 @@ const ProfileMenu = () => {
     }
   };
 
+  // Display a loading state
+  if (loading) {
+    return (
+      <div className="container font-inter py-4" style={{ maxWidth: '1000px' }}>
+        <div className="d-flex flex-column justify-content-between bg-white rounded-3 p-3 shadow">
+          <div>
+            <div className="d-flex align-items-center mb-4">
+              <div className="position-relative">
+                <img
+                  src="/profile.png"
+                  alt="Profile"
+                  className="rounded-circle bg-light"
+                  style={{ 
+                    width: '60px', 
+                    height: '60px',
+                    objectFit: 'cover',
+                    objectPosition: 'center'
+                  }}
+                />
+              </div>
+              <div className="ms-3">
+                <h4 className="mb-0 fw-bold">Loading...</h4>
+              </div>
+            </div>
+            
+            <hr className="my-4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Handle error state by showing default UI with placeholder data
+  const defaultProfile = {
+    username: 'Guest',
+    name: 'Guest Account',
+    profile_pic: '',
+    calendar_connected: false
+  };
+  
+  // Use default profile if there's an error or no data
+  const displayProfile = error || !userProfile ? defaultProfile : userProfile;
+
+  // Get display name (use username if name is not available)
+  const displayName = displayProfile.name || displayProfile.username.split('@')[0];
+  
+  // Determine if we should show full email or just username part
+  const usernameDisplay = displayProfile.username.includes('@') 
+    ? displayProfile.username 
+    : `${displayProfile.username}`;
+
   return (
     <div className="container font-inter py-4" style={{ maxWidth: '1000px' }}>
       <div className="d-flex flex-column justify-content-between bg-white rounded-3 p-3 shadow">
@@ -85,15 +200,24 @@ const ProfileMenu = () => {
             <div className="d-flex align-items-center mb-4">
             <div className="position-relative">
               <img 
-                src="/profile.png" 
+                src={displayProfile.profile_pic || "/profile.png"} 
                 alt="Profile" 
                 className="rounded-circle bg-light"
-                style={{ width: '60px', height: '60px' }}
+                style={{ 
+                  width: '60px', 
+                  height: '60px',
+                  objectFit: 'cover',
+                  objectPosition: 'center'
+                }}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/profile.png"; // Fallback image if profile_pic URL fails
+                }}
               />
             </div>
             <div className="ms-3">
-                <h5 className="mb-0 fw-bold">John_Doe</h5>
-                <p className="text-muted mb-0">Jhonathan Doeresami</p>
+                <h5 className="mb-0 fw-bold">{displayName}</h5>
+                <p className="text-muted mb-0">{usernameDisplay}</p>
             </div>
             </div>
             
@@ -103,15 +227,18 @@ const ProfileMenu = () => {
             <h4 className="mb-4 text-secondary">Account Settings</h4>
             
             <div className="list-group">
-              <Link href="/profile" className="border-0 list-group-item list-group-item-action d-flex align-items-center px-3 py-2">
+              <Link href="/settings/profile" className="border-0 list-group-item list-group-item-action d-flex align-items-center px-3 py-2">
                 <FaUser className="me-3" size={22} />
                 <span className="fs-6">Your Profile</span>
               </Link>
-              <Link href="/calendar" className="border-0 list-group-item list-group-item-action d-flex align-items-center px-3 py-2">
+              <Link href="/settings/calendarSync" className="border-0 list-group-item list-group-item-action d-flex align-items-center px-3 py-2">
                 <FaCalendarAlt className="me-3" size={22} />
                 <span className="fs-6">Calendar Sync</span>
+                {displayProfile.calendar_connected && (
+                  <span className="badge bg-success rounded-pill ms-2">Connected</span>
+                )}
               </Link>
-              <Link href="/zoom" className="border-0 list-group-item list-group-item-action d-flex align-items-center px-3 py-2">
+              <Link href="/settings/integration" className="border-0 list-group-item list-group-item-action d-flex align-items-center px-3 py-2">
                 <FaVideo className="me-3" size={22} />
                 <span className="fs-6">Configure Zoom/Meet</span>
               </Link>

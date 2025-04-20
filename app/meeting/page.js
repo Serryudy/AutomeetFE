@@ -6,7 +6,8 @@ import '../../styles/global.css';
 import SidebarMenu from '../../components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import MeetingCard from '@/components/MeetingCard';
-import { FaSearch, FaFilter, FaCalendarAlt, FaBars } from 'react-icons/fa';
+import { FaCalendarAlt, FaBars } from 'react-icons/fa';
+import SearchBar from '@/components/meetingsearchbar';
 
 export default function Meeting() {
   const [activeTab, setActiveTab] = useState("all");
@@ -16,8 +17,11 @@ export default function Meeting() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [cardsPerRow, setCardsPerRow] = useState(3);
   const [meetings, setMeetings] = useState([]);
+  const [filteredMeetings, setFilteredMeetings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
 
   // Fetch meetings from API
   useEffect(() => {
@@ -26,7 +30,7 @@ export default function Meeting() {
         setIsLoading(true);
         // Get JWT token from localStorage or wherever you store it
 
-        const response = await fetch('http://localhost:8080/create/meetings', {
+        const response = await fetch('http://localhost:8080/api/meetings', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -51,6 +55,12 @@ export default function Meeting() {
 
     fetchMeetings();
   }, [activeTab]); // Re-fetch when tab changes
+
+  // Update filtered meetings whenever activeTab, meetings, or searchTerm changes
+  useEffect(() => {
+    const filtered = filterMeetingsByTab(meetings, activeTab);
+    setFilteredMeetings(filtered);
+  }, [activeTab, meetings, searchTerm]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -90,35 +100,62 @@ export default function Meeting() {
     setIsSidebarCollapsed(collapsed);
   };
 
-  // Helper function to check if a meeting is upcoming or past
-  const isMeetingUpcoming = (meeting) => {
-    if (meeting.meetingType === 'direct' && meeting.directTimeSlot) {
-      const startTime = new Date(meeting.directTimeSlot.startTime);
-      return startTime > new Date();
-    }
-    // For other meeting types, return true as a fallback
-    // You might want to add logic for group and round_robin types
-    return true;
-  };
-
   // Filter meetings based on active tab
   const filterMeetingsByTab = (meetings, tab) => {
+    let filtered = meetings;
+    
+    // First filter by tab
     switch(tab) {
       case 'all':
-        return meetings;
+        filtered = meetings;
+        break;
       case 'created':
-        return meetings.filter(meeting => meeting.role === 'creator');
+        filtered = meetings.filter(meeting => meeting.role === 'creator');
+        break;
       case 'participating':
-        return meetings.filter(meeting => meeting.role === 'participant');
+        filtered = meetings.filter(meeting => meeting.role === 'participant');
+        break;
       case 'hosting':
-        return meetings.filter(meeting => meeting.role === 'host');
+        filtered = meetings.filter(meeting => meeting.role === 'host');
+        break;
+      case 'pending':
+        filtered = meetings.filter(meeting => meeting.status === 'pending');
+        break;
       default:
-        return meetings;
+        filtered = meetings;
     }
+    
+    return filtered;
   };
 
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+    console.log('Searching for:', term);
+    // Search is now handled by the SearchBar component
+  };
 
-  const filteredMeetings = filterMeetingsByTab(meetings, activeTab);
+  const handleFilter = () => {
+    console.log('Filter button clicked');
+    // Implement filter modal or dropdown
+  };
+  
+  const handleSelectMeeting = (meeting) => {
+    setSelectedMeeting(meeting);
+    console.log('Selected meeting:', meeting);
+    // You could navigate to the meeting detail page
+    // router.push(`/meetings/${meeting.id}`);
+    
+    // Or simply scroll to the meeting in the list
+    const meetingElement = document.getElementById(`meeting-${meeting.id}`);
+    if (meetingElement) {
+      meetingElement.scrollIntoView({ behavior: 'smooth' });
+      // Add a highlight effect
+      meetingElement.classList.add('highlight-meeting');
+      setTimeout(() => {
+        meetingElement.classList.remove('highlight-meeting');
+      }, 2000);
+    }
+  };
 
   return (
     <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>  
@@ -187,23 +224,12 @@ export default function Meeting() {
         </div>
 
         {/* Search and Filter */}
-        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4 gap-2">
-          <div className="position-relative w-100">
-            <div className="input-group bg-white rounded-pill" style={{ height: windowWidth < 576 ? '40px' : '48px', border: '2px solid #ccc' }}>
-              <span className="input-group-text bg-transparent border-0">
-                <FaSearch className="text-muted" />
-              </span>
-              <input 
-                type="text" 
-                className="form-control border-0" 
-                placeholder={windowWidth < 576 ? "Search meetings..." : "Try searching anything related to the meeting"}
-              />
-              <button className="btn btn-light rounded-pill d-flex align-items-center gap-2 px-2 px-md-3">
-                {windowWidth < 576 ? <FaFilter /> : <>Filter <FaFilter /></>}
-              </button>
-            </div>
-          </div>
-        </div>
+        <SearchBar 
+          meetings={meetings} 
+          onSearch={handleSearch} 
+          onFilter={handleFilter} 
+          onSelectMeeting={handleSelectMeeting}
+        />
 
         {/* Meeting tabs */}
         <div className='w-100 d-flex flex-column bg-white py-2 py-md-3 rounded-3 rounded-md-4 shadow-sm'>
@@ -260,6 +286,7 @@ export default function Meeting() {
                 {filteredMeetings.map((meeting) => (
                   <div 
                     key={meeting.id} 
+                    id={`meeting-${meeting.id}`}
                     className={`col-12 ${
                       cardsPerRow === 1 ? '' : 
                       cardsPerRow === 2 ? 'col-sm-6' : 
@@ -276,7 +303,10 @@ export default function Meeting() {
                         overflow: 'hidden'
                       }}
                     >
-                      <MeetingCard meeting={meeting} />
+                      <MeetingCard 
+                        meeting={meeting} 
+                        isHighlighted={selectedMeeting && selectedMeeting.id === meeting.id}
+                      />
                     </div>
                   </div>
                 ))}

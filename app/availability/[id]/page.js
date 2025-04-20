@@ -9,32 +9,10 @@ import Availability from '@/components/Availability';
 import { FaBars } from 'react-icons/fa';
 import { useParams } from 'next/navigation';
 
-// Define eventData which was missing in the original code
-const eventData = [
-  {
-    title: "Team Meeting",
-    days: "Monday, Wednesday",
-    location: "Conference Room B",
-    color: "#FFE4B5" // Light orange
-  },
-  {
-    title: "Client Call",
-    days: "Tuesday, Thursday",
-    location: "Zoom",
-    color: "#E0FFFF" // Light cyan
-  },
-  {
-    title: "Project Review",
-    days: "Friday",
-    location: "Main Office",
-    color: "#E6E6FA" // Lavender
-  }
-];
-
 export default function AvailabilityPage() {
   const params = useParams();
   const meetingId = params.id;
-
+  const [selectedDate, setSelectedDate] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [showEventCards, setShowEventCards] = useState(false);
@@ -57,6 +35,10 @@ export default function AvailabilityPage() {
     // Only show event cards if sidebar is collapsed AND window is wide enough
     setShowEventCards(isSidebarCollapsed && windowWidth >= 1200);
   }, [isSidebarCollapsed, windowWidth]);
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+  };
 
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
@@ -133,6 +115,7 @@ export default function AvailabilityPage() {
         <SidebarMenu 
           showmenuicon={true} 
           onToggle={handleSidebarToggle}
+          onDateSelect={handleDateSelect}
         />
       </div>
 
@@ -176,56 +159,11 @@ export default function AvailabilityPage() {
         <div className="d-flex flex-column flex-lg-row gap-4">
           {/* Calendar component */}
           <div className="flex-grow-1">
-            <Availability meetingId={meetingId}/>
+            <Availability
+              meetingId={meetingId} 
+              selectedDate={selectedDate}
+            />
           </div>
-
-          {/* Event cards section */}
-          {(showEventCards || isMobile) && (
-            <div
-              className="mt-3 mt-lg-0"
-              style={{
-                width: isMobile ? '100%' : '300px',
-                minWidth: '25%',
-                backgroundColor: '#ffffff',
-                padding: '21px 17px',
-                borderRadius: '12px',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                animation: 'slideInFromRight 0.5s ease-out forwards'
-              }}
-            >
-              <div style={textStyles.title} className="mb-3">
-                Event description
-              </div>
-
-              <div className="d-flex flex-column gap-3">
-                {eventData.map((event, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      backgroundColor: event.color,
-                      padding: '8px',
-                      borderRadius: '6px'
-                    }}
-                    className="d-flex flex-column gap-2"
-                  >
-                    <div style={textStyles.eventTitle}>
-                      {event.title}
-                    </div>
-                    <div style={textStyles.eventDays}>{event.days}</div>
-                    <div className="d-flex align-items-center gap-1">
-                      <span style={textStyles.location}>Location</span>
-                      <img src="/location-icon.png" alt="Location Icon" style={{ width: '10px', height: '10px', objectFit: 'cover' }} />
-                      <span style={textStyles.locationValue}>{event.location}</span>
-                    </div>
-                    <div style={textStyles.description}>
-                      This meeting is about this thing where these things will be discussed. This meeting is this
-                      much relevant to you.
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -31,11 +31,6 @@ const Availability = ({ meetingId }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [draggedSlot, setDraggedSlot] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [userRole, setUserRole] = useState('');
-  const [meetingAvailabilities, setMeetingAvailabilities] = useState([]);
-  const [bestTimeSlot, setBestTimeSlot] = useState(null);
-  const [hasSuggestedTime, setHasSuggestedTime] = useState(false);
-  const [hoveredTimeSlot, setHoveredTimeSlot] = useState(null);
   
   const now = new Date();
   const currentHour = now.getHours();
@@ -44,72 +39,10 @@ const Availability = ({ meetingId }) => {
   
   // Constant for the duration of a selected time slot in minutes
   const SELECTED_SLOT_DURATION = 70; // 1 hour and 10 minutes
-
-  const confirmTimeSlot = async () => {
-    if (!meetingId || !hoveredTimeSlot || !['creator', 'host'].includes(userRole)) return;
-    
-    try {
-      setSubmitting(true);
-      
-      // Use the existing convertTimeToISO function to create Date objects
-      const startDate = convertTimeToISO(
-        hoveredTimeSlot.day, 
-        hoveredTimeSlot.startHour, 
-        hoveredTimeSlot.startMinute
-      );
-      
-      const endDate = convertTimeToISO(
-        hoveredTimeSlot.day, 
-        hoveredTimeSlot.endHour, 
-        hoveredTimeSlot.endMinute
-      );
-      
-      // Create the payload with the time slot in ISO string format
-      const payload = {
-        timeSlot: {
-          startTime: startDate.toISOString(),
-          endTime: endDate.toISOString()
-        }
-      };
-      
-      console.log('Confirming time slot with payload:', payload);
-      
-      // Call the confirm endpoint with the payload
-      const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/confirm`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload),
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
-      }
-      
-      // Show success message
-      setSuccessMessage("Meeting time confirmed successfully!");
-      setShowSuccess(true);
-      
-      // Redirect to meeting details page
-      setTimeout(() => {
-        window.location.href = `/meetingdetails/${meetingId}`;
-      }, 1500);
-      
-    } catch (err) {
-      console.error('Error confirming time slot:', err);
-      setErrorMessage("Failed to confirm meeting time. Please try again.");
-      setShowError(true);
-      setTimeout(() => setShowError(false), 3000);
-    } finally {
-      setSubmitting(false);
-    }
-  };
   
   // Submit availability to the server
   const submitAvailabilityImmediate = async () => {
-    if (!meetingId || selectedSlots.length === 0 || submitting || userRole !== 'participant') return;
+    if (!meetingId || selectedSlots.length === 0 || submitting) return;
     
     try {
       setSubmitting(true);
@@ -187,23 +120,6 @@ const Availability = ({ meetingId }) => {
     
     return targetDate;
   };
-
-  const getRoleBanner = () => {
-    if (userRole === 'participant') {
-      return (
-        <div className="alert alert-info mb-3" role="alert">
-          You are a participant in this meeting. Click on available time slots to indicate your availability.
-        </div>
-      );
-    } else if (userRole === 'creator' || userRole === 'host') {
-      return (
-        <div className="alert alert-secondary mb-3" role="alert">
-          You are {userRole === 'creator' ? 'the creator' : 'a host'} of this meeting. You can view availability but cannot select time slots.
-        </div>
-      );
-    }
-    return null;
-  };
   
   useEffect(() => {
     const fetchMeetingDetails = async () => {
@@ -232,86 +148,13 @@ const Availability = ({ meetingId }) => {
         
         // Set the meeting duration state
         setMeetingDuration(duration);
-        setUserRole(data.role.toLowerCase());
         
         // Continue with fetching time ranges and user availability
         await fetchTimeRanges();
-        
-        // Choose which availability data to fetch based on role
-        if (data.role.toLowerCase() === 'participant') {
-          await fetchUserAvailability();
-        } else if (['creator', 'host'].includes(data.role.toLowerCase())) {
-          await fetchMeetingAvailabilities();
-        }
+        await fetchUserAvailability(); // Add this line
       } catch (err) {
         console.error('Error fetching meeting details:', err);
         setError('Failed to load meeting details. Please try again later.');
-        setIsLoading(false);
-      }
-    };
-
-    const fetchMeetingAvailabilities = async () => {
-      try {
-        const response = await fetch(`http://localhost:8080/api/meeting/${meetingId}/availabilities`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Meeting availabilities API request failed with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Store the best time slot
-        if (data.bestTimeSlot) {
-          setBestTimeSlot({
-            startTime: new Date(data.bestTimeSlot.startTime),
-            endTime: new Date(data.bestTimeSlot.endTime)
-          });
-          setHasSuggestedTime(data.hasSuggestedTime || false);
-        }
-        
-        // Process all availabilities
-        if (data.availabilities && Array.isArray(data.availabilities)) {
-          // Transform availabilities to the format our component uses
-          const formattedRanges = [];
-          let adminId = 1;
-          
-          // Group time slots by username to assign consistent colors
-          const userMap = {};
-          
-          data.availabilities.forEach(item => {
-            if (!userMap[item.username]) {
-              userMap[item.username] = adminId++;
-            }
-            
-            item.timeSlots.forEach(slot => {
-              const startDate = new Date(slot.startTime);
-              const endDate = new Date(slot.endTime);
-              
-              formattedRanges.push({
-                adminId: userMap[item.username],
-                day: startDate.getDay(),
-                startHour: startDate.getHours(),
-                startMinute: startDate.getMinutes(),
-                endHour: endDate.getHours(),
-                endMinute: endDate.getMinutes(),
-                username: item.username
-              });
-            });
-          });
-          
-          setAdminTimeRanges(formattedRanges);
-        }
-        
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Error fetching meeting availabilities:', err);
-        setError('Failed to load availability data. Please try again later.');
         setIsLoading(false);
       }
     };
@@ -508,10 +351,6 @@ const Availability = ({ meetingId }) => {
   
   // Function to get color based on adminId
   const getAdminColor = (adminId) => {
-
-    if (isBestTimeSlot) {
-      return '#9ef0f0'; // Light turquoise for best time slot
-    }
     const colors = {
       1: '#ffffcc', // Light Yellow
       2: '#ffe6cc', // Light Orange
@@ -524,28 +363,6 @@ const Availability = ({ meetingId }) => {
     };
     return colors[adminId] || '#f0f0f0';
   };
-
-  const isBestTimeSlot = (day, startHour, startMinute, endHour, endMinute) => {
-    if (!bestTimeSlot) return false;
-    
-    const rangeStart = new Date();
-    rangeStart.setHours(startHour, startMinute, 0, 0);
-    rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay() + day);
-    
-    const rangeEnd = new Date();
-    rangeEnd.setHours(endHour, endMinute, 0, 0);
-    rangeEnd.setDate(rangeEnd.getDate() - rangeEnd.getDay() + day);
-    
-    // Check if there's an overlap
-    const bestStart = bestTimeSlot.startTime;
-    const bestEnd = bestTimeSlot.endTime;
-    
-    return (
-      (rangeStart >= bestStart && rangeStart < bestEnd) ||
-      (rangeEnd > bestStart && rangeEnd <= bestEnd) ||
-      (rangeStart <= bestStart && rangeEnd >= bestEnd)
-    );
-  };
   
   // Function to calculate time range position and style - updated for 12am start
   const getTimeRangeStyle = (timeRange) => {
@@ -555,60 +372,26 @@ const Availability = ({ meetingId }) => {
     // Calculate height based on duration
     const rangeHeight = ((timeRange.endHour - timeRange.startHour) + (timeRange.endMinute - timeRange.startMinute) / 60) * hourHeight;
     
-    // Check if this range is part of the best time slot
-    const isBest = isBestTimeSlot(
-      timeRange.day, 
-      timeRange.startHour, 
-      timeRange.startMinute, 
-      timeRange.endHour, 
-      timeRange.endMinute
-    );
-    
     return {
       top: `${startOffset}px`,
       height: `${rangeHeight}px`,
-      backgroundColor: getAdminColor(timeRange.adminId, isBest),
+      backgroundColor: getAdminColor(timeRange.adminId),
       position: 'absolute',
       left: '0',
       right: '0',
       zIndex: 1,
-      cursor: userRole === 'participant' ? 'pointer' : 'default',
+      cursor: 'pointer',
       opacity: 0.8,
       borderRadius: '8px',
-      border: isBest ? '2px solid #00bfbf' : '1px solid #000' // Thicker border for best time slot
+      border: '1px solid #000'
     };
-  };
-
-  const renderBestTimeSlotLegend = () => {
-    if (hasSuggestedTime && bestTimeSlot && ['creator', 'host'].includes(userRole)) {
-      return (
-        <div className="d-flex align-items-center mt-2 px-2">
-          <div 
-            style={{ 
-              width: '20px', 
-              height: '20px', 
-              backgroundColor: '#9ef0f0', 
-              borderRadius: '4px', 
-              border: '2px solid #00bfbf',
-              marginRight: '8px'
-            }}
-          ></div>
-          <div className="small">
-            Best Time Slot: {bestTimeSlot.startTime.toLocaleString()} - {bestTimeSlot.endTime.toLocaleString()}
-          </div>
-        </div>
-      );
-    }
-    return null;
   };
   
    // Click handler for time slots - updated to use dynamic meetingDuration
    const handleTimeRangeClick = (e, day, timeRange, dayIndex) => {
     e.stopPropagation();
     
-    if (userRole !== 'participant') {
-      return;
-    }
+    // Calculate start time from click position
     const rect = e.currentTarget.getBoundingClientRect();
     const clickY = e.clientY - rect.top;
     const hourHeight = 60;
@@ -689,9 +472,6 @@ const Availability = ({ meetingId }) => {
   // Close a specific slot popup by ID
   const closeSelectedSlot = (e, slotId) => {
     e.stopPropagation(); // Stop event propagation to prevent triggering parent onClick handlers
-    if (userRole !== 'participant') {
-      return;
-    }
     setSelectedSlots(selectedSlots.filter(slot => slot.id !== slotId));
     
     // Submit updated availability after removing a slot (with debounce)
@@ -732,10 +512,6 @@ const Availability = ({ meetingId }) => {
 
   const startDragging = (e, slot) => {
     e.stopPropagation();
-
-    if (userRole !== 'participant') {
-      return;
-    }
     
     // Don't start dragging from the close button
     if (e.target.classList.contains('btn-close')) return;
@@ -831,18 +607,6 @@ const Availability = ({ meetingId }) => {
       setDraggedSlot(null);
       document.body.style.userSelect = '';
     }
-  };
-
-  const handleTimeRangeMouseEnter = (timeRange) => {
-    // Only set hover state for creator/host on best time slots
-    if (['creator', 'host'].includes(userRole) && 
-        isBestTimeSlot(timeRange.day, timeRange.startHour, timeRange.startMinute, timeRange.endHour, timeRange.endMinute)) {
-      setHoveredTimeSlot(timeRange);
-    }
-  };
-  
-  const handleTimeRangeMouseLeave = () => {
-    setHoveredTimeSlot(null);
   };
 
   // Set up event listeners for dragging
@@ -1028,38 +792,22 @@ const Availability = ({ meetingId }) => {
                     height: '100%',
                     pointerEvents: 'none' // Let clicks pass through to the cells
                   }}>
-                    {dayTimeRanges.map((timeRange, rangeIndex) => {
-                    const isBest = isBestTimeSlot(
-                      timeRange.day, 
-                      timeRange.startHour, 
-                      timeRange.startMinute, 
-                      timeRange.endHour, 
-                      timeRange.endMinute
-                    );
-                    
-                    const isHovered = hoveredTimeSlot && 
-                      hoveredTimeSlot.day === timeRange.day && 
-                      hoveredTimeSlot.startHour === timeRange.startHour && 
-                      hoveredTimeSlot.startMinute === timeRange.startMinute;
-                    
-                    return (
+                    {dayTimeRanges.map((timeRange, rangeIndex) => (
                       <div 
-                        key={`range-${rangeIndex}`}
-                        onClick={(e) => userRole === 'participant' ? handleTimeRangeClick(e, actualDayIndex, timeRange, dayIndex) : null}
-                        onMouseEnter={() => handleTimeRangeMouseEnter(timeRange)}
-                        onMouseLeave={handleTimeRangeMouseLeave}
+                        key={`range-${rangeIndex}`} 
+                        onClick={(e) => handleTimeRangeClick(e, actualDayIndex, timeRange, dayIndex)}
                         style={{
                           ...getTimeRangeStyle(timeRange),
-                          pointerEvents: 'auto'
+                          pointerEvents: 'auto' // Enable clicks on this element
                         }}
                       >
-                        {/* Username label */}
+                        {/* Add a small label for the username if available */}
                         {timeRange.username && (
                           <div style={{ 
                             position: 'absolute', 
                             top: '2px', 
                             left: '5px', 
-                            right: '5px',
+                            right: '5px', // Add right padding
                             fontSize: '10px',
                             color: '#333',
                             fontWeight: 'bold',
@@ -1072,31 +820,8 @@ const Availability = ({ meetingId }) => {
                             {timeRange.username}
                           </div>
                         )}
-                        
-                        {/* Confirmation popup */}
-                        {isBest && isHovered && ['creator', 'host'].includes(userRole) && (
-                          <div className="position-absolute top-50 start-50 translate-middle bg-white p-2 rounded shadow border border-primary"
-                              style={{ zIndex: 100, minWidth: '120px', textAlign: 'center' }}>
-                            <p className="mb-2 small">Best time slot</p>
-                            <button 
-                              className="btn btn-primary btn-sm"
-                              onClick={confirmTimeSlot}
-                              disabled={submitting}
-                            >
-                              {submitting ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                  Confirming...
-                                </>
-                              ) : (
-                                'Confirm Time'
-                              )}
-                            </button>
-                          </div>
-                        )}
                       </div>
-                    );
-                  })}
+                    ))}
                     
                     {/* Place multiple popups inside the day column */}
                     {daySlotsToDisplay.map((slot, index) => (
@@ -1111,21 +836,19 @@ const Availability = ({ meetingId }) => {
                           width: '90%',
                           maxWidth: '180px',
                           pointerEvents: 'auto', // Make this element receive pointer events
-                          cursor: userRole === 'participant' ? 'grab' : 'default', // Only show grab cursor for participants
+                          cursor: 'grab', // Show grab cursor to indicate draggable
                           ...(draggedSlot && draggedSlot.id === slot.id ? { cursor: 'grabbing' } : {})
                         }}
                         onMouseDown={(e) => startDragging(e, slot)}
                       >
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <h6 className="m-0">Slot #{selectedSlots.findIndex(s => s.id === slot.id) + 1}</h6>
-                          {userRole === 'participant' && (
-                            <button 
-                              type="button" 
-                              className="btn-close"
-                              onClick={(e) => closeSelectedSlot(e, slot.id)}
-                              aria-label="Close"
-                            ></button>
-                          )}
+                          <button 
+                            type="button" 
+                            className="btn-close"
+                            onClick={(e) => closeSelectedSlot(e, slot.id)}
+                            aria-label="Close"
+                          ></button>
                         </div>
                         <div>
                           {slot.startTime}
@@ -1159,8 +882,6 @@ const Availability = ({ meetingId }) => {
           </div>
         </div>
       </div>
-
-      {renderBestTimeSlotLegend()}
       
       {/* Navigation Controls - Only shown when needed */}
       {navigationNeeded && (
@@ -1192,6 +913,16 @@ const Availability = ({ meetingId }) => {
         </div>
       )}
       
+      {/* Submit Availability Button */}
+      <div className="d-flex justify-content-center mt-3">
+        <button 
+          className="btn btn-primary"
+          onClick={submitAvailability}
+          disabled={selectedSlots.length === 0}
+        >
+          Save My Availability
+        </button>
+      </div>
       
       {/* Error Toast */}
       {showError && (

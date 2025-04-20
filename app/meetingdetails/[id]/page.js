@@ -55,7 +55,7 @@ const MeetingForm = () => {
               setLoading(true);
               console.log(meetingId);
               // Fixed URL to properly access the endpoint
-              const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
+              const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
                   method: 'GET',
                   headers: {
                       'Content-Type': 'application/json',
@@ -203,7 +203,7 @@ const MeetingForm = () => {
         }
         
         // Make the API call to update the meeting
-        const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
+        const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -299,7 +299,7 @@ const MeetingForm = () => {
       
       try {
         // Replace with your actual API endpoint
-        const response = await fetch(`http://localhost:8080/create/contacts`, {
+        const response = await fetch(`http://localhost:8080/api/contacts`, {
           credentials: 'include',
         });
         
@@ -345,7 +345,7 @@ const MeetingForm = () => {
       
       try {
         // Call the deletion API endpoint
-        const response = await fetch(`http://localhost:8080/create/meetings/${meetingId}`, {
+        const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -364,7 +364,7 @@ const MeetingForm = () => {
         alert('Meeting has been canceled successfully');
         
         // Redirect to the meetings list page
-        window.location.href = '/meetings';
+        window.location.href = '/meeting';
         
       } catch (err) {
         console.error('Error canceling meeting:', err);

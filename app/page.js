@@ -8,12 +8,52 @@ import '@/styles/global.css'
 import { FaBars } from 'react-icons/fa'
 
 const CalendarPage = () => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [showEventCards, setShowEventCards] = useState(false)
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
-  const [isMobile, setIsMobile] = useState(false)
-  const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showEventCards, setShowEventCards] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
+  // Load events from API or sample data
+  useEffect(() => {
+    // This is your JSON data - in a real app, you would fetch this from an API
+    const sampleEvents = [
+      {
+        "id": "01f0164a-4638-1bde-86e7-b7f9636b3734",
+        "title": "sfgsdfdsf",
+        "location": "",
+        "meetingType": "direct",
+        "status": "pending",
+        "description": "sdfsdfs",
+        "createdBy": "pabasaraf79@gmail.com",
+        "repeat": "none",
+        "directTimeSlot": {
+          "startTime": "2025-04-18T03:30:00.000Z",
+          "endTime": "2025-04-18T04:30:00.000Z"
+        },
+        "participants": [
+          {
+            "username": "somapalagalagedara@gmail.com",
+            "access": "pending"
+          },
+          {
+            "username": "externaluser@example.com",
+            "access": "pending"
+          }
+        ],
+        "role": "participant"
+      }
+    ];
+
+    // Set the events
+    setEvents(sampleEvents);
+  }, []);
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+  };
   // Handle initial window sizing and resizing
   useEffect(() => {
     const handleResize = () => {
@@ -51,11 +91,54 @@ const CalendarPage = () => {
     }
   }
 
-  const eventData = [
-    { title: 'Basic terms Meeting', days: 'Tue, Sat', location: 'Zoom - http://sortenedurl.com', color: '#ff8585' },
-    { title: 'Featureless abs meeting', days: 'Wed, Thu', location: 'Main conference hall', color: '#fff585' },
-    { title: 'Featureless abs meeting', days: 'Tue, Wed, Sat', location: 'Grand aven... http://maps.com', color: '#85ceff' }
-  ]
+  // Generate event cards to display in the sidebar
+  const generateEventCards = () => {
+    return events.map((event, index) => {
+      // Determine color based on meeting type or status
+      let color = '#85ceff'; // Default blue
+      if (event.meetingType === 'direct') {
+        color = '#ff8585'; // Red for direct meetings
+      } else if (event.status === 'pending') {
+        color = '#fff585'; // Yellow for pending
+      }
+      
+      // Format the day of the week
+      const startDate = new Date(event.directTimeSlot.startTime);
+      const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][startDate.getDay()];
+      
+      return (
+        <div
+          key={index}
+          style={{
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '7px',
+            backgroundColor: color,
+            padding: '8px',
+            borderRadius: '6px'
+          }}
+        >
+          <span style={{ fontSize: 'clamp(12px, 1.5vw, 14px)', fontWeight: '600', color: '#000' }}>
+            {event.title}
+          </span>
+          <span style={{ fontSize: 'clamp(10px, 1.2vw, 12px)', fontWeight: '600', color: '#000' }}>
+            {dayOfWeek}
+          </span>
+          {event.location && (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
+              <span style={{ fontSize: 'clamp(10px, 1.2vw, 12px)', fontWeight: '600', color: '#000' }}>Location</span>
+              <img src="/location-icon.png" alt="Location Icon" style={{ width: '10px', height: '10px', objectFit: 'cover' }} />
+              <span style={{ fontSize: 'clamp(10px, 1.2vw, 12px)', color: '#000' }}>{event.location}</span>
+            </div>
+          )}
+          <span style={{ fontSize: 'clamp(8px, 1vw, 10px)', fontWeight: '600', color: '#000' }}>
+            {event.description || 'No description available.'}
+          </span>
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>
@@ -85,6 +168,7 @@ const CalendarPage = () => {
         <SidebarMenu 
           showmenuicon={true} 
           onToggle={handleSidebarToggle}
+          onDateSelect={handleDateSelect}
         />
       </div>
 
@@ -125,7 +209,7 @@ const CalendarPage = () => {
 
         {/* Calendar Section */}
         <div className="d-flex flex-column flex-lg-row gap-3 w-100">
-          {/* Weekly Calendar */}
+          {/* Weekly Calendar - Now passing the events data */}
           <div
             className="bg-white rounded shadow-sm"
             style={{
@@ -135,10 +219,10 @@ const CalendarPage = () => {
               transition: 'min-width 0.3s ease-in-out'
             }}
           >
-            <WeeklyCalendar />
+            <WeeklyCalendar events={events} selectedDate = {selectedDate} />
           </div>
 
-          {/* Event Description Cards - Now with proper handling */}
+          {/* Event Description Cards - Now using actual events */}
           {(showEventCards || isMobile) && (
             <div
               className={`d-flex flex-column mt-3 mt-lg-0 ${isMobile ? 'w-100' : ''}`}
@@ -161,34 +245,13 @@ const CalendarPage = () => {
                 Event description
               </span>
 
-              {eventData.map((event, index) => (
-                <div
-                  key={index}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '7px',
-                    backgroundColor: event.color,
-                    padding: '8px',
-                    borderRadius: '6px'
-                  }}
-                >
-                  <span style={{ fontSize: 'clamp(12px, 1.5vw, 14px)', fontWeight: '600', color: '#000' }}>
-                    {event.title}
-                  </span>
-                  <span style={{ fontSize: 'clamp(10px, 1.2vw, 12px)', fontWeight: '600', color: '#000' }}>{event.days}</span>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
-                    <span style={{ fontSize: 'clamp(10px, 1.2vw, 12px)', fontWeight: '600', color: '#000' }}>Location</span>
-                    <img src="/location-icon.png" alt="Location Icon" style={{ width: '10px', height: '10px', objectFit: 'cover' }} />
-                    <span style={{ fontSize: 'clamp(10px, 1.2vw, 12px)', color: '#000' }}>{event.location}</span>
-                  </div>
-                  <span style={{ fontSize: 'clamp(8px, 1vw, 10px)', fontWeight: '600', color: '#000' }}>
-                    This meeting is about this thing where these things will be discussed. This meeting is this
-                    much relevant to you.
-                  </span>
+              {events.length > 0 ? (
+                generateEventCards()
+              ) : (
+                <div className="text-center text-muted py-3">
+                  No events to display
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
