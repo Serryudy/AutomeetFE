@@ -7,9 +7,10 @@ import { FaCog, FaUser, FaBell, FaGlobe, FaCalendarAlt, FaVideo } from "react-ic
 import Link from "next/link";
 import { usePathname } from "next/navigation"; // Import usePathname
 
-const SidebarMenu = ({ showmenuicon = true, onToggle }) => {
+const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const pathname = usePathname(); // Get the current URL path
+  const [selectedDate, setSelectedDate] = useState(null);
+  const pathname = usePathname();
 
   // Determine the current view based on the URL
   const isSettingsView = pathname.includes("/settings");
@@ -20,6 +21,13 @@ const SidebarMenu = ({ showmenuicon = true, onToggle }) => {
 
     if (onToggle && typeof onToggle === "function") {
       onToggle(newCollapsedState);
+    }
+  };
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    if (onDateSelect && typeof onDateSelect === "function") {
+      onDateSelect(date);
     }
   };
 
@@ -183,7 +191,7 @@ const SidebarMenu = ({ showmenuicon = true, onToggle }) => {
             <>
               <hr className="w-100 my-2" />
               <div className="calendar-wrapper w-100 my-3">
-                <Calendar />
+                <Calendar onDateSelect={handleDateSelect} />
               </div>
               <hr className="w-100 my-2" />
             </>

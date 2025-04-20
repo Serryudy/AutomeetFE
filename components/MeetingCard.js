@@ -150,8 +150,4 @@ const MeetingCard = ({ meeting }) => {
   );
 };
 
-<<<<<<< HEAD
 export default MeetingCard;
-=======
-export default MeetingCard;
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7

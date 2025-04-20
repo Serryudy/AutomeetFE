@@ -19,7 +19,7 @@ const NotificationsComponent = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:8080/create/notifications', {
+      const response = await fetch('http://localhost:8080/api/notifications', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +75,7 @@ const NotificationsComponent = () => {
 
       
       
-      const response = await fetch(`http://localhost:8080/create/notifications/${notificationId}/read`, {
+      const response = await fetch(`http://localhost:8080/api/notifications/${notificationId}/read`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ const NotificationsComponent = () => {
       // Update locally first for better UX
       setNotifications(notifications.map(notif => ({ ...notif, read: true })));
       
-      const response = await fetch('http://localhost:8080/create/notifications/markallread', {
+      const response = await fetch('http://localhost:8080/api/notifications/markallread', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

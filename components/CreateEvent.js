@@ -7,9 +7,15 @@ import 'react-datepicker/dist/react-datepicker.css';
 import Link from 'next/link';
 import axios from 'axios';
 
-
-
-const FormStepNavigator = ({ currentStep, totalSteps, onNext }) => {
+const FormStepNavigator = ({ 
+  currentStep, 
+  totalSteps, 
+  onNext, 
+  onBack, 
+  isLoading = false, 
+  nextDisabled = false,
+  nextLabel = 'Next'
+}) => {
   return (
     <div className="d-flex justify-content-between align-items-center mt-4">
       <div className="d-flex gap-2">
@@ -25,23 +31,35 @@ const FormStepNavigator = ({ currentStep, totalSteps, onNext }) => {
           />
         ))}
       </div>
-      <button 
-        type="button" 
-        className="btn btn-primary btn-lg"
-        style={{ marginLeft: 'auto' }}
-        onClick={onNext}
-      >
-        {currentStep === totalSteps ? 'Create Event' : 'Next'}
-      </button>
+      <div className="d-flex gap-2">
+        {currentStep > 1 && (
+          <button 
+            type="button" 
+            className="btn btn-secondary"
+            onClick={onBack}
+            disabled={isLoading}
+          >
+            Back
+          </button>
+        )}
+        <button 
+          type="button" 
+          className="btn btn-primary btn-lg"
+          onClick={onNext}
+          disabled={isLoading || nextDisabled}
+        >
+          {nextLabel}
+        </button>
+      </div>
     </div>
   );
 };
 
-const SuccessStep = ({ onToCalendar }) => {
+const SuccessStep = ({ onToCalendar, message }) => {
   return (
-    <div className="animate-fade-in  font-inter d-flex flex-column align-items-start justify-content-center h-100">
+    <div className="animate-fade-in font-inter d-flex flex-column align-items-start justify-content-center h-100">
       <div className='d-flex flex-row align-items-center justify-content-start gap-5'>
-        <h2 className="mb-3 fs-1  fw-bold">Success</h2>
+        <h2 className="mb-3 fs-1 fw-bold">Success</h2>
         <img
           src="/success.png"
           alt="Success"
@@ -50,9 +68,9 @@ const SuccessStep = ({ onToCalendar }) => {
         />
       </div>
       <p className="mb-4 text-muted font-inter fw-semibold fs-3">
-        Your meeting is on your<br />calendar now
+        {message || "Your meeting is on your calendar now"}
       </p>
-      <Link href={"/"	}>
+      <Link href={"/"}>
         <button
           type="button"
           className="btn btn-primary btn-lg px-4 mt-4"
@@ -77,7 +95,7 @@ const DirectScheduleForm = () => {
   const [timeError, setTimeError] = useState('');
   const [dateError, setDateError] = useState('');
   const [participants, setParticipants] = useState([]);
-  const [searchContact, setSearchContact] = useState(''); // Restored searchContact
+  const [searchContact, setSearchContact] = useState('');
   const [contacts, setContacts] = useState([]); 
   const [showContactDropdown, setShowContactDropdown] = useState(false);
   const [title, setTitle] = useState('');
@@ -96,7 +114,7 @@ const DirectScheduleForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/create/contacts', {
+        const response = await axios.get('http://localhost:8080/api/contacts', {
           withCredentials: true
         });
 
@@ -173,7 +191,7 @@ const DirectScheduleForm = () => {
         repeat
       };
 
-      const response = await axios.post('http://localhost:8080/create/direct/meetings', meetingPayload, {
+      const response = await axios.post('http://localhost:8080/api/direct/meetings', meetingPayload, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -190,8 +208,6 @@ const DirectScheduleForm = () => {
     }
   };
 
-  
-
   // Time-related utility functions
   const generateTimeOptions = () => {
     const times = [];
@@ -200,10 +216,7 @@ const DirectScheduleForm = () => {
 
     for (let i = 0; i < 24; i++) {
       times.push(`${hour}:00 ${period}`);
-<<<<<<< HEAD
       times.push(`${hour}:30 ${period}`);
-=======
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
       hour = hour === 12 ? 1 : hour + 1;
       if (hour === 12) period = period === "AM" ? "PM" : "AM";
     }
@@ -293,6 +306,12 @@ const DirectScheduleForm = () => {
     }
   };
 
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   const handleTimeSelect = (time, type) => {
     if (type === "start") {
       setStartTime(time);
@@ -315,7 +334,6 @@ const DirectScheduleForm = () => {
     setParticipants(participants.filter(participant => participant.id !== id));
   };
 
-
   // Filtered contacts for search functionality
   const filteredContacts = contacts.filter(contact => 
     contact.username.toLowerCase().includes(searchContact.toLowerCase()) ||
@@ -335,23 +353,10 @@ const DirectScheduleForm = () => {
     return `${timeSlot.date.toLocaleDateString()} | ${timeSlot.startTime} - ${timeSlot.endTime}`;
   };
 
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   return (
     <div className="h-100 font-inter d-flex flex-column">
       {currentStep !== 3 && (
         <h3 className="mb-4 fw-bold">
-<<<<<<< HEAD
-          Create Group <br /> Meeting
-        </h3>
-      )}
-
-      {error && (
-        <div className="alert alert-danger mb-3">
-          {error}
-        </div>
-      )}
-
-=======
           Direct Schedule <br /> A Meeting
         </h3>
       )}
@@ -367,16 +372,6 @@ const DirectScheduleForm = () => {
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
-<<<<<<< HEAD
-              <label className="form-label fw-medium">Title*</label>
-              <input
-                type="text"
-                className="form-control form-control-lg"
-                placeholder="Meeting title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-=======
               <label className="form-label fw-medium">Title</label>
               <input
                 type="text"
@@ -389,11 +384,7 @@ const DirectScheduleForm = () => {
 
             {/* Time Slot Selection */}
             <div className="mb-4">
-<<<<<<< HEAD
-              <label className="form-label fw-medium">Time slot*</label>
-=======
               <label className="form-label fw-medium">Time slot</label>
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -411,16 +402,7 @@ const DirectScheduleForm = () => {
 
                   {showCalendar && (
                     <div
-<<<<<<< HEAD
                       className="position-absolute shadow rounded calendar-container"
-                      style={{ top: "60px", left: "10px", zIndex: 10 }}
-                    >
-                      <Calendar 
-                        onDateSelect={handleDateSelect} 
-                        value={selectedDate} 
-                      />
-=======
-                      className="position-absolute shadow rounded"
                       style={{ top: "60px", left: "10px", zIndex: 10 }}
                     >
                       <Calendar 
@@ -444,11 +426,7 @@ const DirectScheduleForm = () => {
                     {showStartTime && (
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
-<<<<<<< HEAD
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
-=======
-                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                       >
                         {generateTimeOptions().map((time, index) => (
                           <div
@@ -478,11 +456,7 @@ const DirectScheduleForm = () => {
                     {showEndTime && (
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
-<<<<<<< HEAD
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
-=======
-                        style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "150px", overflowY: "auto" }}
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                       >
                         {generateTimeOptions().map((time, index) => (
                           <div
@@ -507,10 +481,6 @@ const DirectScheduleForm = () => {
                       flexShrink: 0,
                     }}
                     onClick={handleAddTimeSlot}
-<<<<<<< HEAD
-                    disabled={!selectedDate}
-=======
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                   >
                     <FaCheckCircle />
                   </button>
@@ -535,24 +505,6 @@ const DirectScheduleForm = () => {
 
             {/* Description and Other Details */}
             <div className="mb-4">
-<<<<<<< HEAD
-              <label className="form-label fw-medium">Duration*</label>
-              <select 
-                className="form-select"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              >
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60">1 hour</option>
-                <option value="90">1.5 hours</option>
-                <option value="120">2 hours</option>
-              </select>
-            </div>
-
-            <div className="mb-4">
-=======
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
               <label className="form-label fw-medium">Description</label>
               <textarea
                 className="form-control"
@@ -574,6 +526,7 @@ const DirectScheduleForm = () => {
                 <option value="Conference Room">Conference Room</option>
                 <option value="Virtual Meeting">Virtual Meeting</option>
                 <option value="Office">Office</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
@@ -586,10 +539,10 @@ const DirectScheduleForm = () => {
               >
                 <option value="none">Does not repeat</option>
                 <option value="daily">Daily</option>
-                <option value="weekly">Weekly on the Day</option>
-                <option value="monthly">Monthly on which Day</option>
-                <option value="annually">Annually on exact Day</option>
-                <option value="weekday">Every weekday</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="annually">Annually</option>
+                <option value="weekday">Every weekday (Mon-Fri)</option>
                 <option value="custom">Custom</option>
               </select>
             </div>
@@ -598,92 +551,115 @@ const DirectScheduleForm = () => {
 
         {/* Step 2: Add Participants */}
         {currentStep === 2 && (
-        <div className="animate-fade-in">
-          <div className="mb-4">
-            <h4 className="form-label fw-medium mb-3">Add participants</h4>
-            
-            <div className="mb-3 position-relative" ref={contactDropdownRef}>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Search contacts"
-                  value={searchContact}
-                  onChange={(e) => {
-                    setSearchContact(e.target.value);
-                    setShowContactDropdown(true);
-                  }}
-                  onFocus={() => setShowContactDropdown(true)}
-                />
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary"
-                  onClick={() => setShowContactDropdown(!showContactDropdown)}
-                >
-                  <FaChevronDown />
-                </button>
-              </div>
+          <div className="animate-fade-in">
+            <div className="mb-4">
+              <h4 className="form-label fw-medium mb-3">Add participants</h4>
+              
+              <div className="mb-3 position-relative" ref={contactDropdownRef}>
+                <div className="input-group">
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search contacts"
+                    value={searchContact}
+                    onChange={(e) => {
+                      setSearchContact(e.target.value);
+                      setShowContactDropdown(true);
+                    }}
+                    onFocus={() => setShowContactDropdown(true)}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowContactDropdown(!showContactDropdown)}
+                  >
+                    <FaChevronDown />
+                  </button>
+                </div>
 
-              {showContactDropdown && (
-                <div 
-                  className="position-absolute w-100 bg-white shadow rounded mt-1 max-h-200 overflow-auto"
-                  style={{ zIndex: 1000 }}
-                >
-                  {filteredContacts.map(contact => (
-                    <div 
-                      key={contact.id} 
-                      className={`p-2 hover-bg-light cursor-pointer ${
-                        participants.some(p => p.id === contact.id) ? 'bg-light' : ''
-                      }`}
-                      onClick={() => handleAddParticipant(contact)}
-                    >
-                      <div className="d-flex align-items-center">
-                        <img 
-                          src="/profile.png" 
-                          alt="participant" 
-                          className="rounded-circle me-3"
-                          style={{width: '30px', height: '30px'}}
-                        />
-                        <div>
-                          <div className="fw-bold">{contact.name || contact.username}</div>
-                          <small className="text-muted">{contact.role || 'No group'}</small>
+                {showContactDropdown && filteredContacts.length > 0 && (
+                  <div 
+                    className="position-absolute w-100 bg-white shadow rounded mt-1"
+                    style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
+                  >
+                    {filteredContacts.map(contact => (
+                      <div 
+                        key={contact.id} 
+                        className={`p-2 hover-bg-light cursor-pointer ${
+                          participants.some(p => p.id === contact.id) ? 'bg-light' : ''
+                        }`}
+                        onClick={() => handleAddParticipant(contact)}
+                      >
+                        <div className="d-flex align-items-center">
+                          <img 
+                            src={contact.profileImage || '/profile.png'} 
+                            alt="participant" 
+                            className="rounded-circle me-3"
+                            style={{width: '30px', height: '30px'}}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '/profile.png';
+                            }}
+                          />
+                          <div>
+                            <div className="fw-bold">{contact.name || contact.username}</div>
+                            <small className="text-muted">{contact.role || contact.email || 'No details'}</small>
+                          </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+
+                {showContactDropdown && filteredContacts.length === 0 && (
+                  <div 
+                    className="position-absolute w-100 bg-white shadow rounded mt-1 p-2"
+                    style={{ zIndex: 1000 }}
+                  >
+                    <div className="text-muted">No contacts found</div>
+                  </div>
+                )}
+              </div>
+
+              {participants.length > 0 ? (
+                participants.map((participant) => (
+                  <div 
+                    key={participant.id} 
+                    className="d-flex align-items-center bg-light p-3 rounded mb-2"
+                  >
+                    <div className="me-auto d-flex align-items-center">
+                      <img 
+                        src={participant.profileImage || '/profile.png'} 
+                        alt="participant" 
+                        className="rounded-circle me-3"
+                        style={{width: '40px', height: '40px'}}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/profile.png';
+                        }}
+                      />
+                      <div>
+                        <div className="fw-bold">{participant.name || participant.username}</div>
+                        <small className="text-muted">{participant.role || participant.email || 'No details'}</small>
+                      </div>
                     </div>
-                  ))}
+                    <button 
+                      type="button" 
+                      className="btn btn-outline-danger"
+                      onClick={() => handleRemoveParticipant(participant.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-muted">
+                  No participants added yet
                 </div>
               )}
             </div>
-
-            {participants.map((participant) => (
-              <div 
-                key={participant.id} 
-                className="d-flex align-items-center bg-light p-3 rounded mb-2"
-              >
-                <div className="me-auto d-flex align-items-center">
-                  <img 
-                    src="/profile.png" 
-                    alt="participant" 
-                    className="rounded-circle me-3"
-                    style={{width: '40px', height: '40px'}}
-                  />
-                  <div>
-                    <div className="fw-bold">{participant.name || participant.username}</div>
-                    <small className="text-muted">{participant.role || 'No group'}</small>
-                  </div>
-                </div>
-                <button 
-                  type="button" 
-                  className="btn btn-outline-danger"
-                  onClick={() => handleRemoveParticipant(participant.id)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
           </div>
-        </div>
-      )}
+        )}
 
         {/* Success Step */}
         {currentStep === 3 && (
@@ -696,13 +672,20 @@ const DirectScheduleForm = () => {
             currentStep={currentStep} 
             totalSteps={3} 
             onNext={handleNext}
+            onBack={handleBack}
             isLoading={isLoading}
+            nextDisabled={
+              (currentStep === 1 && (!title.trim() || !timeSlot)) ||
+              (currentStep === 2 && participants.length === 0)
+            }
+            nextLabel={currentStep === 2 ? "Create Meeting" : "Next"}
           />
         )}
       </form>
     </div>
   );
 };
+
 const GroupMeetingForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -735,7 +718,7 @@ const GroupMeetingForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/create/contacts', {
+        const response = await axios.get('http://localhost:8080/api/contacts', {
           withCredentials: true
         });
 
@@ -821,7 +804,7 @@ const GroupMeetingForm = () => {
         repeat
       };
 
-      await axios.post('http://localhost:8080/create/group/meetings', meetingPayload, {
+      await axios.post('http://localhost:8080/api/group/meetings', meetingPayload, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -958,7 +941,6 @@ const GroupMeetingForm = () => {
     setTimeSlots(timeSlots.filter(slot => slot.id !== id));
   };
 
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   const handleTimeSelect = (time, type) => {
     if (type === "start") {
       setStartTime(time);
@@ -1023,22 +1005,13 @@ const GroupMeetingForm = () => {
 
   const handleToCalendar = () => {
     console.log('Redirecting to calendar');
-    // Implement actual redirection logic here
+    // Implementation for actual redirection
   };
 
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
   return (
     <div className="h-100 font-inter d-flex flex-column">
       {currentStep !== 3 && (
         <h3 className="mb-4 fw-bold">
-<<<<<<< HEAD
-          Create Round Robin <br /> Meeting
-        </h3>
-      )}
-
-      {error && <div className="alert alert-danger mb-3">{error}</div>}
-
-=======
           Create Group <br /> Meeting
         </h3>
       )}
@@ -1082,10 +1055,6 @@ const GroupMeetingForm = () => {
                   </div>
 
                   {showCalendar && (
-<<<<<<< HEAD
-                    <div className="position-absolute shadow rounded calendar-container" style={{ top: "60px", left: "10px", zIndex: 10 }}>
-                      <Calendar onDateSelect={handleDateSelect} value={selectedDate} />
-=======
                     <div
                       className="position-absolute shadow rounded calendar-container"
                       style={{ top: "60px", left: "10px", zIndex: 10 }}
@@ -1108,14 +1077,6 @@ const GroupMeetingForm = () => {
                       onDoubleClick={() => handleDoubleClick("start")}
                     />
                     {showStartTime && (
-<<<<<<< HEAD
-                      <div className="position-absolute bg-white shadow p-3 rounded mt-1" style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}>
-                        {generateTimeOptions().map((time, index) => (
-                          <div 
-                            key={index} 
-                            className="py-2 px-3 hover-bg-light" 
-                            style={{ cursor: "pointer" }} 
-=======
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
@@ -1125,7 +1086,6 @@ const GroupMeetingForm = () => {
                             key={index}
                             className="py-2 px-3 hover-bg-light"
                             style={{ cursor: "pointer" }}
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                             onClick={() => handleTimeSelect(time, "start")}
                           >
                             {time}
@@ -1146,14 +1106,6 @@ const GroupMeetingForm = () => {
                       onDoubleClick={() => handleDoubleClick("end")}
                     />
                     {showEndTime && (
-<<<<<<< HEAD
-                      <div className="position-absolute bg-white shadow p-3 rounded mt-1" style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}>
-                        {generateTimeOptions().map((time, index) => (
-                          <div 
-                            key={index} 
-                            className="py-2 px-3 hover-bg-light" 
-                            style={{ cursor: "pointer" }} 
-=======
                       <div
                         className="position-absolute bg-white shadow p-3 rounded mt-1"
                         style={{ top: "100%", left: "0", zIndex: 10, maxHeight: "200px", overflowY: "auto" }}
@@ -1163,7 +1115,6 @@ const GroupMeetingForm = () => {
                             key={index}
                             className="py-2 px-3 hover-bg-light"
                             style={{ cursor: "pointer" }}
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                             onClick={() => handleTimeSelect(time, "end")}
                           >
                             {time}
@@ -1176,11 +1127,6 @@ const GroupMeetingForm = () => {
                   <button
                     type="button"
                     className="btn btn-primary d-flex align-items-center"
-<<<<<<< HEAD
-                    style={{ minWidth: "40px", height: "38px", flexShrink: 0 }}
-                    onClick={handleAddTimeSlot}
-                    disabled={!selectedDate}
-=======
                     style={{
                       minWidth: "40px",
                       height: "38px",
@@ -1193,25 +1139,17 @@ const GroupMeetingForm = () => {
                   </button>
                 </div>
 
-<<<<<<< HEAD
-                {timeError && <div className="text-danger mt-2 small">{timeError}</div>}
-=======
                 {timeError && (
                   <div className="text-danger mt-2 small">
                     {timeError}
                   </div>
                 )}
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
 
                 {timeSlots.length > 0 && (
                   <div className="mt-3">
                     <h6 className="text-muted mb-2">Added Time Slots</h6>
                     <div className="d-flex flex-wrap gap-2">
                       {timeSlots.map((slot) => (
-<<<<<<< HEAD
-                        <div key={slot.id} className="badge bg-white text-dark d-flex align-items-center gap-2 p-2">
-                          {formatTimeSlotDisplay(slot)}
-=======
                         <div 
                           key={slot.id} 
                           className="badge bg-white text-dark d-flex align-items-center gap-2 p-2"
@@ -1221,11 +1159,7 @@ const GroupMeetingForm = () => {
                             type="button" 
                             className="btn btn-sm btn-outline-danger p-0 ms-2"
                             onClick={() => handleRemoveTimeSlot(slot.id)}
-<<<<<<< HEAD
-                            style={{ width: '20px', height: '20px' }}
-=======
                             style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
                           >
                             &times;
                           </button>
@@ -1257,11 +1191,6 @@ const GroupMeetingForm = () => {
               <textarea
                 className="form-control"
                 rows="3"
-<<<<<<< HEAD
-                placeholder="Meeting description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-=======
                 placeholder="A short description for the meeting"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -1309,91 +1238,8 @@ const GroupMeetingForm = () => {
               
               <div className="mb-3 position-relative" ref={contactDropdownRef}>
                 <div className="input-group">
-                  <span className="input-group-text bg-white">
->>>>>>> 141813c8e18e4565549a7cc206213c131bcd2df7
-                    <FaSearch />
-                  </span>
                   <input
                     type="text"
-<<<<<<< HEAD
-                    className="form-control border-start-0"
-                    placeholder="Search participants"
-                    value={searchContact}
-                    onChange={(e) => {
-                      setSearchContact(e.target.value);
-                      setShowContactDropdown(true);
-                    }}
-                    onFocus={() => setShowContactDropdown(true)}
-                  />
-                </div>
-
-                {showContactDropdown && (
-                  <div className="position-absolute w-100 bg-white shadow rounded mt-1" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
-                    {filteredContacts.length > 0 ? (
-                      filteredContacts.map(contact => (
-                        <div 
-                          key={contact.id} 
-                          className={`p-3 border-bottom hover-bg-light cursor-pointer d-flex align-items-center ${participants.some(p => p.id === contact.id) ? 'bg-light' : ''}`}
-                          onClick={() => handleAddParticipant(contact)}
-                        >
-                          <div className="flex-shrink-0 me-3">
-                            <img 
-                              src={contact.profileImage || '/profile.png'} 
-                              alt="participant" 
-                              className="rounded-circle"
-                              style={{width: '40px', height: '40px', objectFit: 'cover'}}
-                              onError={(e) => { e.target.onerror = null; e.target.src = '/profile.png'; }}
-                            />
-                          </div>
-                          <div className="flex-grow-1">
-                            <div className="fw-bold">{contact.name || contact.username}</div>
-                            <small className="text-muted">{contact.email || 'No email'}</small>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-3 text-center text-muted">No participants found</div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="mb-4">
-                {participants.length > 0 ? (
-                  <div className="border rounded">
-                    {participants.map((participant) => (
-                      <div 
-                        key={participant.id} 
-                        className="d-flex align-items-center p-3 border-bottom last-child-border-bottom-0"
-                      >
-                        <div className="flex-shrink-0 me-3">
-                          <img 
-                            src={participant.profileImage || '/profile.png'} 
-                            alt="participant" 
-                            className="rounded-circle"
-                            style={{width: '40px', height: '40px', objectFit: 'cover'}}
-                            onError={(e) => { e.target.onerror = null; e.target.src = '/profile.png'; }}
-                          />
-                        </div>
-                        <div className="flex-grow-1">
-                          <div className="fw-bold">{participant.name || participant.username}</div>
-                          <small className="text-muted">{participant.email || 'No email'}</small>
-                        </div>
-                        <button 
-                          type="button" 
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => handleRemoveParticipant(participant.id)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted border rounded">No participants added yet</div>
-                )}
-              </div>
-=======
                     className="form-control"
                     placeholder="Search contacts"
                     value={searchContact}
@@ -1522,6 +1368,8 @@ const GroupMeetingForm = () => {
   );
 };
 
+
+// Complete RoundRobinForm component
 const RoundRobinForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -1560,13 +1408,13 @@ const RoundRobinForm = () => {
     const fetchContactsAndHosts = async () => {
       try {        
         // Fetch participants (contacts)
-        const participantsResponse = await axios.get('http://localhost:8080/create/contacts', {
+        const participantsResponse = await axios.get('http://localhost:8080/api/contacts', {
           withCredentials: true
         });
         setContacts(Array.isArray(participantsResponse.data) ? participantsResponse.data : (participantsResponse.data.contacts || []));
 
         // Fetch current user's hosts
-        const hostsResponse = await axios.get('http://localhost:8080/create/contact/users', {
+        const hostsResponse = await axios.get('http://localhost:8080/api/contact/users', {
           withCredentials: true
         });
         const fetchedHosts = Array.isArray(hostsResponse.data) ? hostsResponse.data : (hostsResponse.data.users || []);
@@ -1821,38 +1669,22 @@ const RoundRobinForm = () => {
         repeat: repeat || 'none'
       };
   
-      // Log payload for debugging
-      console.log('Payload:', JSON.stringify(payload, null, 2));
-  
-      const response = await axios.post('http://localhost:8080/create/roundrobin/meetings', payload, {
+      const response = await axios.post('http://localhost:8080/api/roundrobin/meetings', payload, {
         headers: {
           'Content-Type': 'application/json'
         },
         withCredentials: true
       });
   
-      // Log response for additional debugging
-      console.log('Response:', response.data);
-  
       setCurrentStep(3);
     } catch (error) {
       console.error('Error creating round robin:', error);
       
-      // More detailed error logging
       if (error.response) {
-        // The request was made and the server responded with a status code
-        console.error('Error response data:', error.response.data);
-        console.error('Error response status:', error.response.status);
-        console.error('Error response headers:', error.response.headers);
-        
         setError(error.response.data?.message || 'Failed to create round robin. Please check your input.');
       } else if (error.request) {
-        // The request was made but no response was received
-        console.error('Error request:', error.request);
         setError('No response received from server. Please try again.');
       } else {
-        // Something happened in setting up the request
-        console.error('Error message:', error.message);
         setError('An unexpected error occurred. Please try again.');
       }
     } finally {
@@ -1988,6 +1820,7 @@ const RoundRobinForm = () => {
                           {formatTimeSlotDisplay(slot)}
                           <button 
                             type="button" 
+                            // Continuing the RoundRobinForm's return JSX from where it was cut off
                             className="btn btn-sm btn-outline-danger p-0 ms-2"
                             onClick={() => handleRemoveTimeSlot(slot.id)}
                             style={{ width: '20px', height: '20px' }}
@@ -2076,7 +1909,6 @@ const RoundRobinForm = () => {
                     onChange={(e) => {
                       setSearchHost(e.target.value);
                       setShowHostDropdown(true);
-                      console.log(hosts);
                     }}
                     onFocus={() => setShowHostDropdown(true)}
                   />
@@ -2118,7 +1950,7 @@ const RoundRobinForm = () => {
                   <div className="border rounded">
                     {hosts.map((host) => (
                       <div 
-                        key={host.username} 
+                        key={host.uniqueKey} 
                         className="d-flex align-items-center p-3 border-bottom last-child-border-bottom-0"
                       >
                         <div className="flex-shrink-0 me-3">
@@ -2265,6 +2097,7 @@ const RoundRobinForm = () => {
   );
 };
 
+// Complete CreateEvent component
 const CreateEvent = () => {
   const [selectedType, setSelectedType] = useState('direct');
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);

@@ -2,40 +2,60 @@
 
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../../styles/global.css';
-import SidebarMenu from '../../components/SideMenucollapse';
+import '@/styles/global.css';
+import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import Availability from '@/components/Availability';
+import SearchBar from '@/components/meetingsearchbar';
 import { FaBars } from 'react-icons/fa';
-
-// Define eventData which was missing in the original code
-const eventData = [
-  {
-    title: "Team Meeting",
-    days: "Monday, Wednesday",
-    location: "Conference Room B",
-    color: "#FFE4B5" // Light orange
-  },
-  {
-    title: "Client Call",
-    days: "Tuesday, Thursday",
-    location: "Zoom",
-    color: "#E0FFFF" // Light cyan
-  },
-  {
-    title: "Project Review",
-    days: "Friday",
-    location: "Main Office",
-    color: "#E6E6FA" // Lavender
-  }
-];
+import { useParams, useRouter } from 'next/navigation';
 
 export default function AvailabilityPage() {
+  const params = useParams();
+  const router = useRouter();
+  const meetingId = params.id;
+  const [selectedDate, setSelectedDate] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [showEventCards, setShowEventCards] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [meetings, setMeetings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch meetings from API
+  useEffect(() => {
+    const fetchMeetings = async () => {
+      try {
+        setIsLoading(true);
+        // Get JWT token from localStorage or wherever you store it
+
+        const response = await fetch('http://localhost:8080/api/meetings', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error fetching meetings: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setMeetings(data);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch meetings:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMeetings();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -54,6 +74,10 @@ export default function AvailabilityPage() {
     setShowEventCards(isSidebarCollapsed && windowWidth >= 1200);
   }, [isSidebarCollapsed, windowWidth]);
 
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+  };
+
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
     
@@ -66,6 +90,20 @@ export default function AvailabilityPage() {
         setShowEventCards(false);
       }
     }
+  };
+
+  const handleSearch = (searchTerm) => {
+    console.log('Searching for:', searchTerm);
+  };
+
+  const handleFilter = () => {
+    console.log('Filter button clicked');
+  };
+  
+  const handleSelectMeeting = (meeting) => {
+    console.log('Selected meeting:', meeting);
+    // Navigate to the selected meeting's availability page
+    router.push(`/availability/${meeting.id}`);
   };
 
   // Text size classes using Bootstrap instead of clamp
@@ -129,6 +167,7 @@ export default function AvailabilityPage() {
         <SidebarMenu 
           showmenuicon={true} 
           onToggle={handleSidebarToggle}
+          onDateSelect={handleDateSelect}
         />
       </div>
 
@@ -168,60 +207,31 @@ export default function AvailabilityPage() {
           </p>
         </div>
         
+        {/* Search Bar */}
+        <div className="mb-3 mb-md-4">
+          <SearchBar
+            meetings={meetings}
+            onSearch={handleSearch}
+            onFilter={handleFilter}
+            onSelectMeeting={handleSelectMeeting}
+            placeholder="Search for meetings to set availability..."
+          />
+          {error && (
+            <div className="alert alert-warning mt-2 py-2 small">
+              <p className="mb-0">Note: Could not load all meetings. Search results may be limited.</p>
+            </div>
+          )}
+        </div>
+        
         {/* Main content area - responsive layout */}
         <div className="d-flex flex-column flex-lg-row gap-4">
           {/* Calendar component */}
           <div className="flex-grow-1">
-            <Availability meetingId="01f013d3-a4a8-136e-87cd-b7fa6ad5a60e"/>
+            <Availability
+              meetingId={meetingId} 
+              selectedDate={selectedDate}
+            />
           </div>
-
-          {/* Event cards section */}
-          {(showEventCards || isMobile) && (
-            <div
-              className="mt-3 mt-lg-0"
-              style={{
-                width: isMobile ? '100%' : '300px',
-                minWidth: '25%',
-                backgroundColor: '#ffffff',
-                padding: '21px 17px',
-                borderRadius: '12px',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                animation: 'slideInFromRight 0.5s ease-out forwards'
-              }}
-            >
-              <div style={textStyles.title} className="mb-3">
-                Event description
-              </div>
-
-              <div className="d-flex flex-column gap-3">
-                {eventData.map((event, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      backgroundColor: event.color,
-                      padding: '8px',
-                      borderRadius: '6px'
-                    }}
-                    className="d-flex flex-column gap-2"
-                  >
-                    <div style={textStyles.eventTitle}>
-                      {event.title}
-                    </div>
-                    <div style={textStyles.eventDays}>{event.days}</div>
-                    <div className="d-flex align-items-center gap-1">
-                      <span style={textStyles.location}>Location</span>
-                      <img src="/location-icon.png" alt="Location Icon" style={{ width: '10px', height: '10px', objectFit: 'cover' }} />
-                      <span style={textStyles.locationValue}>{event.location}</span>
-                    </div>
-                    <div style={textStyles.description}>
-                      This meeting is about this thing where these things will be discussed. This meeting is this
-                      much relevant to you.
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

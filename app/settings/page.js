@@ -8,6 +8,9 @@ import SidebarMenu from '../../components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import { FaBars } from 'react-icons/fa';
 
+// API base URL - adjust this according to your deployment setup
+const API_BASE_URL = 'http://localhost:8080'; // Update this based on your Ballerina service URL
+
 export default function Content() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -16,12 +19,51 @@ export default function Content() {
   
   // Notification settings state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [smsNotifications, setSmsNotifications] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(false);
+  const [smsNotifications, setSmsNotifications] = useState(false);
   
-  // Privacy settings state
+  // Privacy settings state (kept for UI, but not sent to backend)
   const [profileVisibility, setProfileVisibility] = useState('public');
   const [messagePermission, setMessagePermission] = useState('everyone');
+
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Fetch notification settings on component mount
+  useEffect(() => {
+    const fetchNotificationSettings = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`${API_BASE_URL}/api/notification/settings`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch notification settings');
+        }
+
+        const data = await response.json();
+        
+        // Update state with fetched settings
+        setNotificationsEnabled(data.notifications_enabled);
+        setEmailNotifications(data.email_notifications);
+        setSmsNotifications(data.sms_notifications);
+      } catch (err) {
+        console.error('Error fetching notification settings:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNotificationSettings();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -36,7 +78,17 @@ export default function Content() {
   }, []);
 
   // Toggle handlers
-  const handleNotificationsToggle = () => setNotificationsEnabled(!notificationsEnabled);
+  const handleNotificationsToggle = () => {
+    const newValue = !notificationsEnabled;
+    setNotificationsEnabled(newValue);
+    
+    // Automatically disable email and SMS if main notifications are disabled
+    if (!newValue) {
+      setEmailNotifications(false);
+      setSmsNotifications(false);
+    }
+  };
+  
   const handleEmailToggle = () => setEmailNotifications(!emailNotifications);
   const handleSmsToggle = () => setSmsNotifications(!smsNotifications);
 
@@ -45,10 +97,48 @@ export default function Content() {
   };
 
   // Handle form submission
-  const handleSaveSettings = (e) => {
+  const handleSaveSettings = async (e) => {
     e.preventDefault();
-    // Logic to save settings to backend would go here
-    alert('Settings saved successfully!');
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      setSaveSuccess(false);
+      
+      // Create notification settings payload (ignoring privacy settings)
+      const notificationPayload = {
+        notifications_enabled: notificationsEnabled,
+        email_notifications: emailNotifications,
+        sms_notifications: smsNotifications
+      };
+      
+      const response = await fetch(`${API_BASE_URL}/api/notification/settings`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(notificationPayload)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save notification settings');
+      }
+      
+      // Show success message
+      setSaveSuccess(true);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+      
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -117,6 +207,25 @@ export default function Content() {
           </p>
         </div>
         
+        {/* Status Messages */}
+        {isLoading && (
+          <div className="alert alert-info" role="alert">
+            Loading settings...
+          </div>
+        )}
+        
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            {error}
+          </div>
+        )}
+        
+        {saveSuccess && (
+          <div className="alert alert-success" role="alert">
+            Settings saved successfully!
+          </div>
+        )}
+        
         <div className='w-50 rounded-3 bg-light p-3 p-md-4'>
           <form onSubmit={handleSaveSettings}>
             {/* Notification Settings Section */}
@@ -131,6 +240,7 @@ export default function Content() {
                   checked={notificationsEnabled}
                   onChange={handleNotificationsToggle}
                   className="fs-4"
+                  disabled={isLoading}
                 />
               </div>
               
@@ -141,7 +251,7 @@ export default function Content() {
                   id="emailNotification"
                   checked={emailNotifications}
                   onChange={handleEmailToggle}
-                  disabled={!notificationsEnabled}
+                  disabled={!notificationsEnabled || isLoading}
                   className="fs-4"
                 />
               </div>
@@ -153,7 +263,7 @@ export default function Content() {
                   id="smsNotification"
                   checked={smsNotifications}
                   onChange={handleSmsToggle}
-                  disabled={!notificationsEnabled}
+                  disabled={!notificationsEnabled || isLoading}
                   className="fs-4"
                 />
               </div>
@@ -171,6 +281,7 @@ export default function Content() {
                   onChange={(e) => setProfileVisibility(e.target.value)}
                   className="form-select form-select-md"
                   aria-label="Profile visibility"
+                  disabled={isLoading}
                 >
                   <option value="public">Public - Everyone can see your profile</option>
                   <option value="contacts">Contacts only - Only your contacts can see your profile</option>
@@ -186,6 +297,7 @@ export default function Content() {
                   onChange={(e) => setMessagePermission(e.target.value)}
                   className="form-select form-select-md"
                   aria-label="Message permission"
+                  disabled={isLoading}
                 >
                   <option value="everyone">Everyone</option>
                   <option value="contacts">Contacts only</option>
@@ -204,8 +316,9 @@ export default function Content() {
                   borderColor: '#4747ED',
                   borderRadius: '30px'
                 }}
+                disabled={isLoading}
               >
-                Save
+                {isLoading ? 'Saving...' : 'Save'}
               </button>
             </div>
           </form>

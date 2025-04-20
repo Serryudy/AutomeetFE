@@ -11,7 +11,7 @@ const NotificationIcon = ({ onClick }) => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8080/create/notifications', {
+      const response = await axios.get('http://localhost:8080/api/notifications', {
         withCredentials: true // Important to include cookies for authentication
       });
       

@@ -84,10 +84,10 @@ const Register = () => {
         profile_pic: ""
       };
       
-      console.log('Sending request to:', 'http://localhost:8080/auth/signup');
+      console.log('Sending request to:', 'http://localhost:8080/api/auth/signup');
       console.log('Request payload:', userData);
       
-      const response = await fetch('http://localhost:8080/auth/signup', {
+      const response = await fetch('http://localhost:8080/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
