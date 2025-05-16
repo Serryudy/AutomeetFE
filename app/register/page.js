@@ -7,7 +7,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { FaUser, FaEnvelope, FaLock } from "react-icons/fa";
 
+
 const Register = () => {
+  
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',

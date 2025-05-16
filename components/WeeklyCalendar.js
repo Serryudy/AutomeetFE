@@ -297,7 +297,6 @@ const WeeklyCalendar = ({ selectedDate }) => {
     // You can add functionality to show event details or navigate to a detailed view
   };
   
-
   // Loading state
   if (isLoading) {
     return (
@@ -317,6 +316,9 @@ const WeeklyCalendar = ({ selectedDate }) => {
       </div>
     );
   }
+
+  // Calculate total grid height
+  const totalGridHeight = timeSlots.length * 60; // 24 hours * 60px per hour
 
   return (
     <div className="container-fluid p-0 position-relative">
@@ -358,7 +360,7 @@ const WeeklyCalendar = ({ selectedDate }) => {
           </div>
 
           {/* Scrollable Content */}
-          <div ref={calendarRef} className="d-flex position-relative"
+          <div ref={calendarRef} className="position-relative"
                style={{ overflowY: 'auto', maxHeight: 'calc(80vh - 50px)', width: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <style>
               {`
@@ -368,94 +370,111 @@ const WeeklyCalendar = ({ selectedDate }) => {
                 .cell-hover:hover {
                   background-color: rgba(0, 0, 0, 0.03);
                 }
+                .day-column {
+                  border-right: 1px solid #dee2e6;
+                }
+                .day-column:last-child {
+                  border-right: none;
+                }
               `}
             </style>
             
-            {/* Time Column */}
-            <div className="time-column border-end" style={{ width: timeColumnWidth, minWidth: timeColumnWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#ffffff' }}>
-              {timeSlots.map((timeSlot, i) => (
-                <div key={i} className="time-slot d-flex align-items-start justify-content-end text-muted px-2 border-bottom"
-                     style={{ height: '60px', fontSize: isMobile ? '10px' : '12px' }}>
-                  {timeSlot.displayText}
-                </div>
-              ))}
-            </div>
-
-            {/* Grid Structure */}
-            <div ref={gridContainerRef} className="position-relative d-flex" style={{ width: '100%' }}>
-              {/* Days Columns */}
-              {visibleDaysArray.map((dayInfo, dayIndex) => (
-                <div 
-                  key={dayIndex}
-                  className={`position-relative ${dayInfo.isToday ? 'bg-primary bg-opacity-10' : ''}`}
-                  style={{ 
-                    width: `${100 / visibleDaysArray.length}%`,
-                    minWidth: dayColumnWidth,
-                    borderRight: dayIndex < visibleDaysArray.length - 1 ? '1px solid #dee2e6' : 'none'
-                  }}
-                >
-                  {/* Time Cells */}
-                  {timeSlots.map((timeSlot, timeIndex) => (
-                    <div 
-                      key={timeIndex}
-                      className="position-relative cell-hover"
-                      style={{ 
-                        height: '60px',
-                        borderBottom: '1px solid #dee2e6'
-                      }}
-                    >
-                      {/* Empty cell for the grid */}
-                    </div>
-                  ))}
-                  
-                  {/* Events overlay for this day */}
-                  {processedEvents.map((event, eventIndex) => {
-                    const eventStyle = getEventStyle(event, dayInfo.date);
-                    if (!eventStyle) return null;
-                    
-                    return (
-                      <div 
-                        key={eventIndex} 
-                        className="event" 
-                        style={eventStyle}
-                        onClick={() => handleEventClick(event)}
-                      >
-                        <div className="fw-bold text-truncate">{event.title}</div>
-                        {!isMobile && (
-                          <div className="text-truncate small">
-                            {`${event.startHour.toString().padStart(2, '0')}:${event.startMinute.toString().padStart(2, '0')} - 
-                              ${event.endHour.toString().padStart(2, '0')}:${event.endMinute.toString().padStart(2, '0')}`}
-                          </div>
-                        )}
-                        {!isMobile && event.location && (
-                          <div className="text-truncate small">
-                            {event.location}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-              
-              {/* Current Time Indicator - Only show if the current day is visible */}
-              {daysArray.some(day => day.isToday) && (
-                <div className="position-absolute d-flex align-items-center"
-                     style={{ 
-                       top: `${currentTimePosition}px`, 
-                       height: '2px', 
-                       backgroundColor: '#1a1aff', 
-                       zIndex: 3, 
-                       left: '0',
-                       right: '0',
-                       width: '100%'
-                     }}>
-                  <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
-                       style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
-                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {/* Main Content Area with Grid */}
+            <div className="d-flex" style={{ position: 'relative', minHeight: `${totalGridHeight}px` }}>
+              {/* Time Column */}
+              <div className="time-column border-end" 
+                   style={{ 
+                     width: timeColumnWidth, 
+                     minWidth: timeColumnWidth, 
+                     flexShrink: 0, 
+                     position: 'sticky', 
+                     left: 0, 
+                     zIndex: 1, 
+                     backgroundColor: '#ffffff' 
+                   }}>
+                {timeSlots.map((timeSlot, i) => (
+                  <div key={i} 
+                       className="time-slot d-flex align-items-start justify-content-end text-muted px-2 border-bottom"
+                       style={{ height: '60px', fontSize: isMobile ? '10px' : '12px' }}>
+                    {timeSlot.displayText}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+              
+              {/* Grid Structure */}
+              <div ref={gridContainerRef} className="d-flex flex-grow-1" style={{ position: 'relative' }}>
+                {/* Day Columns with Vertical Dividers */}
+                {visibleDaysArray.map((dayInfo, dayIndex) => (
+                  <div 
+                    key={dayIndex}
+                    className={`day-column ${dayInfo.isToday ? 'bg-primary bg-opacity-10' : ''}`}
+                    style={{ 
+                      width: `${100 / visibleDaysArray.length}%`,
+                      minWidth: dayColumnWidth,
+                      position: 'relative'
+                    }}
+                  >
+                    {/* Time Cells */}
+                    {timeSlots.map((timeSlot, timeIndex) => (
+                      <div 
+                        key={timeIndex}
+                        className="position-relative cell-hover"
+                        style={{ 
+                          height: '60px',
+                          borderBottom: '1px solid #dee2e6'
+                        }}
+                      />
+                    ))}
+                    
+                    {/* Events overlay for this day */}
+                    {processedEvents.map((event, eventIndex) => {
+                      const eventStyle = getEventStyle(event, dayInfo.date);
+                      if (!eventStyle) return null;
+                      
+                      return (
+                        <div 
+                          key={eventIndex} 
+                          className="event" 
+                          style={eventStyle}
+                          onClick={() => handleEventClick(event)}
+                        >
+                          <div className="fw-bold text-truncate">{event.title}</div>
+                          {!isMobile && (
+                            <div className="text-truncate small">
+                              {`${event.startHour.toString().padStart(2, '0')}:${event.startMinute.toString().padStart(2, '0')} - 
+                                ${event.endHour.toString().padStart(2, '0')}:${event.endMinute.toString().padStart(2, '0')}`}
+                            </div>
+                          )}
+                          {!isMobile && event.location && (
+                            <div className="text-truncate small">
+                              {event.location}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                
+                {/* Current Time Indicator - Only show if the current day is visible */}
+                {daysArray.some(day => day.isToday) && (
+                  <div className="position-absolute d-flex align-items-center"
+                       style={{ 
+                         top: `${currentTimePosition}px`, 
+                         height: '2px', 
+                         backgroundColor: '#1a1aff', 
+                         zIndex: 3, 
+                         left: '0',
+                         right: '0',
+                         width: '100%'
+                       }}>
+                    <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
+                         style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -18,49 +18,18 @@ export default function Meeting() {
   const [cardsPerRow, setCardsPerRow] = useState(3);
   const [meetings, setMeetings] = useState([]);
   const [filteredMeetings, setFilteredMeetings] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedMeeting, setSelectedMeeting] = useState(null);
 
-  // Fetch meetings from API
+  // Update filtered meetings whenever activeTab or meetings changes
   useEffect(() => {
-    const fetchMeetings = async () => {
-      try {
-        setIsLoading(true);
-        // Get JWT token from localStorage or wherever you store it
-
-        const response = await fetch('http://localhost:8080/api/meetings', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error fetching meetings: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setMeetings(data);
-        setError(null);
-      } catch (err) {
-        console.error('Failed to fetch meetings:', err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMeetings();
-  }, [activeTab]); // Re-fetch when tab changes
-
-  // Update filtered meetings whenever activeTab, meetings, or searchTerm changes
-  useEffect(() => {
-    const filtered = filterMeetingsByTab(meetings, activeTab);
-    setFilteredMeetings(filtered);
-  }, [activeTab, meetings, searchTerm]);
+    if (meetings.length > 0) {
+      const filtered = filterMeetingsByTab(meetings, activeTab);
+      setFilteredMeetings(filtered);
+      setIsLoading(false);
+    }
+  }, [activeTab, meetings]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -128,10 +97,31 @@ export default function Meeting() {
     return filtered;
   };
 
-  const handleSearch = (term) => {
-    setSearchTerm(term);
-    console.log('Searching for:', term);
-    // Search is now handled by the SearchBar component
+  const handleSearchResult = (receivedMeetings) => {
+    // Update meetings state with the search results
+    if (Array.isArray(receivedMeetings)) {
+      setMeetings(receivedMeetings);
+      // Immediately filter by active tab
+      const filtered = filterMeetingsByTab(receivedMeetings, activeTab);
+      setFilteredMeetings(filtered);
+    } else {
+      console.error('Received non-array meetings:', receivedMeetings);
+      setMeetings([]);
+      setFilteredMeetings([]);
+    }
+    setIsLoading(false);
+    setError(null);
+  };
+
+  const handleSearchStart = () => {
+    // Set loading state when search starts
+    setIsLoading(true);
+  };
+
+  const handleSearchError = (errorMessage) => {
+    // Handle search errors
+    setError(errorMessage);
+    setIsLoading(false);
   };
 
   const handleFilter = () => {
@@ -141,20 +131,19 @@ export default function Meeting() {
   
   const handleSelectMeeting = (meeting) => {
     setSelectedMeeting(meeting);
-    console.log('Selected meeting:', meeting);
-    // You could navigate to the meeting detail page
-    // router.push(`/meetings/${meeting.id}`);
     
-    // Or simply scroll to the meeting in the list
-    const meetingElement = document.getElementById(`meeting-${meeting.id}`);
-    if (meetingElement) {
-      meetingElement.scrollIntoView({ behavior: 'smooth' });
-      // Add a highlight effect
-      meetingElement.classList.add('highlight-meeting');
-      setTimeout(() => {
-        meetingElement.classList.remove('highlight-meeting');
-      }, 2000);
-    }
+    // Instead of redirecting, scroll to and highlight the meeting
+    setTimeout(() => {
+      const meetingElement = document.getElementById(`meeting-${meeting.id}`);
+      if (meetingElement) {
+        meetingElement.scrollIntoView({ behavior: 'smooth' });
+        // Add a highlight effect
+        meetingElement.classList.add('highlight-meeting');
+        setTimeout(() => {
+          meetingElement.classList.remove('highlight-meeting');
+        }, 2000);
+      }
+    }, 100);
   };
 
   return (
@@ -225,10 +214,12 @@ export default function Meeting() {
 
         {/* Search and Filter */}
         <SearchBar 
-          meetings={meetings} 
-          onSearch={handleSearch} 
           onFilter={handleFilter} 
           onSelectMeeting={handleSelectMeeting}
+          onSearchResult={handleSearchResult}
+          onSearchStart={handleSearchStart}
+          onSearchError={handleSearchError}
+          activeTab={activeTab}
         />
 
         {/* Meeting tabs */}
@@ -280,34 +271,25 @@ export default function Meeting() {
               </div>
             )}
             
-            {/* Meetings grid */}
+            {/* Meetings grid - Using a flex container instead of Bootstrap grid for better control */}
             {!isLoading && !error && filteredMeetings.length > 0 && (
-              <div className="row g-3">
+              <div className="d-flex flex-wrap" style={{ margin: '-8px' }}>
                 {filteredMeetings.map((meeting) => (
                   <div 
                     key={meeting.id} 
                     id={`meeting-${meeting.id}`}
-                    className={`col-12 ${
-                      cardsPerRow === 1 ? '' : 
-                      cardsPerRow === 2 ? 'col-sm-6' : 
-                      'col-sm-6 col-lg-4'
-                    }`}
+                    className="p-2"
                     style={{
+                      width: cardsPerRow === 1 ? '100%' : 
+                             cardsPerRow === 2 ? '50%' : '33.333%',
                       transition: 'width 0.3s ease-in-out'
                     }}
                   >
-                    <div 
-                      style={{ 
-                        height: '100%',
-                        maxWidth: '100%',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <MeetingCard 
-                        meeting={meeting} 
-                        isHighlighted={selectedMeeting && selectedMeeting.id === meeting.id}
-                      />
-                    </div>
+                    {/* Use the enhanced MeetingCard with integrated time progress */}
+                    <MeetingCard 
+                      meeting={meeting} 
+                      isHighlighted={selectedMeeting && selectedMeeting.id === meeting.id}
+                    />
                   </div>
                 ))}
               </div>
@@ -315,6 +297,19 @@ export default function Meeting() {
           </div>
         </div>
       </div>
+      
+      <style jsx>{`
+        .highlight-meeting {
+          animation: highlight 2s ease;
+        }
+        
+        @keyframes highlight {
+          0% { transform: scale(1); box-shadow: 0 0 0 rgba(59, 59, 215, 0); }
+          25% { transform: scale(1.05); box-shadow: 0 0 15px rgba(59, 59, 215, 0.5); }
+          50% { transform: scale(1.03); box-shadow: 0 0 10px rgba(59, 59, 215, 0.3); }
+          100% { transform: scale(1); box-shadow: 0 0 0 rgba(59, 59, 215, 0); }
+        }
+      `}</style>
     </div>
   );
 }

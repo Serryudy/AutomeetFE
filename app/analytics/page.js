@@ -7,6 +7,7 @@ import SidebarMenu from '../../components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import { FaBars } from 'react-icons/fa';
 import Link from 'next/link';
+import SearchBar from '@/components/meetingsearchbar'; // Import the SearchBar component
 
 // Import react-chartjs-2 components
 import { 
@@ -62,6 +63,7 @@ export default function MeetingInsights() {
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('meeting'); // Default to meeting tab
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
   
   useEffect(() => {
     const handleResize = () => {
@@ -78,6 +80,18 @@ export default function MeetingInsights() {
   
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
+  };
+
+  // Handler for meeting selection from search
+  const handleSelectMeeting = (meeting) => {
+    setSelectedMeeting(meeting);
+    console.log('Selected meeting:', meeting);
+  };
+
+  // Handler for filter button click
+  const handleFilter = () => {
+    console.log('Filter button clicked');
+    // Implement your filter functionality here
   };
 
   return (
@@ -146,8 +160,17 @@ export default function MeetingInsights() {
           </p>
         </div>
 
-        {/* Tabs */}
+        {/* SearchBar Component */}
+        <SearchBar 
+          onSelectMeeting={handleSelectMeeting}
+          onFilter={handleFilter}
+          placeholder="Search for meetings to analyze"
+          context="analytics"
+        />
+
+        {/* Tabs and rest of the content */}
         <div className='container bg-white p-4 rounded-4 shadow'>
+          {/* Existing tabs and tab content */}
           <div className="mb-4">
             <div className="d-flex">
               <button 
@@ -166,15 +189,21 @@ export default function MeetingInsights() {
           </div>
           
           {/* Conditional rendering based on active tab */}
-          {activeTab === 'meeting' ? <MeetingTab /> : <YourTab />}
+          {activeTab === 'meeting' ? (
+            <MeetingTab 
+              selectedMeeting={selectedMeeting} 
+            />
+          ) : (
+            <YourTab />
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// MeetingTab Component
-function MeetingTab() {
+// MeetingTab component modifications
+function MeetingTab({ selectedMeeting }) {
   // Chart data for rescheduling frequency
   const rescheduleChartData = {
     labels: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
@@ -385,7 +414,19 @@ function MeetingTab() {
         <div className="col-12 col-lg-6">
           <div className="mb-3">
             <h4 className="fw-bold">Meeting Transcript</h4>
-            <Link href="/transcript"><button className="btn btn-primary rounded-pill px-4 py-2 mb-3">Submit</button></Link>
+            <button 
+              className="btn btn-primary rounded-pill px-4 py-2 mb-3"
+              disabled={!selectedMeeting}
+              onClick={() => {
+                if (selectedMeeting) {
+                  window.location.href = `/transcript/${selectedMeeting._id || selectedMeeting.id}`;
+                } else {
+                  alert('Please select a meeting first');
+                }
+              }}
+            >
+              Submit Transcript
+            </button>
             <p>
               Submit a transcript of your meeting to generate AI-powered insights and
               a comprehensive report.
@@ -399,24 +440,56 @@ function MeetingTab() {
       
         {/* Meeting Report */} 
         <div className="col-12 col-lg-6">
-          <div className="card shadow-sm rounded-4">
-          <Link href={'/report'} className='text-decoration-none'>
+          <div className="card shadow-sm rounded-4 cursor-pointer" 
+            onClick={() => {
+              if (selectedMeeting) {
+                window.location.href = `/report/${selectedMeeting._id || selectedMeeting.id}`;
+              } else {
+                alert('Please select a meeting first');
+              }
+            }}
+            style={{ cursor: selectedMeeting ? 'pointer' : 'not-allowed', 
+                     opacity: selectedMeeting ? 1 : 0.6 }}
+          >
             <div className="card-body p-4 text-dark">
               <h3 className="fw-bold">Meeting Report</h3>
               <h6 className="text-muted mb-3">Report subheading</h6>
               <div className="mb-3">
-                <p className="mb-1">Date: 12/22/2024</p>
-                <p className="mb-1">Time: 10:00 AM - 11:00 AM</p>
-                <p className="mb-1">Admin: Sarah Johnson</p>
+                {selectedMeeting ? (
+                  <>
+                    <p className="mb-1">Date: {selectedMeeting.date || 'N/A'}</p>
+                    <p className="mb-1">Time: {selectedMeeting.time || 'N/A'}</p>
+                    <p className="mb-1">Admin: {typeof selectedMeeting.admin === 'object' ? 
+                      selectedMeeting.admin.username || 'N/A' : 
+                      selectedMeeting.admin || 'N/A'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mb-1">Date: 12/22/2024</p>
+                    <p className="mb-1">Time: 10:00 AM - 11:00 AM</p>
+                    <p className="mb-1">Admin: Sarah Johnson</p>
+                  </>
+                )}
                 <p className="mb-0">Participants:</p>
                 <ul className="list-unstyled ps-3 mb-0">
-                  <li>• John Doe (Project Manager)</li>
-                  <li>• Alice Smith (Developer)</li>
-                  <li>• Mark Lee (Designer)</li>
+                  {selectedMeeting?.participants ? (
+                    selectedMeeting.participants.map((participant, index) => (
+                      <li key={index}>• {typeof participant === 'object' ? 
+                        participant.username || participant.email || 'N/A' : 
+                        participant}
+                      </li>
+                    ))
+                  ) : (
+                    <>
+                      <li>• John Doe (Project Manager)</li>
+                      <li>• Alice Smith (Developer)</li>
+                      <li>• Mark Lee (Designer)</li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
-            </Link>
           </div>
         </div>
       </div>
@@ -720,4 +793,4 @@ const GaugeChart = ({ value, maxValue = 50, label = "" }) => {
       )}
     </div>
   );
-};
+}
