@@ -604,7 +604,6 @@ export default function ReportPage() {
           onClick={() => setShowMobileMenu(false)}
         ></div>
       )}
-
       {/* Main content */}
       <div 
         className="flex-grow-1 p-3 p-md-4"
