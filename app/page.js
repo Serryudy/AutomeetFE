@@ -41,7 +41,7 @@ const CalendarPage = () => {
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed)
     
-    // Show event cards only when sidebar is collapsed AND not in mobile view
+    // Show event cards only when sidebar is collapsed
     if (!isMobile) {
       if (collapsed) {
         setTimeout(() => setShowEventCards(true), 150)
