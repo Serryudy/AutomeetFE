@@ -6,6 +6,7 @@ import ProfileHeader from '@/components/profileHeader'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import '@/styles/global.css'
 import { FaBars } from 'react-icons/fa'
+// Importing the CSS file for the sidebar menu
 
 const CalendarPage = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -81,6 +82,7 @@ const CalendarPage = () => {
     setIsSidebarCollapsed(collapsed)
     
     // Show event cards only when sidebar is collapsed AND not in mobile view
+   
     if (!isMobile) {
       if (collapsed) {
         setTimeout(() => setShowEventCards(true), 150)
@@ -172,7 +174,7 @@ const CalendarPage = () => {
         />
       </div>
 
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay  */}
       {isMobile && showMobileMenu && (
         <div 
           className="position-fixed top-0 start-0 w-100 h-100"
