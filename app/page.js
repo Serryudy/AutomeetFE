@@ -47,6 +47,7 @@ const CalendarPage = () => {
         setTimeout(() => setShowEventCards(true), 150)
       } else {
         // Hide event cards immediately when sidebar expands
+     
         setShowEventCards(false)
       }
     }
