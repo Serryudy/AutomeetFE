@@ -10,7 +10,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import jsPDF from 'jspdf';
 
-//Helper function to parse the report text
+// Helper function to parse the report text
 const parseReport = (reportText) => {
   if (!reportText) return null;
   
