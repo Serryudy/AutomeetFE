@@ -13,7 +13,7 @@ import { useParams } from 'next/navigation';
 
 const MeetingForm = () => {
     const params = useParams();
-    const meetingId = params.id;
+    const meetingId = params?.id;
     
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -44,6 +44,13 @@ const MeetingForm = () => {
     const [participantsToAdd, setParticipantsToAdd] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
     const [dateError, setDateError] = useState('');
+    const [userProfiles, setUserProfiles] = useState({});
+
+    useEffect(() => {
+      console.log("Params object:", params);
+      console.log("Meeting ID:", meetingId);
+      console.log("URL path:", window.location.pathname);
+    }, [params, meetingId]);
   
     // Fetch meeting data
     useEffect(() => {
@@ -123,6 +130,11 @@ const MeetingForm = () => {
                       access: participant.access
                   }));
                   setParticipants(formattedParticipants);
+                  
+                  // Fetch user profile for each participant
+                  data.participants.forEach(participant => {
+                      fetchUserProfile(participant.username);
+                  });
               }
               
               // Transform hosts data
@@ -134,6 +146,11 @@ const MeetingForm = () => {
                       access: host.access
                   }));
                   setHosts(formattedHosts);
+                  
+                  // Fetch user profile for each host
+                  data.hosts.forEach(host => {
+                      fetchUserProfile(host.username);
+                  });
               }
               
               setLoading(false);
@@ -146,6 +163,34 @@ const MeetingForm = () => {
       
       fetchMeetingData();
     }, [meetingId]);
+    
+    // Function to fetch user profile
+    const fetchUserProfile = async (username) => {
+        try {
+            const response = await fetch(`http://localhost:8080/api/users/${username}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error fetching user profile: ${response.status}`);
+            }
+            
+            const userData = await response.json();
+            console.log(`User profile for ${username}:`, userData);
+            
+            // Update user profiles state with the new data
+            setUserProfiles(prevProfiles => ({
+                ...prevProfiles,
+                [username]: userData
+            }));
+        } catch (err) {
+            console.error(`Error fetching profile for ${username}:`, err);
+        }
+    };
     
     // Track window width for responsive design
     useEffect(() => {
@@ -231,6 +276,13 @@ const MeetingForm = () => {
             access: participant.access
           }));
           setParticipants(formattedParticipants);
+          
+          // Update user profiles for new participants
+          updatedMeeting.participants.forEach(participant => {
+            if (!userProfiles[participant.username]) {
+              fetchUserProfile(participant.username);
+            }
+          });
         }
         
         if (updatedMeeting.hosts) {
@@ -329,6 +381,9 @@ const MeetingForm = () => {
       if (!isDuplicate) {
         setParticipants([...participants, newParticipant]);
         setParticipantsToAdd([...participantsToAdd, contact.username]);
+        
+        // Also fetch the profile for the new participant
+        fetchUserProfile(contact.username);
       }
       
       // Clear search
@@ -387,26 +442,34 @@ const MeetingForm = () => {
       setParticipants(participants.filter(participant => participant.id !== id));
     };
     
+    // Get profile picture for a user
+    const getProfilePicture = (username) => {
+      if (userProfiles[username] && userProfiles[username].profile_pic) {
+        return userProfiles[username].profile_pic;
+      }
+      return "/profile.png"; // Default image
+    };
+    
     // Refs for detecting clicks outside the dropdown
     const startTimeRef = useRef(null);
     const endTimeRef = useRef(null);
     const calendarRef = useRef(null);
 
     const handleDateSelect = (date) => {
-  const newDate = date instanceof Date ? date : new Date(date);
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+      const newDate = date instanceof Date ? date : new Date(date);
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-  if (newDate < today) {
-    setDateError('Please select a date from today or in the future');
-    return;
-  }
+      if (newDate < today) {
+        setDateError('Please select a date from today or in the future');
+        return;
+      }
 
-  setDateError('');
-  setSelectedDate(newDate);
-  setShowCalendar(false);
-};
+      setDateError('');
+      setSelectedDate(newDate);
+      setShowCalendar(false);
+    };
 
     const generateTimeOptions = () => {
       const times = [];
@@ -827,10 +890,10 @@ const MeetingForm = () => {
                               onClick={() => addParticipant(contact)}
                             >
                               <img 
-                                src="/profile.png" 
+                                src={userProfiles[contact.username]?.profile_pic || "/profile.png"} 
                                 alt={contact.username} 
                                 className="rounded-circle me-2"
-                                style={{width: '30px', height: '30px'}}
+                                style={{width: '30px', height: '30px', objectFit: 'cover'}}
                               />
                               <div>
                                 <div className="fw-bold">{contact.username}</div>
@@ -852,10 +915,10 @@ const MeetingForm = () => {
                       <div key={host.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
                         <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
                           <img 
-                            src="/profile.png" 
+                            src={getProfilePicture(host.name)} 
                             alt="host" 
                             className="rounded-circle me-2 me-md-3"
-                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}}
+                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
                           />
                           <div>
                             <div className="fw-bold">{host.name}</div>
@@ -875,14 +938,17 @@ const MeetingForm = () => {
                       <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
                         <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
                           <img 
-                            src="/profile.png" 
+                            src={getProfilePicture(participant.name)} 
                             alt="participant" 
                             className="rounded-circle me-2 me-md-3"
-                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px'}}
+                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
                           />
                           <div>
                             <div className="fw-bold">{participant.name}</div>
                             <small className="text-muted">{participant.group}</small>
+                            {userProfiles[participant.name]?.company && (
+                              <small className="d-block text-muted">{userProfiles[participant.name].company}</small>
+                            )}
                           </div>
                         </div>
                         {isEditing && (
@@ -912,7 +978,7 @@ const MeetingForm = () => {
                     ))}
                   </div>
                 )}
-
+                
                 {participants.length === 0 && hosts.length === 0 && (
                   <div className="alert alert-info">No participants or hosts added to this meeting.</div>
                 )}
