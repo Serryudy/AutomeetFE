@@ -4,6 +4,9 @@ import React from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FaGoogle } from "react-icons/fa";
 import { MdEmail } from "react-icons/md";
+import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 
 const HomePage = () => {
   const styles = {
@@ -22,7 +25,6 @@ const HomePage = () => {
       background: "#fff", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)"
     },
     featureSliderTrack: { display: "flex", animation: "slideFeatures 30s linear infinite" },
-    // Added fullSection style for 100vh sections
     fullSection: { 
       height: "100vh", 
       display: "flex", 
@@ -73,7 +75,7 @@ const HomePage = () => {
     }
   `;
 
-  const renderNavbar = () => (
+  /*const renderNavbar = () => (
     <nav className="navbar navbar-expand-lg navbar-light px-5">
       <a className="navbar-brand" href="#" style={{ width: "22%" }}>
         <img src="/logo.png" alt="Logo" style={styles.navBrand} />
@@ -88,7 +90,169 @@ const HomePage = () => {
         <button className="btn btn-primary" style={{...styles.button, ...styles.buttonPrimary}}>Get Started</button>
       </div>
     </nav>
+  );*/
+const renderNavbar = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleMenu = () => {
+    setIsOpen(!isOpen);
+  };
+
+  const styles = {
+    navBrand: {
+      maxWidth: '100%',
+      height: 'auto',
+    },
+    navLink: {
+      color: '#333',
+      fontWeight: '500',
+    },
+    button: {
+      borderRadius: '8px',
+      padding: '8px 16px',
+      fontWeight: '500',
+      transition: 'all 0.3s ease',
+    },
+    buttonOutline: {
+      borderColor: '#0d6efd',
+      color: '#0d6efd',
+    },
+    buttonPrimary: {
+      backgroundColor: '#0d6efd',
+      borderColor: '#0d6efd',
+      color: 'white',
+    },
+    hamburger: {
+      width: '30px',
+      height: '25px',
+      position: 'relative',
+      cursor: 'pointer',
+      display: 'none', // Hidden by default on desktop
+    },
+    hamburgerLine: {
+      width: '100%',
+      height: '3px',
+      backgroundColor: '#333',
+      position: 'absolute',
+      borderRadius: '3px',
+      transition: 'all 0.3s ease',
+    },
+    mobileMenu: {
+      display: 'none', // Hidden by default
+      position: 'absolute',
+      top: '70px',
+      left: '0',
+      right: '0',
+      backgroundColor: 'white',
+      padding: '20px',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+      zIndex: '999',
+    },
+    mobileLink: {
+      padding: '12px 0',
+      borderBottom: '1px solid #eee',
+      display: 'block',
+      color: '#333',
+      textDecoration: 'none',
+      fontWeight: '500',
+    },
+    mobileButtons: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px',
+      marginTop: '15px',
+    },
+  };
+
+  return (
+    <>
+      <style jsx>{`
+        @media (max-width: 991px) {
+          .desktop-menu { display: none !important; }
+          .hamburger { display: block !important; }
+          .mobile-menu { display: block !important; }
+          .mobile-menu.closed { display: none !important; }
+          .nav-brand-container { width: auto !important; }
+        }
+        
+        @media (max-width: 576px) {
+          .navbar-container { padding-left: 15px !important; padding-right: 15px !important; }
+        }
+      `}</style>
+      
+      <nav className="navbar navbar-expand-lg navbar-light navbar-container px-5">
+        <div className="d-flex justify-content-between align-items-center w-100">
+          <Link href="/" className="navbar-brand nav-brand-container" style={{ width: "22%" }}>
+            <Image 
+              src="/logo.png" 
+              alt="Logo" 
+              width={150}
+              height={50}
+              style={styles.navBrand}
+              priority
+            />
+          </Link>
+          
+          {/* Desktop menu */}
+          <div className="desktop-menu mx-auto d-flex" style={{ padding: "1% 7% 0 0" }}>
+            {["For Whom?", "Product", "Features"].map((item, i) => (
+              <Link 
+                key={i} 
+                className="nav-link px-3" 
+                href={`#${item.toLowerCase().replace("?", "")}`} 
+                style={styles.navLink}
+              >
+                {item}
+              </Link>
+            ))}
+          </div>
+          
+          <div className="desktop-menu">
+            <button className="btn btn-outline-primary mx-3" style={{...styles.button, ...styles.buttonOutline}}>
+              Log In
+            </button>
+            <button className="btn btn-primary" style={{...styles.button, ...styles.buttonPrimary}}>
+              Get Started
+            </button>
+          </div>
+          
+          {/* Hamburger icon */}
+          <div 
+            className="hamburger" 
+            style={styles.hamburger} 
+            onClick={toggleMenu}
+          >
+            <span style={{...styles.hamburgerLine, top: isOpen ? '11px' : '0', transform: isOpen ? 'rotate(45deg)' : 'none'}}></span>
+            <span style={{...styles.hamburgerLine, top: '11px', opacity: isOpen ? 0 : 1}}></span>
+            <span style={{...styles.hamburgerLine, top: isOpen ? '11px' : '22px', transform: isOpen ? 'rotate(-45deg)' : 'none'}}></span>
+          </div>
+        </div>
+        
+        {/* Mobile menu */}
+        <div className={`mobile-menu w-100 ${isOpen ? '' : 'closed'}`} style={styles.mobileMenu}>
+          {["For Whom?", "Product", "Features"].map((item, i) => (
+            <Link 
+              key={i} 
+              href={`#${item.toLowerCase().replace("?", "")}`} 
+              style={styles.mobileLink}
+              onClick={() => setIsOpen(false)}
+            >
+              {item}
+            </Link>
+          ))}
+          <div style={styles.mobileButtons}>
+            <button className="btn btn-outline-primary w-100" style={{...styles.button, ...styles.buttonOutline}}>
+              Log In
+            </button>
+            <button className="btn btn-primary w-100" style={{...styles.button, ...styles.buttonPrimary}}>
+              Get Started
+            </button>
+          </div>
+        </div>
+      </nav>
+    </>
   );
+};
 
   const renderHero = () => (
     <div style={styles.fullSection}>
@@ -156,6 +320,7 @@ const HomePage = () => {
       {img: "/ai.png", title: "AI help to keep track", desc: "Instant meeting summaries at your fingertips."},
       {img: "/event.png", title: "Event customization", desc: "Keep a hold of your schedule with standalone customization."}
     ];
+    
     
     return (
       <section className="py-4">
