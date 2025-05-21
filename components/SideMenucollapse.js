@@ -171,14 +171,29 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
               <Link
                 key={index}
                 href={path}
-                className="list-group-item fw-semibold list-group-item-action border-0 d-flex align-items-center p-2"
+                className=" fw-semibold  border-0 d-flex align-items-center p-2"
                 style={{
                   color: "#000",
                   fontSize: "16px",
                   justifyContent: isCollapsed ? "center" : "flex-start",
                   paddingLeft: isCollapsed ? "0" : "16px",
                   transition: "all 0.3s ease-in-out",
+                  textDecoration: "none"
+                
                 }}
+              onMouseEnter={(e) => {
+                if (!isCollapsed) {
+                  e.currentTarget.style.transform = "scale(1.03)";
+                  e.currentTarget.style.backgroundColor = "#f0f0f0";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isCollapsed) {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }
+              }}
+                
               >
                 {icon}
                 {!isCollapsed && <span className="ms-3">{label}</span>}
