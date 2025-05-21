@@ -124,7 +124,13 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
       {/* Fixed Header Section */}
       <div className="flex-shrink-0 w-100">
         <div className={`d-flex align-items-center ${isCollapsed ? "justify-content-center" : "justify-content-between"} w-100 mb-4`}>
-          {!isCollapsed && <h4 className="text-primary m-0">AutoMeet</h4>}
+          {!isCollapsed && (
+            <img
+              src="\logo.png"  // <-- Change this to your actual logo path
+              alt="AutoMeet Logo"
+              style={{ height: "60px", objectFit: "contain" }}
+            />
+          )}
           {showmenuicon && (
             <img
               src="/collapse.png"
