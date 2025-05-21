@@ -10,7 +10,7 @@ const HomePage = () => {
     home: { backgroundColor: "#f0f0f0", padding: "1.5%", fontFamily: "sans-serif" },
     navBrand: { width: "60%", height: "60%" },
     navLink: { fontWeight: 600, fontSize: "1.2rem" },
-    button: { fontWeight: 600, padding: "10px 20px", borderRadius: "25px", transition: "all 0.3s ease-in-out" },
+    button: { fontWeight: 600, padding: "10px 20px", borderRadius: "10px", transition: "all 0.3s ease-in-out" , hover:"ba" },
     buttonPrimary: { backgroundColor: "#3B3BD7", borderColor: "#3B3BD7", color: "white" },
     buttonOutline: { borderColor: "#EBEBEB", color: "#000" },
     googleButton: { backgroundColor: "#3B3BD7", borderColor: "#3B3BD7", color: "white", fontWeight: "900pt" },
@@ -22,7 +22,6 @@ const HomePage = () => {
       background: "#fff", borderRadius: "10px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)"
     },
     featureSliderTrack: { display: "flex", animation: "slideFeatures 30s linear infinite" },
-    // Added fullSection style for 100vh sections
     fullSection: { 
       height: "100vh", 
       display: "flex", 
@@ -136,7 +135,7 @@ const HomePage = () => {
       <div className="container h-100 d-flex align-items-center">
         <div className="row align-items-center justify-content-center">
           <div className="col-lg-6 text-center">
-            <img src="/onecalender.png" alt="Calendar demonstration" className="img-fluid" style={{ width: "800px" }} />
+            <img src="/onecalender.png" alt="Calendar demonstration" style={{ width: "110%", backgroundColor:"#000000", height: "100%" }} />
           </div>
           <div className="col-lg-6">
             <h2 style={styles.heading}>Seize the Day,<br /> One Meeting at a Time!</h2>
@@ -213,55 +212,90 @@ const HomePage = () => {
       <div className="container h-100 d-flex align-items-center">
         <div className="text-center w-100">
           <h2 className="display-4 fw-bold mb-4">
-            Revolutionize Your Meetings <br />
-            From Chaos to Effortless Efficiency
+            One platform to schedule, analyze, and run meetings better.
           </h2>
-          <h4 className="fs-3 mb-5">
-            Ditch the chaos of scheduling, note-taking, and endless reminders. <br />
-            AutoMeet handles the heavy lifting so you can focus on what truly matters: <br />
-            collaborating and creating.
-          </h4>
-          <a href="#">
-            <button className="btn btn-lg" style={{...styles.button, ...styles.buttonPrimary}}>Sign up</button></a>
+          <h4 className="fs-3 mt-4 mb-5">
+            AutoMeet simplifies meeting scheduling with AI, real-time availability, seamless collaboration, smart notifications, content sharing, and analysis even for participants without accounts. Meetings, redefined.</h4>
+          <a href="register"><button className="btn btn-lg" style={{background: "#3B3BD7", color: "white", padding:"10px 40px"}}>Create an Account &nbsp;&nbsp;&gt;</button></a>;
         </div>
       </div>
     </section>
   );
 
+  
+
   const renderFeatureCarousel = () => {
-    const featureCards = [1, 2, 3, 4, 5];
-    return (
-      <section style={styles.fullSection}>
-        <div className="container h-100 d-flex flex-column justify-content-center">
-          <div className="row mb-5">
-            <div className="col-lg-5">
-              <h2 className="display-5 fw-bold">What holds valuable items with interest</h2>
-            </div>
-            <div className="col-lg-7">
-              <h4 className="fs-4 opacity-75">
-                something instead of nothing features to please your needs some stuff to say that we.
-              </h4>
-            </div>
+  const features = [
+    {
+      id: 1,
+      title: "Instant Meeting Links",
+      description: "Generate and share meeting links with a single click.",
+      image: "/feature 1.png"
+    },
+    {
+      id: 2,
+      title: "Smart Integrations",
+      description: "Connect email, calendars, and messaging apps effortlessly.",
+      image: "/feature 2.png"
+    },
+    {
+      id: 3,
+      title: "Seamless Scheduling",
+      description: "AutoMeet syncs calendars to find the perfect time,no hassle.",
+      image: "/feature 3.png"
+    },
+    {
+      id: 4,
+      title: "Automated Notes",
+      description: "Get AI-powered notes and summaries automatically.",
+      image: "/feature 4.png"
+    },
+    {
+      id: 5,
+      title: "Smart Reminders",
+      description: "Stay on track with automatic reminders and follow-ups.",
+      image: "/feature 5.png"
+    }
+  ];
+
+  return (
+    <section style={styles.fullSection}>
+      <div className="container h-100 d-flex flex-column justify-content-center">
+        <div className="row mb-5">
+          <div className="col-lg-6">
+            <h2 className="fw-bold" style={{ fontSize: "43px" }}>What holds valuable items with interest</h2>
           </div>
-          <div className="position-relative">
-            <div style={styles.featureSliderTrack}>
-              {[0, 1].map(setIndex => (
-                <div key={setIndex} className="d-flex">
-                  {featureCards.map(num => (
-                    <div key={`${setIndex}-${num}`} style={styles.featureItem}>
-                      <div className="my-4">
-                        <img src={`/feature ${num}.png`} alt={`Feature ${num}`} className="img-fluid mb-3" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+          <div className="col-lg-6">
+            <h4 className="fs-3 opacity-75" style={{ padding: "0 25px" }}>
+              something instead of nothing features to please your needs some stuff to say that we.
+            </h4>
           </div>
         </div>
-      </section>
-    );
-  };
+        <div className="position-relative">
+          <div style={styles.featureSliderTrack}>
+            {[0, 1].map(setIndex => (
+              <div key={setIndex} className="d-flex">
+                {features.map(feature => (
+                  <div key={`${setIndex}-${feature.id}`} style={styles.featureItem}>
+                    <div className="my-2">
+                      <h4 className="mb-4 fw-bold text-center">{feature.title}</h4>
+                      <img 
+                        src={feature.image} 
+                        alt={feature.title} 
+                        className="img-fluid mb-3" 
+                      />
+                      <p className="mt-2 fw-bold text-center">{feature.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
 
   const renderFooter = () => {
     const footerLinks = {

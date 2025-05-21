@@ -1,47 +1,139 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const NotificationsComponent = () => {
   const [activeTab, setActiveTab] = useState('all');
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: 'Mark Your Availability!',
-      message: 'Select best time for your upcoming meeting',
-      read: false
-    },
-    {
-      id: 2,
-      title: 'Meeting Confirmed',
-      message: 'The meeting has been finalized. Please prepare.',
-      read: false
-    },
-    {
-      id: 3,
-      title: 'Meeting Confirmed',
-      message: 'Select best time for your upcoming meeting',
-      read: false
-    },
-    {
-      id: 4,
-      title: 'Meeting Cancellation',
-      message: 'The meeting titled [Meeting Title] scheduled for [Meeting Date and Time] has been canceled.',
-      read: true
-    },
-    {
-      id: 5,
-      title: 'Meeting Cancellation',
-      message: 'The meeting titled [Meeting Title] scheduled for [Meeting Date and Time] has been canceled.',
-      read: true
-    }
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isVisible, setIsVisible] = useState(true);
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map(notif => ({ ...notif, read: true })));
+  // Fetch notifications when component mounts
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  // Function to fetch notifications from the API
+  const fetchNotifications = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await fetch('http://localhost:8080/api/notifications', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Important for sending cookies
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error fetching notifications: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Transform the API response to match the component's data structure
+      const formattedNotifications = data.map(notification => ({
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        read: notification.isRead,
+        type: notification.notificationType,
+        meetingId: notification.meetingId,
+        createdAt: notification.createdAt
+      }));
+      
+      // Sort notifications by createdAt (newest first)
+      formattedNotifications.sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
+      setNotifications(formattedNotifications);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setError(err.message);
+      setIsLoading(false);
+    }
+  };
+
+  // Function to mark a notification as read
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      // Find the notification to update
+      const notificationToUpdate = notifications.find(n => n.id === notificationId);
+      
+      if (!notificationToUpdate || notificationToUpdate.read) {
+        return; // Already read or not found
+      }
+
+      // Update locally first for better UX
+      setNotifications(notifications.map(notif => 
+        notif.id === notificationId ? { ...notif, read: true } : notif
+      ));
+
+      
+      
+      const response = await fetch(`http://localhost:8080/api/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error marking notification as read: ${response.status}`);
+        // Revert the local change if API call fails
+        setNotifications(prevNotifications => [...prevNotifications]);
+      }
+      
+      
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
+  // Function to mark all notifications as read
+  const handleMarkAllAsRead = async () => {
+    try {
+      // Update locally first for better UX
+      setNotifications(notifications.map(notif => ({ ...notif, read: true })));
+      
+      const response = await fetch('http://localhost:8080/api/notifications/markallread', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error marking all notifications as read: ${response.status}`);
+        // Revert the local change if API call fails
+        fetchNotifications();
+      }
+      
+      
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
   };
 
   const handleClose = () => {
     setIsVisible(false);
+  };
+
+  const navigateToMeeting = (meetingId, notificationType) => {
+    // Redirect based on notification type
+    if (notificationType === 'availability_request') {
+      // Redirect to the availability page with the meeting ID
+      window.location.href = `/availability/${meetingId}`;
+    } else {
+      // Default behavior: redirect to meeting details page
+      window.location.href = `/meetingdetails/${meetingId}`;
+    }
   };
 
   const filteredNotifications = notifications.filter(notif => {
@@ -52,6 +144,31 @@ const NotificationsComponent = () => {
   });
 
   const unreadCount = notifications.filter(notif => !notif.read).length;
+
+  // Format date to a readable format
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 60) {
+      return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  // Return early if component is not visible
+  if (!isVisible) {
+    return null;
+  }
 
   return (
     <div className="notifications-container" style={{ maxWidth: '550px', borderRadius: '15px', width: '370px' }}>
@@ -64,10 +181,11 @@ const NotificationsComponent = () => {
               className="btn btn-link text-primary text-decoration-none me-2"
               onClick={handleMarkAllAsRead}
               style={{ fontSize: '14px' }}
+              disabled={unreadCount === 0}
             >
               Mark all as read
             </button>
-            <button className="btn-close" aria-label="Close" onClick={handleClose} style={{ fontSize: '12px' }} ></button>
+            <button className="btn-close" aria-label="Close" onClick={handleClose} style={{ fontSize: '12px' }}></button>
           </div>
         </div>
 
@@ -85,8 +203,7 @@ const NotificationsComponent = () => {
           >
             <li className="nav-item flex-grow-1 text-center">
               <button
-                className={`nav-link border-0 rounded-0 w-100 ${activeTab === 'all' ? 'active border-bottom border-primary border-3' : ''
-                  }`}
+                className={`nav-link border-0 rounded-0 w-100 ${activeTab === 'all' ? 'active border-bottom border-primary border-3' : ''}`}
                 onClick={() => setActiveTab('all')}
               >
                 All
@@ -94,8 +211,7 @@ const NotificationsComponent = () => {
             </li>
             <li className="nav-item flex-grow-1 text-center">
               <button
-                className={`nav-link border-0 rounded-0 w-100 ${activeTab === 'unread' ? 'active border-bottom border-primary border-3' : ''
-                  }`}
+                className={`nav-link border-0 rounded-0 w-100 ${activeTab === 'unread' ? 'active border-bottom border-primary border-3' : ''}`}
                 onClick={() => setActiveTab('unread')}
               >
                 Unread {unreadCount > 0 && <span className="badge bg-primary rounded-pill ms-1">{unreadCount}</span>}
@@ -103,8 +219,7 @@ const NotificationsComponent = () => {
             </li>
             <li className="nav-item flex-grow-1 text-center">
               <button
-                className={`nav-link border-0 rounded-0 w-100 ${activeTab === 'read' ? 'active border-bottom border-primary border-3' : ''
-                  }`}
+                className={`nav-link border-0 rounded-0 w-100 ${activeTab === 'read' ? 'active border-bottom border-primary border-3' : ''}`}
                 onClick={() => setActiveTab('read')}
               >
                 Read
@@ -114,7 +229,21 @@ const NotificationsComponent = () => {
 
           {/* Notification List */}
           <div className="list-group list-group-flush">
-            {filteredNotifications.length === 0 ? (
+            {isLoading ? (
+              <div className="list-group-item text-center py-4">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-2 text-muted">Loading notifications...</p>
+              </div>
+            ) : error ? (
+              <div className="list-group-item text-center py-4 text-danger">
+                <p>Error: {error}</p>
+                <button className="btn btn-sm btn-outline-primary mt-2" onClick={fetchNotifications}>
+                  Try Again
+                </button>
+              </div>
+            ) : filteredNotifications.length === 0 ? (
               <div className="list-group-item text-center py-4 text-muted">
                 {activeTab === 'unread' && 'No unread notifications.'}
                 {activeTab === 'read' && 'No read notifications.'}
@@ -125,10 +254,16 @@ const NotificationsComponent = () => {
                 <div
                   key={notification.id}
                   className={`list-group-item list-group-item-action ${!notification.read ? 'bg-light' : ''}`}
+                  onClick={() => {
+                    markNotificationAsRead(notification.id);
+                    if (notification.meetingId) {
+                      navigateToMeeting(notification.meetingId, notification.type);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="d-flex w-100 align-items-center">
                     <div className="flex-grow-1">
-
                       <div style={{ display: 'flex', alignItems: 'center' }}>
                         <div>
                           <h6 className="mb-1 fw-bold" style={{ fontSize: "15px" }}>{notification.title}</h6>
@@ -143,6 +278,9 @@ const NotificationsComponent = () => {
                         )}
                       </div>
                       <p className="mb-1" style={{ fontSize: "14px" }}>{notification.message}</p>
+                      <small className="text-muted" style={{ fontSize: "12px" }}>
+                        {notification.createdAt ? formatDate(notification.createdAt) : ''}
+                      </small>
                     </div>
                   </div>
                 </div>
@@ -153,7 +291,16 @@ const NotificationsComponent = () => {
 
         {/* Footer */}
         <div className="card-footer bg-white text-center py-2">
-          <button className="btn btn-link text-primary text-decoration-none">View all ...</button>
+          <button 
+            className="btn btn-link text-primary text-decoration-none"
+            onClick={() => {
+              // Here you would navigate to a full notifications page
+              // For now, let's just refresh the notifications
+              fetchNotifications();
+            }}
+          >
+            Refresh
+          </button>
         </div>
       </div>
     </div>
