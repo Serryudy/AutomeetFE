@@ -6,15 +6,30 @@ import '../../styles/global.css';
 import SidebarMenu from '../../components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import MeetingCard from '@/components/MeetingCard';
-import { FaSearch, FaFilter, FaCalendarAlt, FaBars } from 'react-icons/fa';
+import { FaCalendarAlt, FaBars } from 'react-icons/fa';
+import SearchBar from '@/components/meetingsearchbar';
 
 export default function Meeting() {
-  const [activeTab, setActiveTab] = useState("ongoing");
+  const [activeTab, setActiveTab] = useState("all");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [cardsPerRow, setCardsPerRow] = useState(3);
+  const [meetings, setMeetings] = useState([]);
+  const [filteredMeetings, setFilteredMeetings] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
+
+  // Update filtered meetings whenever activeTab or meetings changes
+  useEffect(() => {
+    if (meetings.length > 0) {
+      const filtered = filterMeetingsByTab(meetings, activeTab);
+      setFilteredMeetings(filtered);
+      setIsLoading(false);
+    }
+  }, [activeTab, meetings]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -52,6 +67,83 @@ export default function Meeting() {
 
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
+  };
+
+  // Filter meetings based on active tab
+  const filterMeetingsByTab = (meetings, tab) => {
+    let filtered = meetings;
+    
+    // First filter by tab
+    switch(tab) {
+      case 'all':
+        filtered = meetings;
+        break;
+      case 'created':
+        filtered = meetings.filter(meeting => meeting.role === 'creator');
+        break;
+      case 'participating':
+        filtered = meetings.filter(meeting => meeting.role === 'participant');
+        break;
+      case 'hosting':
+        filtered = meetings.filter(meeting => meeting.role === 'host');
+        break;
+      case 'pending':
+        filtered = meetings.filter(meeting => meeting.status === 'pending');
+        break;
+      default:
+        filtered = meetings;
+    }
+    
+    return filtered;
+  };
+
+  const handleSearchResult = (receivedMeetings) => {
+    // Update meetings state with the search results
+    if (Array.isArray(receivedMeetings)) {
+      setMeetings(receivedMeetings);
+      // Immediately filter by active tab
+      const filtered = filterMeetingsByTab(receivedMeetings, activeTab);
+      setFilteredMeetings(filtered);
+    } else {
+      console.error('Received non-array meetings:', receivedMeetings);
+      setMeetings([]);
+      setFilteredMeetings([]);
+    }
+    setIsLoading(false);
+    setError(null);
+  };
+
+  const handleSearchStart = () => {
+    // Set loading state when search starts
+    setIsLoading(true);
+  };
+
+  const handleSearchError = (errorMessage) => {
+    // Handle search errors
+    setError(errorMessage);
+    setIsLoading(false);
+  };
+
+  const handleFilter = () => {
+    console.log('Filter button clicked');
+    // Implement filter modal or dropdown
+  };
+  
+  const handleSelectMeeting = (meeting) => {
+    setSelectedMeeting(meeting);
+    
+    // Instead of redirecting, scroll to and highlight the meeting
+    setTimeout(() => {
+      const meetingElement = document.getElementById(`meeting-${meeting.id}`);
+      if (meetingElement) {
+        meetingElement.scrollIntoView({ behavior: 'smooth' });
+        // Add a highlight effect
+        meetingElement.classList.add('highlight-meeting');
+        setTimeout(() => {
+          meetingElement.classList.remove('highlight-meeting');
+        }, 2000);
+      }
+    }, 100);
   };
 
   return (
@@ -121,29 +213,20 @@ export default function Meeting() {
         </div>
 
         {/* Search and Filter */}
-        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4 gap-2">
-          <div className="position-relative w-100">
-            <div className="input-group bg-white rounded-pill" style={{ height: windowWidth < 576 ? '40px' : '48px', border: '2px solid #ccc' }}>
-              <span className="input-group-text bg-transparent border-0">
-                <FaSearch className="text-muted" />
-              </span>
-              <input 
-                type="text" 
-                className="form-control border-0" 
-                placeholder={windowWidth < 576 ? "Search meetings..." : "Try searching anything related to the meeting"}
-              />
-              <button className="btn btn-light rounded-pill d-flex align-items-center gap-2 px-2 px-md-3">
-                {windowWidth < 576 ? <FaFilter /> : <>Filter <FaFilter /></>}
-              </button>
-            </div>
-          </div>
-        </div>
+        <SearchBar 
+          onFilter={handleFilter} 
+          onSelectMeeting={handleSelectMeeting}
+          onSearchResult={handleSearchResult}
+          onSearchStart={handleSearchStart}
+          onSearchError={handleSearchError}
+          activeTab={activeTab}
+        />
 
         {/* Meeting tabs */}
         <div className='w-100 d-flex flex-column bg-white py-2 py-md-3 rounded-3 rounded-md-4 shadow-sm'>
           <div className="border-bottom border-1 border-dark px-2 px-md-4 overflow-auto">
             <ul className="list-unstyled d-flex gap-3 gap-md-4 mb-0 flex-nowrap">
-              {["ongoing", "upcoming", "unconfirmed", "past"].map((tab) => (
+              {["all", "created", "participating", "hosting", "pending"].map((tab) => (
                 <li key={tab}>
                   <div
                     className={`text-black fw-semibold pb-2 pb-md-3 text-nowrap ${activeTab === tab ? "border-bottom border-3 border-primary" : ""}`}
@@ -163,35 +246,70 @@ export default function Meeting() {
           </div>
           
           <div className="px-2 px-md-4 py-3">
-            {/* Dynamic grid based on calculated cards per row */}
-            <div className="row g-3">
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div 
-                  key={item} 
-                  className={`col-12 ${
-                    cardsPerRow === 1 ? '' : 
-                    cardsPerRow === 2 ? 'col-sm-6' : 
-                    'col-sm-6 col-lg-4'
-                  }`}
-                  style={{
-                    transition: 'width 0.3s ease-in-out'
-                  }}
-                >
+            {/* Loading state */}
+            {isLoading && (
+              <div className="text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-2">Loading meetings...</p>
+              </div>
+            )}
+            
+            {/* Error state */}
+            {!isLoading && error && (
+              <div className="alert alert-danger" role="alert">
+                <p className="mb-0">Failed to load meetings: {error}</p>
+                <p className="small mb-0 mt-2">Please check your internet connection or try again later.</p>
+              </div>
+            )}
+            
+            {/* No meetings state */}
+            {!isLoading && !error && filteredMeetings.length === 0 && (
+              <div className="text-center py-5">
+                <p className="mb-0">No {activeTab} meetings found.</p>
+              </div>
+            )}
+            
+            {/* Meetings grid - Using a flex container instead of Bootstrap grid for better control */}
+            {!isLoading && !error && filteredMeetings.length > 0 && (
+              <div className="d-flex flex-wrap" style={{ margin: '-8px' }}>
+                {filteredMeetings.map((meeting) => (
                   <div 
-                    style={{ 
-                      height: '100%',
-                      maxWidth: '100%',
-                      overflow: 'hidden'
+                    key={meeting.id} 
+                    id={`meeting-${meeting.id}`}
+                    className="p-2"
+                    style={{
+                      width: cardsPerRow === 1 ? '100%' : 
+                             cardsPerRow === 2 ? '50%' : '33.333%',
+                      transition: 'width 0.3s ease-in-out'
                     }}
                   >
-                    <MeetingCard />
+                    {/* Use the enhanced MeetingCard with integrated time progress */}
+                    <MeetingCard 
+                      meeting={meeting} 
+                      isHighlighted={selectedMeeting && selectedMeeting.id === meeting.id}
+                    />
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
+      
+      <style jsx>{`
+        .highlight-meeting {
+          animation: highlight 2s ease;
+        }
+        
+        @keyframes highlight {
+          0% { transform: scale(1); box-shadow: 0 0 0 rgba(59, 59, 215, 0); }
+          25% { transform: scale(1.05); box-shadow: 0 0 15px rgba(59, 59, 215, 0.5); }
+          50% { transform: scale(1.03); box-shadow: 0 0 10px rgba(59, 59, 215, 0.3); }
+          100% { transform: scale(1); box-shadow: 0 0 0 rgba(59, 59, 215, 0); }
+        }
+      `}</style>
     </div>
   );
 }

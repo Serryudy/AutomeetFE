@@ -1,15 +1,139 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const WeeklyCalendar = () => {
+const WeeklyCalendar = ({ selectedDate }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [visibleDays, setVisibleDays] = useState(7);
-  const [startDayIndex, setStartDayIndex] = useState(0);
+  const [viewStartDate, setViewStartDate] = useState(null);
   const [timeZone, setTimeZone] = useState('');
+  const [processedEvents, setProcessedEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
+  // Get current date and time
   const now = new Date();
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
   const currentDay = now.getDay();
+  const calendarRef = useRef(null);
+  const gridContainerRef = useRef(null);
+  
+  // Function to get first day (Sunday) of the week for a given date
+  const getFirstDayOfWeek = (date) => {
+    const tempDate = new Date(date);
+    const day = tempDate.getDay(); // 0 is Sunday, 6 is Saturday
+    const diff = tempDate.getDate() - day;
+    return new Date(tempDate.setDate(diff));
+  };
+  
+  // Initialize calendar to show current week or the week containing selectedDate
+  useEffect(() => {
+    let targetDate;
+    
+    if (selectedDate && selectedDate !== '') {
+      // If selectedDate is a string, convert to Date object
+      targetDate = typeof selectedDate === 'string' 
+        ? new Date(selectedDate) 
+        : new Date(selectedDate);
+      
+      // Check if valid date
+      if (isNaN(targetDate.getTime())) {
+        targetDate = new Date(); // Fallback to current date if invalid
+      }
+    } else {
+      targetDate = new Date(); // Default to current date
+    }
+    
+    // Set view to start from first day of the week containing targetDate
+    setViewStartDate(getFirstDayOfWeek(targetDate));
+  }, [selectedDate]);
+  
+  // Fetch confirmed meetings from API
+  useEffect(() => {
+    const fetchConfirmedMeetings = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch('http://localhost:8080/api/confirmed/meetings', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch meetings: ${response.status}`);
+        }
+        
+        const meetings = await response.json();
+        processEventData(meetings);
+      } catch (err) {
+        console.error('Error fetching meetings:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchConfirmedMeetings();
+  }, []);
+  
+  // Process events from API response
+  const processEventData = (events) => {
+    if (events && events.length > 0) {
+      const processed = events.map(event => {
+        // Parse the start and end times
+        const startDate = new Date(event.directTimeSlot.startTime);
+        const endDate = new Date(event.directTimeSlot.endTime);
+        
+        // Get day of week (0-6, where 0 is Sunday)
+        const day = startDate.getDay();
+        
+        // Get hours and minutes
+        const startHour = startDate.getHours();
+        const startMinute = startDate.getMinutes();
+        const endHour = endDate.getHours();
+        const endMinute = endDate.getMinutes();
+        
+        // Assign a color based on status or role or meeting type
+        let color = '#b3e0ff'; // Default color
+        
+        if (event.status === 'pending') {
+          color = '#ffb3b3'; // Red-ish for pending
+        } else if (event.status === 'confirmed') {
+          color = '#b3ffb3'; // Green-ish for confirmed
+        }
+        
+        if (event.meetingType === 'direct') {
+          color = '#ffdf80'; // Yellow-ish for direct meetings
+        } else if (event.meetingType === 'group') {
+          color = '#d9b3ff'; // Purple-ish for group meetings
+        }
+        
+        return {
+          id: event.id,
+          title: event.title,
+          description: event.description || '',
+          location: event.location || '',
+          day,
+          startHour,
+          startMinute,
+          endHour,
+          endMinute,
+          color,
+          status: event.status,
+          meetingType: event.meetingType,
+          startDate, // Store the original date objects
+          endDate,
+          role: event.role || 'participant',
+          participants: event.participants || []
+        };
+      });
+      
+      setProcessedEvents(processed);
+    }
+  };
   
   // Get user's time zone
   useEffect(() => {
@@ -45,72 +169,110 @@ const WeeklyCalendar = () => {
       setIsMobile(width < 768);
       
       if (width < 576) {
-        setVisibleDays(1);
-        setStartDayIndex(currentDay); // Show only current day on small screens
+        setVisibleDays(1); // Show only one day on small screens
       } else if (width < 768) {
-        setVisibleDays(3);
-        setStartDayIndex(Math.min(4, Math.max(0, currentDay - 1))); // Show 3 days centered around current day
+        setVisibleDays(3); // Show 3 days on medium screens
       } else if (width < 992) {
-        setVisibleDays(5);
-        setStartDayIndex(Math.min(2, Math.max(0, currentDay - 2))); // Show 5 days
+        setVisibleDays(5); // Show 5 days on larger screens
       } else {
-        setVisibleDays(7);
-        setStartDayIndex(0); // Show all days
+        setVisibleDays(7); // Show all days on large screens
       }
     };
     
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [currentDay]);
+  }, []);
+  
+  // Scroll to current time on load
+  useEffect(() => {
+    if (calendarRef.current) {
+      const currentTimePosition = ((currentHour + currentMinute / 60) - 6) * 60; // Adjust for 6 AM start
+      
+      // Scroll to current time (with some offset) if it's between 6 AM and midnight
+      if (currentHour >= 6 && currentHour <= 23) {
+        calendarRef.current.scrollTop = currentTimePosition - 100;
+      } else {
+        calendarRef.current.scrollTop = 0; // Default to 6 AM
+      }
+    }
+  }, [currentHour, currentMinute]);
   
   // Generate time slots from 6:00 AM to 5:00 AM (24-hour format)
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
-    const hour = (i + 6) % 24; // Start from 6 AM and cycle back
+    const hour = (i + 6) % 24; // Start from 6 AM (adjust to display hours 6-23, then 0-5)
     const period = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${displayHour} ${period}`;
+    return {
+      hour,
+      displayText: `${displayHour} ${period}`
+    };
   });
-
-  // Week days
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   
-  // Navigation functions
-  const goToPreviousDays = () => {
-    setStartDayIndex(Math.max(0, startDayIndex - visibleDays));
+  // Current time indicator position
+  const currentTimePosition = ((currentHour + currentMinute / 60) - 6) * 60; // Adjust for 6 AM start
+  
+  // Define column sizes consistently for headers and content
+  const timeColumnWidth = isMobile ? '40px' : '60px';
+  const dayColumnWidth = isMobile ? '60px' : '100px';
+  
+  // Generate array of dates for the current view
+  const getDaysArray = () => {
+    if (!viewStartDate) return [];
+    
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(viewStartDate);
+      date.setDate(viewStartDate.getDate() + i);
+      return {
+        dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
+        date: date,
+        dayOfMonth: date.getDate(),
+        isToday: date.toDateString() === new Date().toDateString(),
+        isInSelectedWeek: true,
+      };
+    });
   };
   
-  const goToNextDays = () => {
-    setStartDayIndex(Math.min(7 - visibleDays, startDayIndex + visibleDays));
-  };
+  const daysArray = getDaysArray();
   
-  const goToToday = () => {
-    const newStartIndex = Math.max(0, Math.min(7 - visibleDays, currentDay - Math.floor(visibleDays / 2)));
-    setStartDayIndex(newStartIndex);
-  };
+  // Filter visible days based on screen size
+  const visibleDaysArray = visibleDays === 7 
+    ? daysArray 
+    : daysArray.slice(0, visibleDays);
   
-  // Visible days
-  const visibleDaysArray = days.slice(startDayIndex, startDayIndex + visibleDays);
-  
-  // Dummy events data
-  const events = [
-    { title: 'Basic terms Meeting', day: 1, startHour: 10, startMinute: 0, endHour: 11, endMinute: 45, color: '#ffb3b3' },
-    { title: 'SRS stat Meeting', day: 1, startHour: 14, startMinute: 0, endHour: 20, endMinute: 0, color: '#b3e0ff' },
-    { title: 'Team Standup', day: 2, startHour: 9, startMinute: 30, endHour: 10, endMinute: 0, color: '#b3ffb3' },
-    { title: 'Client Call', day: 2, startHour: 15, startMinute: 0, endHour: 16, endMinute: 0, color: '#ffdf80' },
-    { title: 'Code Review Session', day: 3, startHour: 11, startMinute: 0, endHour: 12, endMinute: 30, color: '#d9b3ff' },
-    { title: 'Sprint Planning', day: 3, startHour: 14, startMinute: 30, endHour: 16, endMinute: 0, color: '#ff9999' },
-    { title: 'Design Review', day: 4, startHour: 10, startMinute: 0, endHour: 11, endMinute: 30, color: '#80ccff' },
-    { title: 'Backend Sync-up', day: 4, startHour: 13, startMinute: 0, endHour: 14, endMinute: 0, color: '#99ff99' },
-    { title: 'Product Demo', day: 5, startHour: 16, startMinute: 0, endHour: 17, endMinute: 0, color: '#ffcc99' },
-    { title: 'Retrospective Meeting', day: 5, startHour: 17, startMinute: 30, endHour: 18, endMinute: 30, color: '#ff8080' }
-  ];
-
   // Function to calculate event position
-  const getEventStyle = (event) => {
+  const getEventStyle = (event, dayDate) => {
+    // Check if the event falls on this day
+    const eventDate = event.startDate;
+    const isSameDay = eventDate.getDate() === dayDate.getDate() && 
+                       eventDate.getMonth() === dayDate.getMonth() && 
+                       eventDate.getFullYear() === dayDate.getFullYear();
+    
+    if (!isSameDay) return null;
+    
     const hourHeight = 60; // 60px per hour
-    const startOffset = ((event.startHour + event.startMinute / 60) - 6) * hourHeight; // Adjust for 6 AM start
-    const eventHeight = ((event.endHour - event.startHour) + (event.endMinute - event.startMinute) / 60) * hourHeight;
+    
+    // Calculate correct start offset based on the 6am start time
+    // If the event starts before 6am, adjust accordingly
+    let startHourNormalized = event.startHour;
+    if (startHourNormalized < 6) {
+      // Events before 6am are shown after the PM hours
+      startHourNormalized += 24;
+    }
+    
+    // Adjust the offset based on 6am start time
+    const startOffset = ((startHourNormalized - 6) + (event.startMinute / 60)) * hourHeight;
+    
+    // Calculate event height
+    let eventDuration;
+    if (event.endHour < event.startHour) {
+      // Handle events that cross midnight
+      eventDuration = (24 - event.startHour + event.endHour) + (event.endMinute - event.startMinute) / 60;
+    } else {
+      eventDuration = (event.endHour - event.startHour) + (event.endMinute - event.startMinute) / 60;
+    }
+    
+    const eventHeight = eventDuration * hourHeight;
     
     return {
       top: `${startOffset}px`,
@@ -124,37 +286,43 @@ const WeeklyCalendar = () => {
       fontSize: isMobile ? '10px' : '12px',
       boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
       overflow: 'hidden',
-      zIndex: 2
+      zIndex: 2,
+      cursor: 'pointer'
     };
   };
 
-  // Current time indicator
-  const currentTimePosition = ((currentHour + currentMinute / 60) - 6) * 60; // Adjust for 6 AM start
-
-  // Scroll to current time on load
-  const calendarRef = useRef(null);
-  const gridContainerRef = useRef(null);
+  // Handle event click
+  const handleEventClick = (event) => {
+    console.log('Event clicked:', event);
+    // You can add functionality to show event details or navigate to a detailed view
+  };
   
-  useEffect(() => {
-    if (calendarRef.current) {
-      // Scroll to current time (with some offset) if it's between 6 AM and 5 AM next day
-      if (currentHour >= 6 && currentHour <= 23) {
-        calendarRef.current.scrollTop = currentTimePosition - 100;
-      } else {
-        calendarRef.current.scrollTop = 0; // Default to 6 AM
-      }
-    }
-  }, [currentTimePosition]);
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '300px' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
-  // Define column sizes consistently for headers and content
-  const timeColumnWidth = isMobile ? '40px' : '60px';
-  const dayColumnWidth = isMobile ? '60px' : '100px';
+  // Error state
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        Error loading meetings: {error}
+      </div>
+    );
+  }
 
-  // Determine if navigation is needed
-  const navigationNeeded = visibleDays < 7;
+  // Calculate total grid height
+  const totalGridHeight = timeSlots.length * 60; // 24 hours * 60px per hour
 
   return (
     <div className="container-fluid p-0 position-relative">
+      
       {/* Calendar Content */}
       <div className="d-flex border" style={{ backgroundColor: '#ffffff', borderRadius: '8px', overflow: 'hidden', width: '100%' }}>
         {/* Scrollable container */}
@@ -170,25 +338,20 @@ const WeeklyCalendar = () => {
             </div>
 
             {/* Days Headers */}
-            {visibleDaysArray.map((day, index) => {
-              const dayIndex = (startDayIndex + index) % 7;
-              const isCurrentDay = dayIndex === currentDay;
-              const date = new Date(now);
-              date.setDate(now.getDate() - currentDay + dayIndex);
-              
+            {visibleDaysArray.map((dayInfo, index) => {
               return (
                 <div 
-                  key={day} 
-                  className={`border-end ${isCurrentDay ? 'bg-primary bg-opacity-10' : ''}`}
+                  key={index} 
+                  className={`border-end ${dayInfo.isToday ? 'bg-primary bg-opacity-10' : ''}`}
                   style={{ 
-                    width: `calc(100% / ${visibleDays})`, 
+                    width: `calc(100% / ${visibleDaysArray.length})`, 
                     minWidth: dayColumnWidth,
                     flex: 1
                   }}
                 >
                   <div className="border-bottom p-2 text-center" style={{ height: '50px' }}>
                     <div className={`${isMobile ? 'fs-6' : 'fw-bold'}`}>
-                      {day} {date.getDate()}
+                      {dayInfo.dayName} {dayInfo.dayOfMonth}
                     </div>
                   </div>
                 </div>
@@ -197,7 +360,7 @@ const WeeklyCalendar = () => {
           </div>
 
           {/* Scrollable Content */}
-          <div ref={calendarRef} className="d-flex position-relative"
+          <div ref={calendarRef} className="position-relative"
                style={{ overflowY: 'auto', maxHeight: 'calc(80vh - 50px)', width: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <style>
               {`
@@ -207,118 +370,115 @@ const WeeklyCalendar = () => {
                 .cell-hover:hover {
                   background-color: rgba(0, 0, 0, 0.03);
                 }
+                .day-column {
+                  border-right: 1px solid #dee2e6;
+                }
+                .day-column:last-child {
+                  border-right: none;
+                }
               `}
             </style>
             
-            {/* Time Column */}
-            <div className="time-column border-end" style={{ width: timeColumnWidth, minWidth: timeColumnWidth, flexShrink: 0, position: 'sticky', left: 0, zIndex: 1, backgroundColor: '#ffffff' }}>
-              {timeSlots.map((time, i) => (
-                <div key={i} className="time-slot d-flex align-items-start justify-content-end text-muted px-2 border-bottom"
-                     style={{ height: '60px', fontSize: isMobile ? '10px' : '12px' }}>
-                  {time}
-                </div>
-              ))}
-            </div>
-
-            {/* Grid Structure */}
-            <div ref={gridContainerRef} className="position-relative" style={{ width: '100%' }}>
-              <table className="table table-bordered m-0" style={{ tableLayout: 'fixed', width: '100%' }}>
-                <tbody>
-                  {timeSlots.map((time, timeIndex) => (
-                    <tr key={timeIndex} style={{ height: '60px' }}>
-                      {visibleDaysArray.map((day, dayIndex) => {
-                        const actualDayIndex = (startDayIndex + dayIndex) % 7;
-                        const isCurrentDay = actualDayIndex === currentDay;
-                        
-                        // Get events that start in this cell
-                        const cellEvents = events.filter(event => 
-                          event.day === actualDayIndex && 
-                          Math.floor(event.startHour) === ((timeIndex + 6) % 24)
-                        );
-                        
-                        return (
-                          <td 
-                            key={`${timeIndex}-${dayIndex}`} 
-                            className={`position-relative p-0 cell-hover ${isCurrentDay ? 'bg-primary bg-opacity-10' : ''}`}
-                            style={{ 
-                              height: '60px',
-                              width: `${100 / visibleDays}%`,
-                              borderBottom: '1px solid #dee2e6',
-                              borderRight: dayIndex < visibleDaysArray.length - 1 ? '1px solid #dee2e6' : 'none'
-                            }}
-                          >
-                            {/* Cell Content */}
-                            {cellEvents.map((event, eventIndex) => (
-                              <div key={eventIndex} className="event" style={getEventStyle(event)}>
-                                <div className="fw-bold text-truncate">{event.title}</div>
-                                {!isMobile && (
-                                  <div className="text-truncate">
-                                    {`${event.startHour}:${event.startMinute.toString().padStart(2, '0')} - 
-                                      ${event.endHour}:${event.endMinute.toString().padStart(2, '0')}`}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {/* Current Time Indicator */}
-              {(currentHour >= 6 || currentHour < 6) && (
-                <div className="position-absolute d-flex align-items-center"
-                     style={{ 
-                       top: `${currentTimePosition}px`, 
-                       height: '2px', 
-                       backgroundColor: '#1a1aff', 
-                       zIndex: 3, 
-                       left: '0',
-                       right: '0',
-                       width: '100%'
-                     }}>
-                  <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
-                       style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
-                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {/* Main Content Area with Grid */}
+            <div className="d-flex" style={{ position: 'relative', minHeight: `${totalGridHeight}px` }}>
+              {/* Time Column */}
+              <div className="time-column border-end" 
+                   style={{ 
+                     width: timeColumnWidth, 
+                     minWidth: timeColumnWidth, 
+                     flexShrink: 0, 
+                     position: 'sticky', 
+                     left: 0, 
+                     zIndex: 1, 
+                     backgroundColor: '#ffffff' 
+                   }}>
+                {timeSlots.map((timeSlot, i) => (
+                  <div key={i} 
+                       className="time-slot d-flex align-items-start justify-content-end text-muted px-2 border-bottom"
+                       style={{ height: '60px', fontSize: isMobile ? '10px' : '12px' }}>
+                    {timeSlot.displayText}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+              
+              {/* Grid Structure */}
+              <div ref={gridContainerRef} className="d-flex flex-grow-1" style={{ position: 'relative' }}>
+                {/* Day Columns with Vertical Dividers */}
+                {visibleDaysArray.map((dayInfo, dayIndex) => (
+                  <div 
+                    key={dayIndex}
+                    className={`day-column ${dayInfo.isToday ? 'bg-primary bg-opacity-10' : ''}`}
+                    style={{ 
+                      width: `${100 / visibleDaysArray.length}%`,
+                      minWidth: dayColumnWidth,
+                      position: 'relative'
+                    }}
+                  >
+                    {/* Time Cells */}
+                    {timeSlots.map((timeSlot, timeIndex) => (
+                      <div 
+                        key={timeIndex}
+                        className="position-relative cell-hover"
+                        style={{ 
+                          height: '60px',
+                          borderBottom: '1px solid #dee2e6'
+                        }}
+                      />
+                    ))}
+                    
+                    {/* Events overlay for this day */}
+                    {processedEvents.map((event, eventIndex) => {
+                      const eventStyle = getEventStyle(event, dayInfo.date);
+                      if (!eventStyle) return null;
+                      
+                      return (
+                        <div 
+                          key={eventIndex} 
+                          className="event" 
+                          style={eventStyle}
+                          onClick={() => handleEventClick(event)}
+                        >
+                          <div className="fw-bold text-truncate">{event.title}</div>
+                          {!isMobile && (
+                            <div className="text-truncate small">
+                              {`${event.startHour.toString().padStart(2, '0')}:${event.startMinute.toString().padStart(2, '0')} - 
+                                ${event.endHour.toString().padStart(2, '0')}:${event.endMinute.toString().padStart(2, '0')}`}
+                            </div>
+                          )}
+                          {!isMobile && event.location && (
+                            <div className="text-truncate small">
+                              {event.location}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                
+                {/* Current Time Indicator - Only show if the current day is visible */}
+                {daysArray.some(day => day.isToday) && (
+                  <div className="position-absolute d-flex align-items-center"
+                       style={{ 
+                         top: `${currentTimePosition}px`, 
+                         height: '2px', 
+                         backgroundColor: '#1a1aff', 
+                         zIndex: 3, 
+                         left: '0',
+                         right: '0',
+                         width: '100%'
+                       }}>
+                    <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
+                         style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Navigation Controls - Only shown when needed */}
-      {navigationNeeded && (
-        <div className="d-flex justify-content-between align-items-center mt-2 px-2">
-          <div>
-            <button 
-              className="btn btn-sm btn-outline-primary me-2" 
-              onClick={goToPreviousDays}
-              disabled={startDayIndex === 0}
-            >
-              &lt; Prev
-            </button>
-            <button 
-              className="btn btn-sm btn-outline-primary" 
-              onClick={goToToday}
-            >
-              Today
-            </button>
-          </div>
-          <div>
-            <button 
-              className="btn btn-sm btn-outline-primary" 
-              onClick={goToNextDays}
-              disabled={startDayIndex + visibleDays >= 7}
-            >
-              Next &gt;
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
