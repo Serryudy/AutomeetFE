@@ -117,6 +117,19 @@ const Login = () => {
         <title>Login | AUTOMEET</title>
         <meta name="description" content="Login to your AUTOMEET account" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+          {`
+            /* Override browser autofill styles */
+            input:-webkit-autofill,
+            input:-webkit-autofill:hover,
+            input:-webkit-autofill:focus,
+            input:-webkit-autofill:active {
+              -webkit-box-shadow: 0 0 0 30px white inset !important;
+              -webkit-text-fill-color: inherit !important;
+              transition: background-color 5000s ease-in-out 0s;
+            }
+          `}
+        </style>
       </Head>
       
       <div className="container-fluid p-0 min-vh-100">
@@ -189,6 +202,7 @@ const Login = () => {
                       required
                       style={{
                           height: "50px",
+                          backgroundColor: "white !important",
                       }}
                       />
                   </div>
@@ -210,6 +224,7 @@ const Login = () => {
                       required
                       style={{
                           height: "50px",
+                          backgroundColor: "white !important",
                       }}
                       />
                       <span 
