@@ -86,8 +86,6 @@ const Register = () => {
         profile_pic: ""
       };
       
-      console.log('Sending request to:', 'http://localhost:8080/api/auth/signup');
-      console.log('Request payload:', userData);
       
       const response = await fetch('http://localhost:8080/api/auth/signup', {
         method: 'POST',
@@ -105,7 +103,11 @@ const Register = () => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Error response:', errorText);
-        throw new Error(`Registration failed: ${response.status} ${errorText}`);
+        if (response.status === 409) {
+          throw new Error('An account with this email already exists.');
+        } else {
+          throw new Error('Registration failed. Please try again.');
+        }
       }
       
       // Registration successful

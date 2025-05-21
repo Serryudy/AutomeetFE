@@ -8,7 +8,7 @@ import ProfileHeader from '@/components/profileHeader';
 import MessageComponent from '@/components/MessageComponent';
 import { FaBars, FaSearch, FaFilter, FaPlus, FaEdit, FaTrash, FaTimes } from 'react-icons/fa';
 import { BsThreeDotsVertical } from 'react-icons/bs';
-
+import axios from 'axios';
 
 export default function Community() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -24,11 +24,38 @@ export default function Community() {
   const [showMessageComponent, setShowMessageComponent] = useState(false);
   // State for animation
   const [messageAnimationState, setMessageAnimationState] = useState('hidden'); // 'hidden', 'animating', 'visible'
+  const [contacts, setContacts] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [jwtToken, setJwtToken] = useState(''); 
    
   // Ref for handling clicks outside popup
   const contactModalRef = useRef(null);
   const groupModalRef = useRef(null);
   const messageComponentRef = useRef(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const contactRes = await axios.get('http://localhost:8080/api/contacts', {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        });
+        setContacts(contactRes.data);
+
+        const groupRes = await axios.get('http://localhost:8080/api/groups', {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        });
+        setGroups(groupRes.data);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [jwtToken]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -73,6 +100,35 @@ export default function Community() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [messageAnimationState]);
+
+  // Function to create a new contact
+  const createContact = async (newContact) => {
+    try {
+      const response = await axios.post('http://localhost:8080/api/contacts', newContact, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      setContacts([...contacts, response.data]);
+    } catch (error) {
+      console.error('Error creating contact:', error);
+    }
+  };
+
+  // Function to create a new group
+  const createGroup = async (newGroup) => {
+    try {
+      const response = await axios.post('http://localhost:8080/api/groups', newGroup, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      setGroups([...groups, response.data]);
+    } catch (error) {
+      console.error('Error creating group:', error);
+    }
+  };
+
 
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
@@ -331,41 +387,52 @@ export default function Community() {
 
 const Contacts = ({ setShowContactModal, setEditingContact }) => {
   const [activePopup, setActivePopup] = useState(null);
-  const [clients, setClients] = useState([
-    {
-      id: 1,
-      name: 'David Miller',
-      email: 'davidmiller@gmail.com',
-      nextMeeting: {
-        type: '30 Minute Meeting',
-        date: 'Mon, Dec. 24'
-      },
-      lastMeeting: {
-        type: '30 Minute Meeting',
-        date: 'Mon, Dec. 24'
-      },
-      groups: ['Gujarat', 'Shodan']
-    },
-    {
-      id: 2,
-      name: 'Jane Smith',
-      email: 'janesmith@gmail.com',
-      nextMeeting: {
-        type: '45 Minute Meeting',
-        date: 'Tue, Dec. 25'
-      },
-      lastMeeting: {
-        type: '15 Minute Call',
-        date: 'Fri, Dec. 20'
-      },
-      groups: ['Marketing', 'VIP']
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch contacts on component mount
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/contacts', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch contacts');
+        }
+        
+        const data = await response.json();
+        setClients(data);
+      } catch (err) {
+        console.error('Error fetching contacts:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContacts();
+  }, []);
+
+  const handleDelete = async (clientId) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/contacts/${clientId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete contact');
+      }
+
+      setClients(clients.filter(client => client._id !== clientId));
+      setActivePopup(null);
+    } catch (err) {
+      console.error('Error deleting contact:', err);
+      alert('Failed to delete contact');
     }
-  ]);
-
-
-  const handleDelete = (clientId) => {
-    setClients(clients.filter(client => client.id !== clientId));
-    setActivePopup(null); // Close popup after deletion
   };
 
 
@@ -383,14 +450,22 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
     }
   };
 
+  if (loading) {
+    return <div className="text-center py-4">Loading contacts...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center py-4 text-danger">{error}</div>;
+  }
+
   return (
     <div className="client-list">
       {/* Table Header - Hidden on mobile */}
       <div className="d-none d-md-flex row border-bottom pb-3 fw-bold">
         <div className="col-md-3 ps-md-4">Name</div>
-        <div className="col-md-3">Next Meeting</div>
-        <div className="col-md-3">Last Meeting</div>
-        <div className="col-md-2">Group</div>
+        <div className="col-md-3">Email</div>
+        <div className="col-md-3">Phone</div>
+        <div className="col-md-2">Created By</div>
         <div className="col-md-1"></div>
       </div>
       
@@ -403,42 +478,39 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
             <div className="col-md-3 d-flex align-items-center">
               <div className="avatar-circle bg-light text-secondary me-3 d-flex align-items-center justify-content-center" 
                 style={{ width: 60, height: 60, borderRadius: '50%', fontSize: '1.5rem' }}>
-                {client.name.charAt(0)}
+                {client.username ? client.username.charAt(0).toUpperCase() : '?'}
               </div>
               <div>
-                <div className="fw-bold">{client.name}</div>
+                <div className="fw-bold">{client.username}</div>
                 <div className="text-muted small">{client.email}</div>
               </div>
             </div>
             
-            {/* Next Meeting */}
+            {/* Email */}
             <div className="col-md-3">
-              <div>{client.nextMeeting.type}</div>
-              <div className="text-muted">{client.nextMeeting.date}</div>
+              <div className="text-muted">{client.email}</div>
             </div>
             
-            {/* Last Meeting */}
+            {/* Phone */}
             <div className="col-md-3">
-              <div>{client.lastMeeting.type}</div>
-              <div className="text-muted">{client.lastMeeting.date}</div>
+              <div className="text-muted">{client.phone || 'No phone'}</div>
             </div>
             
-            {/* Group */}
+            {/* Created By */}
             <div className="col-md-2">
-              {client.groups.join(', ')}
-              {client.groups.length > 2 ? '....' : ''}
+              <div className="text-muted">{client.createdBy}</div>
             </div>
             
             {/* Actions with popup */}
             <div className="col-md-1 text-end position-relative">
               <button 
                 className="btn btn-link text-dark"
-                onClick={() => togglePopup(`client-${client.id}`)}
+                onClick={() => togglePopup(client.id)}
               >
                 <BsThreeDotsVertical />
               </button>
               
-              {activePopup === `client-${client.id}` && (
+              {activePopup === client.id && (
                 <div 
                   className="position-absolute bg-white shadow rounded-3 py-2 px-0"
                   style={{ 
@@ -452,7 +524,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
                   <button 
                     className="btn btn-link text-dark d-flex align-items-center gap-2 px-3 py-2 w-100 text-start" 
                     style={{ textDecoration: 'none' }}
-                    onClick={() => togglePopup(`client-${client.id}`, 'edit')}
+                    onClick={() => togglePopup(client.id, 'edit')}
                   >
                     <FaEdit size={16} /> Edit
                   </button>
@@ -472,25 +544,20 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
           <div className="d-flex d-md-none position-relative">
             <div className="avatar-circle bg-light text-secondary me-3 d-flex align-items-center justify-content-center" 
               style={{ width: 50, height: 50, borderRadius: '50%', fontSize: '1.25rem', flexShrink: 0 }}>
-              {client.name.charAt(0)}
+              {client.username ? client.username.charAt(0).toUpperCase() : '?'}
             </div>
             
             <div className="flex-grow-1">
-              <div className="fw-bold">{client.name}</div>
+              <div className="fw-bold">{client.username}</div>
               <div className="text-muted small mb-1">{client.email}</div>
               
               <div className="d-flex flex-wrap gap-2 mt-2">
                 <div className="bg-light rounded-pill px-2 py-1 small">
-                  <span className="fw-semibold">Next:</span> {client.nextMeeting.date}
+                  <span className="fw-semibold">Phone:</span> {client.phone || 'No phone'}
                 </div>
                 <div className="bg-light rounded-pill px-2 py-1 small">
-                  <span className="fw-semibold">Last:</span> {client.lastMeeting.date}
+                  <span className="fw-semibold">Created by:</span> {client.createdBy}
                 </div>
-                {client.groups.map((group, idx) => (
-                  <div key={idx} className="bg-light rounded-pill px-2 py-1 small text-secondary">
-                    {group}
-                  </div>
-                ))}
               </div>
             </div>
             
@@ -498,12 +565,12 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
             <div className="position-absolute" style={{ top: 0, right: 0 }}>
               <button 
                 className="btn btn-link text-dark"
-                onClick={() => togglePopup(`client-${client.id}`)}
+                onClick={() => togglePopup(client.id)}
               >
                 <BsThreeDotsVertical />
               </button>
               
-              {activePopup === `client-${client.id}` && (
+              {activePopup === client.id && (
                 <div 
                   className="position-absolute bg-white shadow rounded-3 py-2 px-0"
                   style={{ 
@@ -517,7 +584,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
                   <button 
                     className="btn btn-link text-dark d-flex align-items-center gap-2 px-3 py-2 w-100 text-start" 
                     style={{ textDecoration: 'none' }}
-                    onClick={() => togglePopup(`client-${client.id}`, 'edit')}
+                    onClick={() => togglePopup(client.id, 'edit')}
                   >
                     <FaEdit size={16} /> Edit
                   </button>
@@ -536,25 +603,51 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
 
 const Groups = ({ setShowGroupModal, setEditingGroup }) => {
   const [activePopup, setActivePopup] = useState(null);
-  const [groups, setGroups] = useState([
-    {
-      id: 1,
-      name: 'Team shodan',
-      email: 'davidmiller@gmail.com',
-      nextMeeting: {
-        type: '30 Minute Meeting',
-        date: 'Mon, Dec. 24'
-      },
-      lastMeeting: {
-        type: '30 Minute Meeting',
-        date: 'Mon, Dec. 24'
-      }
-    }
-  ]);
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const handleDelete = (groupId) => {
-    setGroups(groups.filter(group => group.id !== groupId));
-    setActivePopup(null); // Close popup after deletion
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/groups', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch groups');
+        }
+        
+        const data = await response.json();
+        setGroups(data);
+      } catch (err) {
+        console.error('Error fetching groups:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGroups();
+  }, []);
+
+  const handleDelete = async (groupId) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/groups/${groupId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete group');
+      }
+
+      setGroups(groups.filter(group => group._id !== groupId));
+      setActivePopup(null);
+    } catch (err) {
+      console.error('Error deleting group:', err);
+      alert('Failed to delete group');
+    }
   };
 
   const togglePopup = (itemId, action) => {
@@ -712,13 +805,52 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
 };
 
 const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setEditingContact }) => {
-  // Initialize form state with editing data or empty values
   const [formData, setFormData] = useState({
-    name: editingContact ? editingContact.name : '',
+    username: editingContact ? editingContact.username : '',
     email: editingContact ? editingContact.email : '',
-    timezone: editingContact ? editingContact.timezone || '' : '',
-    phone: editingContact ? editingContact.phone || '' : ''
+    phone: editingContact ? editingContact.phone : '',
+    profileimg: editingContact ? editingContact.profileimg : ''
   });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const url = editingContact 
+        ? `http://localhost:8080/api/contacts/${editingContact._id}`
+        : 'http://localhost:8080/api/contacts';
+        
+      const method = editingContact ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          username: formData.email, // Using email as username
+          email: formData.email,
+          phone: formData.phone,
+          profileimg: formData.profileimg || 'https://example.com/default-profile.jpg'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save contact');
+      }
+
+      // Close modal and reset state
+      setShowContactModal(false);
+      setEditingContact(null);
+      
+      // Refresh the contacts list
+      window.location.reload();
+    } catch (err) {
+      console.error('Error saving contact:', err);
+      alert('Failed to save contact');
+    }
+  };
 
   // Handle form input changes
   const handleChange = (e) => {
@@ -727,18 +859,6 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
       ...formData,
       [id]: value
     });
-  };
-
-  // Handle form submission
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Process form data here
-    // If editing, update the existing contact
-    // If new, add a new contact
-    
-    // Close modal and reset editing state
-    setShowContactModal(false);
-    setEditingContact(null);
   };
 
   // Handle modal close
@@ -874,42 +994,92 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
 };
 
 const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGroup }) => {
-  // Initialize form state with editing data or empty values
   const [formData, setFormData] = useState({
-    groupName: editingGroup ? editingGroup.name : '',
-    groupEmail: editingGroup ? editingGroup.email : '',
-    members: '',
-    description: editingGroup ? editingGroup.description || '' : ''
+    name: editingGroup ? editingGroup.name : '',
+    contactIds: editingGroup ? editingGroup.contactIds || [] : []
   });
 
-  // Handle form input changes
-  const handleChange = (e) => {
-    const { id, value } = e.target;
-    setFormData({
-      ...formData,
-      [id]: value
-    });
-  };
+  const [availableContacts, setAvailableContacts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Handle form submission
-  const handleSubmit = (e) => {
+  // Fetch available contacts when modal opens
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/contacts', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch contacts');
+        }
+        
+        const data = await response.json();
+        setAvailableContacts(data);
+      } catch (err) {
+        console.error('Error fetching contacts:', err);
+      }
+    };
+
+    fetchContacts();
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Process form data here
-    // If editing, update the existing group
-    // If new, add a new group
     
-    // Close modal and reset editing state
-    setShowGroupModal(false);
-    setEditingGroup(null);
+    try {
+      const url = editingGroup 
+        ? `http://localhost:8080/api/groups/${editingGroup._id}`
+        : 'http://localhost:8080/api/groups';
+        
+      const method = editingGroup ? 'PUT' : 'POST';
+      
+      // Filter out any empty strings or undefined values from contactIds
+      const validContactIds = formData.contactIds.filter(id => id && id.trim() !== '');
+      
+      const requestBody = {
+        name: formData.name,
+        contactIds: validContactIds // Make sure these are strings
+      };
+
+      console.log('Sending request:', requestBody); // Debug log
+      
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save group');
+      }
+
+      setShowGroupModal(false);
+      setEditingGroup(null);
+      window.location.reload();
+    } catch (err) {
+      console.error('Error saving group:', err);
+      alert('Failed to save group: ' + err.message);
+    }
   };
 
-  // Handle modal close
-  const handleClose = () => {
-    setShowGroupModal(false);
-    setEditingGroup(null);
+  const handleContactSelect = (contactId) => {
+    if (!contactId) return; // Prevent adding empty IDs
+    
+    setFormData(prev => ({
+      ...prev,
+      contactIds: prev.contactIds.includes(contactId)
+        ? prev.contactIds.filter(id => id !== contactId)
+        : [...prev.contactIds, contactId]
+    }));
   };
 
-  return(
+  // Add this JSX in the form, replacing the previous members input
+  return (
     <div 
       className="position-fixed top-0 start-0 w-100 h-100" 
       style={{ 
@@ -934,7 +1104,7 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
         <button 
           className="btn btn-link position-absolute"
           style={{ top: '15px', right: '15px', color: '#555' }}
-          onClick={handleClose}
+          onClick={() => setShowGroupModal(false)}
         >
           <FaTimes size={20} />
         </button>
@@ -948,89 +1118,73 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
         <form className="p-4 pt-2" onSubmit={handleSubmit}>
           {/* Name Field */}
           <div className="mb-3">
-            <label htmlFor="groupName" className="form-label fw-bold">
+            <label htmlFor="name" className="form-label fw-bold">
               Name <span className="text-danger">*</span>
             </label>
             <input 
               type="text" 
               className="form-control rounded-3" 
-              id="groupName" 
+              id="name" 
               placeholder="Enter group name" 
               required
-              value={formData.groupName}
-              onChange={handleChange}
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
             />
           </div>
           
-          {/* Email Field */}
-          <div className="mb-3">
-            <label htmlFor="groupEmail" className="form-label fw-bold">
-              Email <span className="text-danger">*</span>
+          {/* Members Selection */}
+          <div className="mb-4">
+            <label className="form-label fw-bold">
+              Add Members <span className="text-danger">*</span>
             </label>
             <input 
-              type="email" 
-              className="form-control rounded-3" 
-              id="groupEmail" 
-              placeholder="Enter group email" 
-              required
-              value={formData.groupEmail}
-              onChange={handleChange}
+              type="text" 
+              className="form-control rounded-3 mb-2" 
+              placeholder="Search contacts..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-          </div>
-          
-          {/* Add Members Field */}
-          <div className="mb-4">
-            <label htmlFor="members" className="form-label fw-bold">
-              Add members
-            </label>
-            <div className="position-relative">
-              <input 
-                type="text" 
-                className="form-control rounded-3" 
-                id="members" 
-                placeholder="Search by contact" 
-                value={formData.members}
-                onChange={handleChange}
-              />
-              <button 
-                type="button"
-                className="btn position-absolute" 
-                style={{ right: '5px', top: '50%', transform: 'translateY(-50%)' }}
-              >
-                <FaSearch className="text-muted" />
-              </button>
+            
+            <div className="border rounded-3 p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {availableContacts
+                .filter(contact => 
+                  contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  contact.username?.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map(contact => (
+                  <div 
+                    key={contact.id} // Use contact.id instead of _id
+                    className="form-check d-flex align-items-center py-2"
+                  >
+                    <input
+                      type="checkbox"
+                      className="form-check-input me-2"
+                      checked={formData.contactIds.includes(contact.id)}
+                      onChange={() => handleContactSelect(contact.id)}
+                    />
+                    <label className="form-check-label">
+                      {contact.username || contact.email}
+                    </label>
+                  </div>
+                ))}
             </div>
           </div>
-          
-          {/* Description Field */}
-          <div className="mb-4">
-            <label htmlFor="description" className="form-label fw-bold">
-              Description
-            </label>
-            <textarea 
-              className="form-control rounded-3" 
-              id="description" 
-              placeholder="Enter group description" 
-              rows="3"
-              value={formData.description}
-              onChange={handleChange}
-            ></textarea>
-          </div>
-          
+
           {/* Action Buttons */}
           <div className="d-flex justify-content-between pt-2">
             <button 
               type="button" 
               className="btn btn-light rounded-pill px-4" 
-              onClick={handleClose}
+              onClick={() => setShowGroupModal(false)}
             >
               Cancel
             </button>
             <button 
               type="submit" 
               className="btn btn-primary rounded-pill px-4"
+              disabled={!formData.name || formData.contactIds.length === 0}
             >
-              {editingGroup ? 'Update group' : 'Create group'}
+              {editingGroup ? 'Update Group' : 'Create Group'}
             </button>
           </div>
         </form>
