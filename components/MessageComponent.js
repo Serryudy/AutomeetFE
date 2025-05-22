@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperPlane } from "react-icons/fa";
 
 // Add debounce utility at the top of the file after imports
@@ -8,6 +8,11 @@ const debounce = (func, wait) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
+};
+
+// Add this helper function after the imports
+const getOtherParticipant = (participants, currentUser) => {
+  return participants.find(p => p !== currentUser) || participants[0];
 };
 
 const MessageComponent = ({ onClose }) => {
@@ -30,6 +35,8 @@ const MessageComponent = ({ onClose }) => {
   const [websocket, setWebsocket] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [hasUserTyped, setHasUserTyped] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
 
   // Handle window resize
   useEffect(() => {
@@ -86,9 +93,10 @@ const MessageComponent = ({ onClose }) => {
         
         if (response.ok) {
           const userData = await response.json();
-          // Set current user with the email as userId for comparison
           setCurrentUser(userData.username);
-          console.log("Current user:", userData.username);
+          
+          // After getting user profile, fetch rooms and contacts
+          fetchRoomsAndContacts(userData.username);
         } else {
           console.error('Failed to fetch user profile:', response.status);
         }
@@ -159,8 +167,10 @@ const MessageComponent = ({ onClose }) => {
     };
   }, [selectedMessage, isCreatingRoom]);
 
-  // Fetch chat rooms and contacts on component load
-  const fetchRoomsAndContacts = async () => {
+  // Update the fetchRoomsAndContacts function
+  const fetchRoomsAndContacts = useCallback(async (currentUsername = currentUser) => {
+    if (!currentUsername) return;
+    
     try {
       setIsLoading(true);
       
@@ -171,28 +181,42 @@ const MessageComponent = ({ onClose }) => {
       const roomsData = await roomsResponse.json();
 
       if (roomsData.success) {
-        setChatRooms(roomsData.data);
-        setSearchResults(roomsData.data);
+        // Update room names to show other participant's name
+        const updatedRooms = roomsData.data.map(room => ({
+          ...room,
+          displayName: getOtherParticipant(room.participants, currentUsername)
+        }));
+        
+        setChatRooms(updatedRooms);
+        
+        if (searchQuery.trim() === '') {
+          setSearchResults(updatedRooms);
+        }
       }
 
-      // Fetch contacts 
+      // Fetch all contacts at once
       const contactsResponse = await fetch('http://localhost:8080/api/contacts', {
         credentials: 'include'
       });
       const contactsData = await contactsResponse.json();
-
       setContacts(contactsData);
+
     } catch (error) {
       console.error('Error fetching rooms or contacts:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentUser, searchQuery]);
 
-  // Initial fetch of rooms and contacts
+  // Add memoized search results
+  const memoizedSearchResults = useMemo(() => {
+    return searchResults;
+  }, [searchResults]);
+
+  // Fetch chat rooms and contacts on component load
   useEffect(() => {
     fetchRoomsAndContacts();
-  }, []);
+  }, [fetchRoomsAndContacts]);
 
   // Handle message click to load room messages
   const handleMessageClick = async (room) => {
@@ -327,40 +351,6 @@ const MessageComponent = ({ onClose }) => {
 
   const sizes = getResponsiveSizes();
 
-  // Handle search logic for rooms and contacts
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setSearchResults(chatRooms);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-
-    const timer = setTimeout(() => {
-      const query = searchQuery.toLowerCase();
-
-      // Search in chat rooms and contacts
-      const roomResults = chatRooms.filter(room => 
-        room.participants.some(p => p.toLowerCase().includes(query)) ||
-        (room.roomName && room.roomName.toLowerCase().includes(query))
-      );
-
-      const contactResults = contacts.filter(contact => 
-        contact.username.toLowerCase().includes(query) ||
-        contact.email.toLowerCase().includes(query)
-      );
-
-      // Combine results, prioritizing rooms
-      const combinedResults = [...roomResults, ...contactResults];
-      
-      setSearchResults(combinedResults);
-      setIsSearching(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [chatRooms, contacts, searchQuery]);
-
   // Toggle search field visibility
   const toggleSearch = () => {
     setShowSearch(!showSearch);
@@ -426,50 +416,53 @@ const MessageComponent = ({ onClose }) => {
     return !item.participants && (item.username || item.email);
   };
 
-  // Create memoized search handler
-  const handleSearch = useCallback(
-    debounce((query) => {
-      setIsSearching(true);
-      setDebouncedQuery(query);
-
-      const searchInData = () => {
-        const queryLower = query.toLowerCase();
-        
-        // Search in chat rooms and contacts
-        const roomResults = chatRooms.filter(room => 
-          room.participants.some(p => p.toLowerCase().includes(queryLower)) ||
-          (room.roomName && room.roomName.toLowerCase().includes(queryLower))
-        );
-
-        const contactResults = contacts.filter(contact => 
-          contact.username.toLowerCase().includes(queryLower) ||
-          contact.email.toLowerCase().includes(queryLower)
-        );
-
-        // Combine and set results
-        setSearchResults([...roomResults, ...contactResults]);
-        setIsSearching(false);
-      };
-
-      // Small delay to prevent UI jank
-      requestAnimationFrame(searchInData);
-    }, 300),
-    [chatRooms, contacts]
-  );
-
-  // Update the search input handler
-  const handleSearchInput = (e) => {
+  // Update the handleSearchInput function to be simpler
+  const handleSearchInput = useCallback((e) => {
     const query = e.target.value;
     setSearchQuery(query);
-    
-    if (query.trim() === '') {
-      setSearchResults(chatRooms);
-      setIsSearching(false);
-      return;
-    }
+    setHasUserTyped(true);
+  }, []);
 
-    handleSearch(query);
-  };
+  // Add useEffect for debouncing search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Add useEffect for performing search
+  useEffect(() => {
+    const performSearch = () => {
+      if (!debouncedQuery.trim()) {
+        setSearchResults(chatRooms);
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      const query = debouncedQuery.toLowerCase().trim();
+
+      const roomResults = chatRooms.filter(room => 
+        room.displayName?.toLowerCase().includes(query) ||
+        room.participants?.some(p => p.toLowerCase().includes(query)) ||
+        (room.roomName && room.roomName.toLowerCase().includes(query))
+      );
+
+      const contactResults = contacts.filter(contact => 
+        contact.username?.toLowerCase().includes(query) ||
+        contact.email?.toLowerCase().includes(query)
+      );
+
+      requestAnimationFrame(() => {
+        setSearchResults([...roomResults, ...contactResults]);
+        setIsSearching(false);
+      });
+    };
+
+    performSearch();
+  }, [debouncedQuery, chatRooms, contacts]);
 
   // Render message list view
   const renderMessageListView = () => {
@@ -564,11 +557,13 @@ const MessageComponent = ({ onClose }) => {
           {isLoading || isCreatingRoom ? (
             <div className="d-flex justify-content-center align-items-center h-100">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">{isCreatingRoom ? 'Creating chat room...' : 'Loading...'}</span>
+                <span className="visually-hidden">
+                  {isCreatingRoom ? 'Creating chat room...' : 'Loading...'}
+                </span>
               </div>
             </div>
-          ) : searchResults.length > 0 ? (
-            searchResults.map((item, index) => (
+          ) : memoizedSearchResults.length > 0 ? (
+            memoizedSearchResults.map((item, index) => (
               <div
                 key={index}
                 className="message-item d-flex align-items-start border-bottom hover-bg-light"
@@ -611,8 +606,14 @@ const MessageComponent = ({ onClose }) => {
                       maxWidth: containerWidth < 400 ? '60%' : '70%'
                     }}>
                       {searchQuery ? 
-                        highlightText(item.roomName || item.username || item.email, searchQuery) : 
-                        (item.roomName || item.username || item.email)}
+                        highlightText(isContact(item) ? 
+                          (item.username || item.email) : 
+                          item.displayName, 
+                        searchQuery) : 
+                        (isContact(item) ? 
+                          (item.username || item.email) : 
+                          item.displayName)
+                      }
                       {isContact(item) && <span className="ms-2 badge bg-success">Contact</span>}
                     </div>
                     <div className="message-time text-muted ms-1 flex-shrink-0" style={{
