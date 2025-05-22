@@ -17,7 +17,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isMobile, setIsMobile] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   // Check if the device is mobile
   useEffect(() => {
@@ -58,10 +57,6 @@ const Login = () => {
       ...formData,
       [name]: value
     });
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
   };
 
   const handleSubmit = async (e) => {
@@ -117,19 +112,6 @@ const Login = () => {
         <title>Login | AUTOMEET</title>
         <meta name="description" content="Login to your AUTOMEET account" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <style>
-          {`
-            /* Override browser autofill styles */
-            input:-webkit-autofill,
-            input:-webkit-autofill:hover,
-            input:-webkit-autofill:focus,
-            input:-webkit-autofill:active {
-              -webkit-box-shadow: 0 0 0 30px white inset !important;
-              -webkit-text-fill-color: inherit !important;
-              transition: background-color 5000s ease-in-out 0s;
-            }
-          `}
-        </style>
       </Head>
       
       <div className="container-fluid p-0 min-vh-100">
@@ -188,7 +170,7 @@ const Login = () => {
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
                   <div className="input-group text-secondary bg-white rounded-pill px-3" 
-                      style={{ border: "2px solid #dee2e6"  }}>
+                      style={{ border: "2px solid #dee2e6" }}>
                       <span className="input-group-text text-secondary bg-transparent border-0">
                       <FaEnvelope />
                       </span>
@@ -202,7 +184,6 @@ const Login = () => {
                       required
                       style={{
                           height: "50px",
-                          backgroundColor: "white !important",
                       }}
                       />
                   </div>
@@ -215,7 +196,7 @@ const Login = () => {
                       <FaLock />
                       </span>
                       <input 
-                      type={showPassword ? "text" : "password"}
+                      type="password" 
                       className="form-control bg-transparent border-0" 
                       placeholder="Password"
                       name="password"
@@ -224,21 +205,8 @@ const Login = () => {
                       required
                       style={{
                           height: "50px",
-                          backgroundColor: "white !important",
                       }}
                       />
-                      <span 
-                        className="input-group-text text-secondary bg-transparent border-0 cursor-pointer"
-                        onClick={togglePasswordVisibility}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <img 
-                          src={showPassword ? "/icons/eyesop.png" : "/icons/eyesclose.png"} 
-                          alt={showPassword ? "Hide password" : "Show password"} 
-                          width="20" 
-                          height="20"
-                        />
-                      </span>
                   </div>
                 </div>
                

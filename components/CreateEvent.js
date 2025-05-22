@@ -1034,7 +1034,7 @@ const GroupMeetingForm = () => {
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
-              <label className="form-label fw-medium">Title*</label>
+              <label className="form-label fw-medium">Title</label>
               <input
                 type="text"
                 className="form-control form-control-lg"
@@ -1046,7 +1046,7 @@ const GroupMeetingForm = () => {
             </div>
 
             <div className="mb-4">
-              <label className="form-label fw-medium">Time slot*</label>
+              <label className="form-label fw-medium">Time slot</label>
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -1180,7 +1180,7 @@ const GroupMeetingForm = () => {
             </div>
 
             <div className="mb-4">
-              <label className="form-label fw-medium">Duration*</label>
+              <label className="form-label fw-medium">Duration</label>
               <select 
                 className="form-select"
                 value={duration}
@@ -1720,7 +1720,7 @@ const RoundRobinForm = () => {
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
-              <label className="form-label fw-medium">Title*</label>
+              <label className="form-label fw-medium">Title</label>
               <input
                 type="text"
                 className="form-control form-control-lg"
@@ -1732,7 +1732,7 @@ const RoundRobinForm = () => {
             </div>
 
             <div className="mb-4">
-              <label className="form-label fw-medium">Time slot*</label>
+              <label className="form-label fw-medium">Time slot</label>
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -1844,7 +1844,7 @@ const RoundRobinForm = () => {
             </div>
 
             <div className="mb-4">
-              <label className="form-label fw-medium">Duration*</label>
+              <label className="form-label fw-medium">Duration</label>
               <select 
                 className="form-select"
                 value={duration}
