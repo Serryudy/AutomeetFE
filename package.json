@@ -17,6 +17,7 @@
     "country-telephone-data": "^0.6.3",
     "date-fns": "^4.1.0",
     "jspdf": "^3.0.1",
+    "jszip": "^3.10.1",
     "moment-timezone": "^0.5.47",
     "next": "^15.2.4",
     "react": "^19.0.0",
