@@ -252,15 +252,3 @@ const ProfileHeader = () => {
 };
 
 export default ProfileHeader;
-
-// The App component would need to be updated to use the provider
-// Example usage:
-// import { UserProfileProvider } from './ProfileHeader';
-// 
-// function MyApp({ Component, pageProps }) {
-//   return (
-//     <UserProfileProvider>
-//       <Component {...pageProps} />
-//     </UserProfileProvider>
-//   );
-// }
