@@ -149,7 +149,7 @@ const Register = () => {
                 </p>
                 
                 <div className="mt-4 mb-2">
-                  <Link href="/about">
+                  <Link href="/landing">
                     <button className="btn btn-outline-light rounded-pill px-4 py-2">
                       Read More
                     </button>

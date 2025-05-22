@@ -360,12 +360,14 @@ const DirectScheduleForm = () => {
           Direct Schedule <br /> A Meeting
         </h3>
       )}
+      
 
       {error && (
         <div className="alert alert-danger mb-3">
           {error}
         </div>
       )}
+  
 
       <form className="flex-grow-1">
         {/* Step 1: Meeting Details */}
@@ -380,7 +382,11 @@ const DirectScheduleForm = () => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
+        
+
             </div>
+            
+            
 
             {/* Time Slot Selection */}
             <div className="mb-4">
@@ -513,6 +519,7 @@ const DirectScheduleForm = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
+             
             </div>
 
             <div className="mb-4">
@@ -528,6 +535,7 @@ const DirectScheduleForm = () => {
                 <option value="Office">Office</option>
                 <option value="Other">Other</option>
               </select>
+           
             </div>
 
             <div className="mb-4">
@@ -553,7 +561,7 @@ const DirectScheduleForm = () => {
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4">
-              <h4 className="form-label fw-medium mb-3">Add participants</h4>
+              <h4 className="form-label fw-medium mb-4">Add participants</h4>
               
               <div className="mb-3 position-relative" ref={contactDropdownRef}>
                 <div className="input-group">
@@ -1026,7 +1034,7 @@ const GroupMeetingForm = () => {
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
-              <label className="form-label fw-medium">Title*</label>
+              <label className="form-label fw-medium">Title</label>
               <input
                 type="text"
                 className="form-control form-control-lg"
@@ -1038,7 +1046,7 @@ const GroupMeetingForm = () => {
             </div>
 
             <div className="mb-4">
-              <label className="form-label fw-medium">Time slot*</label>
+              <label className="form-label fw-medium">Time slot</label>
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -1172,7 +1180,7 @@ const GroupMeetingForm = () => {
             </div>
 
             <div className="mb-4">
-              <label className="form-label fw-medium">Duration*</label>
+              <label className="form-label fw-medium">Duration</label>
               <select 
                 className="form-select"
                 value={duration}
@@ -1712,7 +1720,7 @@ const RoundRobinForm = () => {
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="mb-4 fs-6">
-              <label className="form-label fw-medium">Title*</label>
+              <label className="form-label fw-medium">Title</label>
               <input
                 type="text"
                 className="form-control form-control-lg"
@@ -1724,7 +1732,7 @@ const RoundRobinForm = () => {
             </div>
 
             <div className="mb-4">
-              <label className="form-label fw-medium">Time slot*</label>
+              <label className="form-label fw-medium">Time slot</label>
               <div className="p-2 bg-light rounded position-relative">
                 <div className="d-flex align-items-center gap-2">
                   <div
@@ -1836,7 +1844,7 @@ const RoundRobinForm = () => {
             </div>
 
             <div className="mb-4">
-              <label className="form-label fw-medium">Duration*</label>
+              <label className="form-label fw-medium">Duration</label>
               <select 
                 className="form-select"
                 value={duration}
