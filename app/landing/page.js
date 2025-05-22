@@ -1,15 +1,13 @@
+/* eslint-disable jsx-a11y/alt-text */
 /* eslint-disable react-hooks/rules-of-hooks */
 /* eslint-disable @next/next/no-img-element */
 'use client';
 import React from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaGoogle } from "react-icons/fa";
-import { MdEmail } from "react-icons/md";
 import { FiUser, FiClock, FiEdit2 } from 'react-icons/fi';
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FaArrowRight } from 'react-icons/fa';
 
 const HomePage = () => {
   const styles = {
@@ -341,32 +339,31 @@ const HomePage = () => {
   };
 
   const renderHero = () => (
-    <div className="full-section" style={{...styles.fullSection, paddingTop: "100px"}}>
+    <div className="full-section" style={{ ...styles.fullSection, paddingTop: "10px" }}>
       <div className="container h-100 d-flex align-items-center mobile-padding">
         <div className="row align-items-center justify-content-center w-100">
           <div className="col-lg-6 col-md-12 mobile-text-center mobile-mb-4">
-            <h2 className="mt-4 ps-2 responsive-heading" style={styles.heading}>
+            <h2 className="mt-4 pt-2 ps-2 responsive-heading" style={styles.heading}>
               Meetings That Run Themselves
             </h2>
             <p className="mt-4 ps-2 responsive-subheading" style={styles.subheading}>
-              Tired of managing calendars, links, and notes?<br className="d-none d-md-block" />
-              AutoMeet automates organizing, hosting, and <br className="d-none d-md-block" />
+              Tired of managing calendars, links, and notes? AutoMeet automates organizing, hosting, and
               summarizing your meetings effortlessly.
             </p>
             <div className="row ps-2 text-white">
               {[
                 {
                   style: styles.googleButton,
-                  icon: <FaGoogle style={{marginRight: '10px'}} />,
+                  icon: <img src="/gmail.png" style={{ width: '30px', marginRight: '30px' }} />,
                   text: "Sign up with Google"
                 },
                 {
                   style: styles.emailButton,
-                  icon: <MdEmail style={{marginRight: '10px'}} />,
+                  icon: <img src="/email.png" style={{ width: '30px', marginRight: '40px' }} />,
                   text: "Sign up with Email"
                 }
               ].map((btn, i) => (
-                <div key={i} className="col-lg-10 col-md-8 col-12 mb-3 mt-3">
+                <div key={i} className="col-lg-10 col-md-8 col-12 mb-2 mt-3 " >
                   <button className="btn btn-lg w-100 d-flex align-items-center justify-content-center" style={btn.style}>
                     {btn.icon}
                     <span>{btn.text}</span>
@@ -375,8 +372,8 @@ const HomePage = () => {
               ))}
             </div>
           </div>
-          <div className="col-lg-6 col-md-12 text-center">
-            <img src="/Home1.png" alt="Calendar interface" className="img-fluid" style={{maxWidth: '100%', height: 'auto'}} />
+          <div className="col-lg-6 col-md-12 d-none d-lg-block">
+            <img src="/Home1.png" alt="Calendar interface" className="img-fluid" style={{ maxWidth: '100%', height: 'auto', paddingTop: "10px" }} />
           </div>
         </div>
       </div>
@@ -387,20 +384,20 @@ const HomePage = () => {
     <section className="full-section mobile-section-padding" style={styles.fullSection}>
       <div className="container d-flex align-items-center mobile-padding">
         <div className="row align-items-center justify-content-center w-100">
-          <div className="col-lg-6 col-md-12 text-center order-2 order-lg-1 mobile-mb-4">
-            <img 
-              src="/onecalender.png" 
-              alt="Calendar demonstration" 
-              className="img-fluid" 
-              style={{ width: "100%", height: "auto", maxWidth: "500px" }} 
+          <div className="col-lg-6 col-md-12 text-center order-2 order-lg-1 mobile">
+            <img
+              src="/onecalender.png"
+              alt="Calendar demonstration"
+              className="img-fluid"
+              style={{ width: "110%", height: "auto", maxWidth: "600px" }}
             />
           </div>
-          <div className="col-lg-6 col-md-12 mb-4 pb-4 order-1 order-lg-2 mobile-text-center">
+          <div className="col-lg-6 col-md-12 mb-5 pb-5 order-1 order-lg-2 mobile-text-center">
             <h2 className="responsive-heading" style={styles.heading}>
               Seize the Day,<br /> One Meeting at a Time!
             </h2>
             <p className="my-4 responsive-subheading" style={styles.subheading}>
-              Dynamic scheduling, seamless collaboration, and smart automation—
+              Dynamic scheduling, seamless collaboration, and smart automation
               your meetings, redefined.
             </p>
           </div>
@@ -426,27 +423,27 @@ const HomePage = () => {
               {features.map((feature, i) => (
                 <div key={i} className="mb-5 mobile-text-center">
                   <div className="d-flex align-items-center justify-content-center justify-content-lg-start">
-                    <img 
-                      src={feature.img} 
-                      alt={feature.title.toLowerCase()} 
+                    <img
+                      src={feature.img}
+                      alt={feature.title.toLowerCase()}
                       style={{ width: "60px", height: "60px" }}
                       className="flex-shrink-0"
                     />
-                    <h2 className="ms-3 responsive-heading" style={{fontSize: "1.8rem", fontWeight: "bold"}}>
+                    <h2 className="ms-3 responsive-heading" style={{ fontSize: "1.8rem", fontWeight: "bold" }}>
                       {feature.title}
                     </h2>
                   </div>
-                  <p className="my-3 responsive-subheading" style={{fontSize: "1.1rem", fontWeight: "300"}}>
+                  <p className="my-3 responsive-subheading" style={{ fontSize: "1.1rem", fontWeight: "300" }}>
                     {feature.desc}
                   </p>
                 </div>
               ))}
             </div>
-            <div className="col-lg-6 col-md-12 d-flex justify-content-center">
-              <div className="position-relative">
+            <div className="col-lg-5 col-md-12 d-flex" >
+              <div className="position-relative" >
                 <div className="position-relative" style={{
-                  width: "100%",
-                  maxWidth: "400px",
+                  width: "125%",
+                  maxWidth: "500px",
                   minHeight: "400px",
                   backgroundColor: "white",
                   borderRadius: "20px",
@@ -456,9 +453,9 @@ const HomePage = () => {
                 }}>
 
                   <div className="position-absolute" style={{
-                    width: "60%",
+                    width: "70%",
                     height: "60%",
-                    right: "20%",
+                    right: "25%",
                     bottom: "40%",
                     backgroundColor: "#FFE033",
                     opacity: "0.8",
@@ -469,7 +466,7 @@ const HomePage = () => {
                   <div className="position-absolute" style={{
                     width: "200px",
                     height: "200px",
-                    top: "55%",
+                    top: "59%",
                     left: "50%",
                     backgroundColor: "#0048FF",
                     opacity: "0.6",
@@ -485,15 +482,15 @@ const HomePage = () => {
                     width: "100%"
                   }}>
                     <div className="text-left">
-                      <h3 className="font-medium" style={{fontSize: "18px"}}>
-                        <b>Event name:</b> <span style={{fontSize: "14px"}}><b>20/34 80:14</b></span>
+                      <h3 className="font-medium" style={{ fontSize: "18px" }}>
+                        <b>Event name:</b> <span style={{ fontSize: "14px" }}><b>20/34 80:14</b></span>
                       </h3>
                       <p className="text-gray-600 mt-1" style={{ fontSize: "13px", fontWeight: "350" }}>
                         <b>Sub description about the meeting.</b>
                       </p>
 
                       <div className="d-flex mt-3 align-items-center">
-                        <div className="d-flex" style={{gap: '2px'}}>
+                        <div className="d-flex" style={{ gap: '2px' }}>
                           <FiUser size={16} className="text-blue-800" />
                           <FiUser size={16} className="text-blue-800" />
                           <FiUser size={16} className="text-blue-800" />
@@ -537,17 +534,17 @@ const HomePage = () => {
     <section className="full-section mobile-section-padding" style={styles.fullSection}>
       <div className="container h-100 d-flex align-items-center mobile-padding">
         <div className="text-center w-100">
-          <h2 className="responsive-display fw-bold mb-4" style={{fontSize: "2.8rem"}}>
+          <h2 className="responsive-display fw-bold mb-4" style={{ fontSize: "3.3rem" }}>
             One platform to schedule, analyze, and run meetings better.
           </h2>
-          <h4 className="responsive-subheading mt-4 mb-5" style={{fontSize: "1.3rem"}}>
+          <h4 className="responsive-subheading mt-4 mb-5" style={{ fontSize: "1.5rem" }}>
             AutoMeet simplifies meeting scheduling with AI, real-time availability, seamless collaboration, smart notifications, content sharing, and analysis even for participants without accounts. Meetings, redefined.
           </h4>
           <a href="register">
-            <button className="btn btn-lg d-flex align-items-center justify-content-center mx-auto" 
-                    style={{ background: "#3B3BD7", color: "white", padding: "12px 24px", borderRadius: "8px" }}>
-              Create an Account 
-              <svg width="20" height="20" viewBox="0 0 24 28" fill="currentColor" className="ms-2">
+            <button className="btn btn-lg d-flex align-items-center justify-content-center mx-auto"
+              style={{ fontSize: "1.3rem", background: "#3B3BD7", color: "white", padding: "12px 24px", borderRadius: "8px", textDecoration: "none" }}>
+              Create an Account
+              <svg width="25" height="25" viewBox="0 0 24 28" fill="currentColor" className="ms-2">
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
               </svg>
             </button>
@@ -597,12 +594,12 @@ const HomePage = () => {
           <div className="row mb-5">
             <div className="col-lg-6 col-md-12 mobile-text-center mobile-mb-4">
               <h2 className="fw-bold responsive-heading" style={{ fontSize: "2.5rem" }}>
-                What holds valuable items with interest
+                Features That Do the Work for You
               </h2>
             </div>
-            <div className="col-lg-6 col-md-12 mobile-text-center">
-              <h4 className="responsive-subheading opacity-75" style={{ fontSize: "1.2rem" }}>
-                Something instead of nothing features to please your needs some stuff to say that we.
+            <div className="col-lg-6 col-md-12 mobile-text-center mt-2">
+              <h4 className="responsive-subheading opacity-75" style={{ fontSize: "1.4rem" }}>
+                Let AutoMeet handle the details so you can focus on the conversation, not the coordination
               </h4>
             </div>
           </div>
@@ -617,14 +614,14 @@ const HomePage = () => {
                       margin: window.innerWidth < 768 ? "0 10px" : "0 15px"
                     }}>
                       <div className="my-2">
-                        <h4 className="mb-4 fw-bold text-center" style={{fontSize: "1.3rem"}}>{feature.title}</h4>
+                        <h4 className="mb-4 fw-bold text-center" style={{ fontSize: "1.2rem" }}>{feature.title}</h4>
                         <img
                           src={feature.image}
                           alt={feature.title}
                           className="img-fluid mb-3"
-                          style={{width: "100%", height: "auto"}}
+                          style={{ width: "90%", height: "auto" }}
                         />
-                        <p className="mt-2 fw-bold text-center" style={{fontSize: "0.95rem"}}>{feature.description}</p>
+                        <p className="mt-2 fw-bold text-center" style={{ fontSize: "1rem" }}>{feature.description}</p>
                       </div>
                     </div>
                   ))}
