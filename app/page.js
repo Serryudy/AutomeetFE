@@ -19,12 +19,12 @@ export default function Home() {
           router.push('/calendar');
         } else {
           // If not authenticated, redirect to login
-          router.push('/auth/login');
+          router.push('/login');
         }
       } catch (error) {
         console.error('Auth check failed:', error);
         // On error, redirect to login
-        router.push('/auth/login');
+        router.push('/login');
       }
     };
 
