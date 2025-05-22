@@ -684,24 +684,36 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
             <div className="col-md-4 d-flex align-items-center">
               <div className="avatar-circle bg-light text-secondary me-3 d-flex align-items-center justify-content-center" 
                 style={{ width: 60, height: 60, borderRadius: '50%', fontSize: '1.5rem' }}>
-                {group.name.charAt(0)}
+                {group.name ? group.name.charAt(0) : '?'}
               </div>
               <div>
                 <div className="fw-bold">{group.name}</div>
-                <div className="text-muted small">{group.email}</div>
+                <div className="text-muted small">{group.members?.length || 0} members</div>
               </div>
             </div>
             
             {/* Next Meeting */}
             <div className="col-md-4">
-              <div>{group.nextMeeting.type}</div>
-              <div className="text-muted">{group.nextMeeting.date}</div>
+              {group.nextMeeting ? (
+                <>
+                  <div>{group.nextMeeting.type}</div>
+                  <div className="text-muted">{group.nextMeeting.date}</div>
+                </>
+              ) : (
+                <div className="text-muted">No upcoming meetings</div>
+              )}
             </div>
             
             {/* Last Meeting */}
             <div className="col-md-3">
-              <div>{group.lastMeeting.type}</div>
-              <div className="text-muted">{group.lastMeeting.date}</div>
+              {group.lastMeeting ? (
+                <>
+                  <div>{group.lastMeeting.type}</div>
+                  <div className="text-muted">{group.lastMeeting.date}</div>
+                </>
+              ) : (
+                <div className="text-muted">No previous meetings</div>
+              )}
             </div>
             
             {/* Actions with popup */}
@@ -747,19 +759,23 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
           <div className="d-flex d-md-none position-relative">
             <div className="avatar-circle bg-light text-secondary me-3 d-flex align-items-center justify-content-center" 
               style={{ width: 50, height: 50, borderRadius: '50%', fontSize: '1.25rem', flexShrink: 0 }}>
-              {group.name.charAt(0)}
+              {group.name ? group.name.charAt(0) : '?'}
             </div>
             
             <div className="flex-grow-1">
               <div className="fw-bold">{group.name}</div>
-              <div className="text-muted small mb-1">{group.email}</div>
+              <div className="text-muted small mb-1">{group.members?.length || 0} members</div>
               
               <div className="d-flex flex-wrap gap-2 mt-2">
                 <div className="bg-light rounded-pill px-2 py-1 small">
-                  <span className="fw-semibold">Next:</span> {group.nextMeeting.date}
+                  <span className="fw-semibold">Next:</span> {
+                    group.nextMeeting?.date || 'No upcoming meetings'
+                  }
                 </div>
                 <div className="bg-light rounded-pill px-2 py-1 small">
-                  <span className="fw-semibold">Last:</span> {group.lastMeeting.date}
+                  <span className="fw-semibold">Last:</span> {
+                    group.lastMeeting?.date || 'No previous meetings'
+                  }
                 </div>
               </div>
             </div>
@@ -800,6 +816,12 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
           </div>
         </div>
       ))}
+
+      {groups.length === 0 && (
+        <div className="text-center py-4 text-muted">
+          No groups found. Create a new group to get started.
+        </div>
+      )}
     </div>
   );
 };

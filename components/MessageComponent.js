@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperPlane } from "react-icons/fa";
 
+// Add debounce utility at the top of the file after imports
+const debounce = (func, wait) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
 const MessageComponent = ({ onClose }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -417,6 +426,51 @@ const MessageComponent = ({ onClose }) => {
     return !item.participants && (item.username || item.email);
   };
 
+  // Create memoized search handler
+  const handleSearch = useCallback(
+    debounce((query) => {
+      setIsSearching(true);
+      setDebouncedQuery(query);
+
+      const searchInData = () => {
+        const queryLower = query.toLowerCase();
+        
+        // Search in chat rooms and contacts
+        const roomResults = chatRooms.filter(room => 
+          room.participants.some(p => p.toLowerCase().includes(queryLower)) ||
+          (room.roomName && room.roomName.toLowerCase().includes(queryLower))
+        );
+
+        const contactResults = contacts.filter(contact => 
+          contact.username.toLowerCase().includes(queryLower) ||
+          contact.email.toLowerCase().includes(queryLower)
+        );
+
+        // Combine and set results
+        setSearchResults([...roomResults, ...contactResults]);
+        setIsSearching(false);
+      };
+
+      // Small delay to prevent UI jank
+      requestAnimationFrame(searchInData);
+    }, 300),
+    [chatRooms, contacts]
+  );
+
+  // Update the search input handler
+  const handleSearchInput = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    
+    if (query.trim() === '') {
+      setSearchResults(chatRooms);
+      setIsSearching(false);
+      return;
+    }
+
+    handleSearch(query);
+  };
+
   // Render message list view
   const renderMessageListView = () => {
     const sizes = getResponsiveSizes();
@@ -436,7 +490,7 @@ const MessageComponent = ({ onClose }) => {
                   className="form-control border-0 shadow-none ps-4"
                   placeholder="Search for people or messages..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchInput}
                   style={{ fontSize: sizes.fontSize.message }}
                 />
                 <FaSearch className="position-absolute text-muted px-2" style={{ top: '50%', transform: 'translateY(-50%)', left: '8px' }} />
@@ -591,8 +645,7 @@ const MessageComponent = ({ onClose }) => {
               <div className="mb-3">
                 <FaSearch size={32} />
               </div>
-              <p className="text-center">No messages or contacts found matching &quot;{searchQuery}&quot;</p>
-              <p className="text-center small">Try different keywords like &quot;meeting&quot;, &quot;call&quot;, or &quot;file&quot;</p>
+              <p className="text-center">No messages or contacts found.</p>
             </div>
           )}
         </div>
