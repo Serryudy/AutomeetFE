@@ -149,8 +149,8 @@ export default function Content() {
       setIsUploading(true);
       
       // Cloudinary configuration
-      const cloudName = 'duocpqb1j'; // Replace with your cloud name
-      const uploadPreset = 'profile_uploads'; // Replace with your upload preset
+      const cloudName = 'duocpqb1j'; 
+      const uploadPreset = 'profile_uploads';
       
       const formData = new FormData();
       formData.append('file', file);

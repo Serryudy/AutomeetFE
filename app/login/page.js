@@ -132,7 +132,7 @@ const Login = () => {
                 </p>
                 
                 <div className="mt-4 mb-2">
-                  <Link href="/landing">
+                  <Link href="/about">
                     <button className="btn btn-outline-light rounded-pill px-4 py-2">
                       Read More
                     </button>
@@ -234,7 +234,7 @@ const Login = () => {
                 </button>
                 
                 <p className="text-center mb-0">
-                  Don&apos;t have an account? <Link href="/register" className="text-decoration-none">Register</Link>
+                  Don't have an account? <Link href="/register" className="text-decoration-none">Register</Link>
                 </p>
               </form>
             </div>
