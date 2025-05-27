@@ -6,8 +6,8 @@ import ProfileHeader from '@/components/profileHeader'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import '@/styles/global.css'
 import { FaBars } from 'react-icons/fa'
-// Importing the CSS file for the sidebar menu
 
+ // UI state management
 const CalendarPage = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showEventCards, setShowEventCards] = useState(false);
@@ -17,9 +17,9 @@ const CalendarPage = () => {
   const [events, setEvents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Load events from API or sample data
+  // Initialize calendar events
   useEffect(() => {
-    // This is your JSON data - in a real app, you would fetch this from an API
+     // Sample event data structure - To be replaced with API integration
     const sampleEvents = [
       {
         "id": "01f0164a-4638-1bde-86e7-b7f9636b3734",
@@ -51,11 +51,11 @@ const CalendarPage = () => {
     // Set the events
     setEvents(sampleEvents);
   }, []);
-
+// Date selection handler
   const handleDateSelect = (date) => {
     setSelectedDate(date);
   };
-  // Handle initial window sizing and resizing
+ // Responsive layout management
   useEffect(() => {
     const handleResize = () => {
       const newWidth = window.innerWidth
@@ -69,45 +69,43 @@ const CalendarPage = () => {
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, []) // Keep empty dependency array for resize listener
+  }, [])
 
-  // Separate effect to handle event cards visibility based on sidebar state and window width
+  // Event cards visibility controller based on sidebar and screen width
   useEffect(() => {
-    // Only show event cards if sidebar is collapsed AND window is wide enough
     setShowEventCards(isSidebarCollapsed && windowWidth >= 1200)
   }, [isSidebarCollapsed, windowWidth])
 
-  // Handle sidebar state change
+ // Sidebar toggle handler with animation timing
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed)
     
-    // Show event cards only when sidebar is collapsed AND not in mobile view
+   // Sidebar toggle handler with animation timing
    
     if (!isMobile) {
       if (collapsed) {
         setTimeout(() => setShowEventCards(true), 150)
       } else {
-        // Hide event cards immediately when sidebar expands
         setShowEventCards(false)
       }
     }
   }
 
-  // Generate event cards to display in the sidebar
+  // Event card renderer with status-based styling
   const generateEventCards = () => {
     return events.map((event, index) => {
-      // Determine color based on meeting type or status
-      let color = '#85ceff'; // Default blue
+      // Meeting status color indicators
+      let color = '#85ceff'; // Standard meetings
       if (event.meetingType === 'direct') {
-        color = '#ff8585'; // Red for direct meetings
+        color = '#ff8585'; // Direct meetings
       } else if (event.status === 'pending') {
-        color = '#fff585'; // Yellow for pending
+        color = '#fff585'; /// Pending meetings
       }
       
-      // Format the day of the week
+      // Date formatting for display
       const startDate = new Date(event.directTimeSlot.startTime);
       const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][startDate.getDay()];
-      
+      // Event card template
       return (
         <div
           key={index}
@@ -130,7 +128,7 @@ const CalendarPage = () => {
           {event.location && (
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
               <span style={{ fontSize: 'clamp(10px, 1.2vw, 12px)', fontWeight: '600', color: '#000' }}>Location</span>
-              <img src="/location-icon.png" alt="Location Icon" style={{ width: '10px', height: '10px', objectFit: 'cover' }} />
+              <img src="/icons/location.png" alt="Location Icon" style={{ width: '10px', height: '10px', objectFit: 'cover' }} />
               <span style={{ fontSize: 'clamp(10px, 1.2vw, 12px)', color: '#000' }}>{event.location}</span>
             </div>
           )}
@@ -211,7 +209,7 @@ const CalendarPage = () => {
 
         {/* Calendar Section */}
         <div className="d-flex flex-column flex-lg-row gap-3 w-100">
-          {/* Weekly Calendar - Now passing the events data */}
+          {/* Weekly Calendar - passing the events data */}
           <div
             className="bg-white rounded shadow-sm"
             style={{
@@ -224,7 +222,7 @@ const CalendarPage = () => {
             <WeeklyCalendar events={events} selectedDate = {selectedDate} />
           </div>
 
-          {/* Event Description Cards - Now using actual events */}
+          {/* Event Description Cards - using actual events */}
           {(showEventCards || isMobile) && (
             <div
               className={`d-flex flex-column mt-3 mt-lg-0 ${isMobile ? 'w-100' : ''}`}

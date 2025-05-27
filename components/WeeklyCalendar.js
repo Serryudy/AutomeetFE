@@ -96,19 +96,19 @@ const WeeklyCalendar = ({ selectedDate }) => {
         const endHour = endDate.getHours();
         const endMinute = endDate.getMinutes();
         
-        // Assign a color based on status or role or meeting type
-        let color = '#b3e0ff'; // Default color
+        // Set visual identifiers for different meeting states and types
+        let color = '#b3e0ff'; // Default calendar event color
         
         if (event.status === 'pending') {
-          color = '#ffb3b3'; // Red-ish for pending
+          color = '#ffb3b3'; // Red-ish
         } else if (event.status === 'confirmed') {
-          color = '#b3ffb3'; // Green-ish for confirmed
+          color = '#b3ffb3'; // Green-ish 
         }
         
         if (event.meetingType === 'direct') {
-          color = '#ffdf80'; // Yellow-ish for direct meetings
+          color = '#ffdf80'; // Yellow-ish 
         } else if (event.meetingType === 'group') {
-          color = '#d9b3ff'; // Purple-ish for group meetings
+          color = '#d9b3ff'; // Purple-ish
         }
         
         return {
