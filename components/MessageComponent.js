@@ -111,7 +111,7 @@ const MessageComponent = ({ onClose }) => {
   // WebSocket connection
   useEffect(() => {
     // Establish WebSocket connection
-    const ws = new WebSocket(`ws://localhost:9091/ws/chat`);
+    const ws = new WebSocket(`ws://localhost:9090/ws/chat`);
 
     ws.onopen = () => {
       console.log('WebSocket Connected');

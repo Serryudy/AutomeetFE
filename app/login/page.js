@@ -6,6 +6,7 @@ import Head from 'next/head';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
+import { refreshAccessToken } from '@/utils/auth';
 
 const Login = () => {
   const router = useRouter();
@@ -59,39 +60,42 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
+   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      // Connect to your Ballerina backend login endpoint
       const response = await fetch('http://localhost:8080/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important for handling cookies
         body: JSON.stringify({
           username: formData.username,
           password: formData.password
-        }),
-        credentials: 'include'
+        })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
+        throw new Error(errorData.message || 'Login failed');
       }
 
       const data = await response.json();
-      
-      // Store auth data in localStorage
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('username', data.username);
-      localStorage.setItem('isadmin', data.isadmin);
-      localStorage.setItem('role', data.role);
-      
-      // Redirect to dashboard after successful login
+
+      // Store non-sensitive user data
+      localStorage.setItem('user', JSON.stringify({
+        username: data.username,
+        isAdmin: data.isAdmin,
+        role: data.role
+      }));
+
+      // Set up token refresh
+      setupTokenRefresh();
+
+      // Redirect to home page
       router.push('/');
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');
@@ -100,6 +104,43 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  // Setup automatic token refresh
+  const setupTokenRefresh = () => {
+    // Refresh every 14 minutes (token expires in 15)
+    const REFRESH_INTERVAL = 14 * 60 * 1000;
+    
+    const refreshInterval = setInterval(async () => {
+      const success = await refreshAccessToken();
+      if (!success) {
+        clearInterval(refreshInterval);
+        localStorage.removeItem('user');
+        router.push('/login');
+      }
+    }, REFRESH_INTERVAL);
+
+    // Store interval ID for cleanup
+    window.refreshTokenInterval = refreshInterval;
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+      clearInterval(window.refreshTokenInterval);
+    });
+  };
+
+  // Initial token refresh check
+  useEffect(() => {
+    const checkAuth = async () => {
+      const success = await refreshAccessToken();
+      if (success) {
+        router.push('/');
+      }
+    };
+
+    if (localStorage.getItem('user')) {
+      checkAuth();
+    }
+  }, [router]);
 
   // Google Sign-In handler
   const handleGoogleSignIn = () => {
