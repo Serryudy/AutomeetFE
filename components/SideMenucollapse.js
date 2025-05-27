@@ -57,7 +57,13 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
   const renderSettingsView = () => {
     return (
       <div className="settings-view w-100 h-100 d-flex flex-column px-3">
-        <h4 className="text-primary mb-5">AutoMeet</h4>
+        {!isCollapsed && (
+            <img
+              src="\logo.png"  // <-- Change this to your actual logo path
+              alt="AutoMeet Logo"
+              style={{ height: "60px", objectFit: "contain" }}
+            />
+          )}
         {/* Back button */}
         <Link
           href="/"
