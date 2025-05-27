@@ -933,7 +933,7 @@ const MeetingForm = () => {
                 {/* Display participants section */}
                 {participants.length > 0 && (
                   <div>
-                    <h6 className="text-muted mb-2">Participants</h6>
+                    
                     {participants.map((participant) => (
                       <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
                         <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">

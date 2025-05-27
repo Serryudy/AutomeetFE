@@ -588,7 +588,7 @@ const MessageComponent = ({ onClose }) => {
               >
                 <div className="position-relative me-2 flex-shrink-0">
                   <img
-                    src={item.profileimg || "/profile.png"}
+                    src={item.profileimg && item.profileimg.trim() !== "" ? item.profileimg : "/profile.png"}
                     alt={item.username || item.roomName || "User"}
                     className="rounded-circle bg-light"
                     style={{
@@ -598,7 +598,7 @@ const MessageComponent = ({ onClose }) => {
                       marginRight: '5px',
                       border: `2px solid ${isContact(item) ? '#28a745' : '#007bff'}`,
                     }}
-                    onError={(e) => { e.target.src = "/avatars/placeholder.jpg" }}
+                    onError={(e) => { e.target.onerror = null; e.target.src = "/avatars/placeholder.jpg"; }}
                   />
                   {isContact(item) && (
                     <span className="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle"

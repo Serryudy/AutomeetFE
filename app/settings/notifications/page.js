@@ -17,118 +17,145 @@ export default function NotificationPage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
-  
-  // Sample notifications data
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'availability',
-      title: 'Mark Your Availability for the Meeting!',
-      message: 'Choose your preferred time slots open 24 hours before the meeting, with timely reminders to keep you on track.',
-      date: 'Today',
-      time: '10:22 AM',
-      read: false,
-      from: 'David Miller',
-      details: {
-        meetingTitle: 'Project Planning Discussion',
-        organizer: 'Sarah Thompson',
-        date: 'September 15, 2025',
-        actionButton: 'Select Time Slots',
-        actionUrl: '/schedule/select-slots',
-        footer: 'Stay updated with timely reminders to ensure you don\'t miss it!'
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch notifications when component mounts
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  // Function to fetch notifications from the API
+  const fetchNotifications = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await fetch('http://localhost:8080/api/notifications', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error fetching notifications: ${response.status}`);
       }
-    },
-    {
-      id: 2,
-      type: 'reminder',
-      title: 'Meeting Reminder',
-      message: 'Your meeting titled "Quarterly Business Review" is scheduled for January 11, 2025, at 2:00 PM. Duration: 45min',
-      date: 'Today',
-      time: '07:25 AM',
-      read: false,
-      from: 'Meeting System',
-      details: {
-        meetingTitle: 'Quarterly Business Review',
-        organizer: 'Michael Johnson',
-        date: 'January 11, 2025, 2:00 PM',
-        actionButton: 'View Meeting Details',
-        actionUrl: '/meetings/details',
-        footer: 'Meeting duration: 45 minutes'
-      }
-    },
-    {
-      id: 3,
-      type: 'cancellation',
-      title: 'Meeting Cancellation',
-      message: 'The meeting titled "Team Strategy Review" scheduled for January 10, 2025, at 3:00 PM has been canceled.',
-      date: 'Today',
-      time: '02:41 AM',
-      read: false,
-      from: 'Meeting System',
-      details: {
-        meetingTitle: 'Team Strategy Review',
-        organizer: 'Jennifer Williams',
-        date: 'January 10, 2025, 3:00 PM (Canceled)',
-        actionButton: 'Acknowledge',
-        actionUrl: '/meetings/canceled',
-        footer: 'This meeting has been removed from your calendar'
-      }
-    },
-    {
-      id: 4,
-      type: 'reminder',
-      title: 'Meeting Reminder',
-      message: 'Your meeting titled "Quarterly Business Review" is scheduled for January 11, 2025, at 2:00 PM. Duration: 45min',
-      date: 'Yesterday',
-      time: '13:44 PM',
-      read: true,
-      from: 'Meeting System',
-      details: {
-        meetingTitle: 'Quarterly Business Review',
-        organizer: 'Michael Johnson',
-        date: 'January 11, 2025, 2:00 PM',
-        actionButton: 'View Meeting Details',
-        actionUrl: '/meetings/details',
-        footer: 'Meeting duration: 45 minutes'
-      }
-    },
-    {
-      id: 5,
-      type: 'cancellation',
-      title: 'Meeting Cancellation',
-      message: 'The meeting titled "Team Strategy Review" scheduled for January 10, 2025, at 3:00 PM has been canceled.',
-      date: 'Yesterday',
-      time: '09:31 AM',
-      read: true,
-      from: 'Meeting System',
-      details: {
-        meetingTitle: 'Team Strategy Review',
-        organizer: 'Jennifer Williams',
-        date: 'January 10, 2025, 3:00 PM (Canceled)',
-        actionButton: 'Acknowledge',
-        actionUrl: '/meetings/canceled',
-        footer: 'This meeting has been removed from your calendar'
-      }
-    },
-    {
-      id: 6,
-      type: 'cancellation',
-      title: 'Meeting Cancellation',
-      message: 'The meeting titled "Team Strategy Review" scheduled for January 10, 2025, at 3:00 PM has been canceled.',
-      date: '2024.11.13',
-      time: '11:15 AM',
-      read: true,
-      from: 'Meeting System',
-      details: {
-        meetingTitle: 'Team Strategy Review',
-        organizer: 'Jennifer Williams',
-        date: 'January 10, 2025, 3:00 PM (Canceled)',
-        actionButton: 'Acknowledge',
-        actionUrl: '/meetings/canceled',
-        footer: 'This meeting has been removed from your calendar'
-      }
+
+      const data = await response.json();
+      
+      // Transform the API response to match the component's data structure
+      const formattedNotifications = data.map(notification => ({
+        id: notification.id,
+        type: notification.notificationType,
+        title: notification.title,
+        message: notification.message,
+        date: formatDate(notification.createdAt),
+        time: new Date(notification.createdAt).toLocaleTimeString(),
+        read: notification.isRead,
+        from: notification.from || 'Meeting System',
+        details: {
+          meetingTitle: notification.meetingTitle,
+          organizer: notification.organizer,
+          date: notification.meetingDate,
+          actionButton: getActionButton(notification.notificationType),
+          actionUrl: getActionUrl(notification.meetingId, notification.notificationType),
+          footer: notification.footer || ''
+        }
+      }));
+
+      setNotifications(formattedNotifications);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
+
+  // Function to mark a notification as read
+  const markAsRead = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error marking notification as read: ${response.status}`);
+      }
+
+      setNotifications(notifications.map(notification => 
+        notification.id === id ? {...notification, read: true} : notification
+      ));
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
+  // Function to delete a notification
+  const deleteNotification = async (id, e) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(`http://localhost:8080/api/notifications/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error deleting notification: ${response.status}`);
+      }
+
+      setNotifications(notifications.filter(notification => notification.id !== id));
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
+
+  // Helper function to format date
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    return date.toLocaleDateString();
+  };
+
+  // Helper function to get action button text
+  const getActionButton = (type) => {
+    switch (type) {
+      case 'availability_request':
+        return 'Select Time Slots';
+      case 'reminder':
+        return 'View Meeting Details';
+      case 'cancellation':
+        return 'Acknowledge';
+      default:
+        return 'View Details';
+    }
+  };
+
+  // Helper function to get action URL
+  const getActionUrl = (meetingId, type) => {
+    switch (type) {
+      case 'availability_request':
+        return `/availability/${meetingId}`;
+      case 'reminder':
+        return `/meetings/${meetingId}`;
+      case 'cancellation':
+        return `/meetings/canceled/${meetingId}`;
+      default:
+        return `/meetings/${meetingId}`;
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -146,17 +173,6 @@ export default function NotificationPage() {
     setIsSidebarCollapsed(collapsed);
   };
 
-  const deleteNotification = (id, e) => {
-    e.stopPropagation();
-    setNotifications(notifications.filter(notification => notification.id !== id));
-  };
-
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(notification => 
-      notification.id === id ? {...notification, read: true} : notification
-    ));
-  };
-
   const handleNotificationClick = (id) => {
     markAsRead(id);
     setSelectedNotificationId(id);
@@ -166,34 +182,23 @@ export default function NotificationPage() {
     setSelectedNotificationId(null);
   };
 
-  // Group notifications by date
-  const groupedNotifications = notifications.reduce((groups, notification) => {
-    if (!groups[notification.date]) {
-      groups[notification.date] = [];
-    }
-    groups[notification.date].push(notification);
-    return groups;
-  }, {});
-
+  // Update the filteredNotifications function
   const filteredNotifications = () => {
-    if (activeTab === 'unread') {
-      return Object.entries(groupedNotifications).reduce((acc, [date, items]) => {
-        const filtered = items.filter(item => !item.read);
-        if (filtered.length > 0) {
-          acc[date] = filtered;
-        }
-        return acc;
-      }, {});
-    } else if (activeTab === 'read') {
-      return Object.entries(groupedNotifications).reduce((acc, [date, items]) => {
-        const filtered = items.filter(item => item.read);
-        if (filtered.length > 0) {
-          acc[date] = filtered;
-        }
-        return acc;
-      }, {});
-    }
-    return groupedNotifications;
+    if (isLoading) return {};
+    if (error) return {};
+
+    return notifications.reduce((groups, notification) => {
+      const date = notification.date;
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      if (activeTab === 'all' ||
+          (activeTab === 'unread' && !notification.read) ||
+          (activeTab === 'read' && notification.read)) {
+        groups[date].push(notification);
+      }
+      return groups;
+    }, {});
   };
 
   const getUnreadCount = () => {
@@ -374,7 +379,7 @@ export default function NotificationPage() {
                   <div className="text-center py-5">
                     <FaBell className="text-muted mb-3" size={32} />
                     <h5>No notifications</h5>
-                    <p className="text-muted">You don't have any {activeTab === 'unread' ? 'unread' : activeTab === 'read' ? 'read' : ''} notifications.</p>
+                    <p className="text-muted">You don&apos;t have any {activeTab === 'unread' ? 'unread' : activeTab === 'read' ? 'read' : ''} notifications.</p>
                   </div>
                 ) : (
                   Object.entries(filteredNotifications()).map(([date, items]) => (
