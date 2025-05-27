@@ -7,10 +7,11 @@ import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import { FaBars, FaTrashAlt, FaBell, FaArrowLeft } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
-
+import { useLoading } from '@/context/LoadingContext';
 
 export default function NotificationPage() {
   const router = useRouter();
+  const { setIsLoading } = useLoading();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [isMobile, setIsMobile] = useState(false);
@@ -18,7 +19,7 @@ export default function NotificationPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoadingState] = useState(true);
   const [error, setError] = useState(null);
 
   // Fetch notifications when component mounts
@@ -29,7 +30,7 @@ export default function NotificationPage() {
   // Function to fetch notifications from the API
   const fetchNotifications = async () => {
     try {
-      setIsLoading(true);
+      setIsLoadingState(true);
       setError(null);
       
       const response = await fetch('http://localhost:8080/api/notifications', {
@@ -71,7 +72,7 @@ export default function NotificationPage() {
       console.error('Error fetching notifications:', err);
       setError(err.message);
     } finally {
-      setIsLoading(false);
+      setIsLoadingState(false);
     }
   };
 
@@ -209,6 +210,16 @@ export default function NotificationPage() {
     return notifications.find(notification => notification.id === selectedNotificationId);
   };
 
+  // Update the navigation handler
+  const handleNavigation = (url) => {
+    setIsLoading(true); // Show loading immediately
+    router.push(url).then(() => {
+      // This will run after navigation is complete, but we'll keep the overlay 
+      // visible briefly to ensure smooth transition
+      setTimeout(() => setIsLoading(false), 100);
+    });
+  };
+
   return (
     <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>  
       {/* Mobile Menu Button */}
@@ -322,7 +333,7 @@ export default function NotificationPage() {
                 <div className=" m-5 mb-4 px-5">
                   <button 
                     className="btn btn-primary px-4 py-2"
-                    onClick={() => router.push(getSelectedNotification().details.actionUrl)}
+                    onClick={() => handleNavigation(getSelectedNotification().details.actionUrl)}
                   >
                     {getSelectedNotification().details.actionButton}
                   </button>
@@ -379,7 +390,7 @@ export default function NotificationPage() {
                   <div className="text-center py-5">
                     <FaBell className="text-muted mb-3" size={32} />
                     <h5>No notifications</h5>
-                    <p className="text-muted">You don't have any {activeTab === 'unread' ? 'unread' : activeTab === 'read' ? 'read' : ''} notifications.</p>
+                    <p className="text-muted">You don&apos;t have any {activeTab === 'unread' ? 'unread' : activeTab === 'read' ? 'read' : ''} notifications.</p>
                   </div>
                 ) : (
                   Object.entries(filteredNotifications()).map(([date, items]) => (

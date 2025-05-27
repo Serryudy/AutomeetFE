@@ -145,7 +145,7 @@ const MeetingReport = () => {
 
       try {
         // First try to fetch the transcript
-        const transcriptResponse = await fetch(`http://localhost:8081/api/transcripts/${meetingId}`, {
+        const transcriptResponse = await fetch(`http://localhost:8080/api/analytics/transcripts/${meetingId}`, {
           credentials: 'include'
         });
 
@@ -154,7 +154,7 @@ const MeetingReport = () => {
         }
 
         // Then generate or fetch the report
-        const reportResponse = await fetch(`http://localhost:8081/api/transcripts/${meetingId}/generatereport`, {
+        const reportResponse = await fetch(`http://localhost:8080/api/analytics/transcripts/${meetingId}/generatereport`, {
           method: 'POST',
           credentials: 'include'
         });

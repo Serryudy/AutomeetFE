@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperPlane } from "react-icons/fa";
 
@@ -106,12 +107,13 @@ const MessageComponent = ({ onClose }) => {
     };
 
     fetchUserProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // WebSocket connection
   useEffect(() => {
     // Establish WebSocket connection
-    const ws = new WebSocket(`ws://localhost:9091/ws/chat`);
+    const ws = new WebSocket(`ws://localhost:9090/ws/chat`);
 
     ws.onopen = () => {
       console.log('WebSocket Connected');
@@ -165,6 +167,7 @@ const MessageComponent = ({ onClose }) => {
     return () => {
       if (ws) ws.close();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMessage, isCreatingRoom]);
 
   // Update the fetchRoomsAndContacts function
@@ -175,7 +178,7 @@ const MessageComponent = ({ onClose }) => {
       setIsLoading(true);
       
       // Fetch chat rooms
-      const roomsResponse = await fetch('http://localhost:9092/api/chat/rooms', {
+      const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
         credentials: 'include'
       });
       const roomsData = await roomsResponse.json();
@@ -195,7 +198,7 @@ const MessageComponent = ({ onClose }) => {
       }
 
       // Fetch all contacts at once
-      const contactsResponse = await fetch('http://localhost:8080/api/contacts', {
+      const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
         credentials: 'include'
       });
       const contactsData = await contactsResponse.json();
@@ -230,7 +233,7 @@ const MessageComponent = ({ onClose }) => {
       }
 
       // Fetch room messages
-      const messagesResponse = await fetch(`http://localhost:9092/api/chat/rooms/${room.id}/messages`, {
+      const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages`, {
         credentials: 'include'
       });
       const messagesData = await messagesResponse.json();
@@ -302,7 +305,7 @@ const MessageComponent = ({ onClose }) => {
       setNewMessage('');
 
       // Fetch updated messages
-      const messagesResponse = await fetch(`http://localhost:9092/api/chat/rooms/${selectedMessage.id}/messages`, {
+      const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${selectedMessage.id}/messages`, {
         credentials: 'include'
       });
       
@@ -370,7 +373,7 @@ const MessageComponent = ({ onClose }) => {
     // Try to fetch contacts if not already loaded
     if (contacts.length === 0) {
       try {
-        const contactsResponse = await fetch('http://localhost:8080/api/contacts', {
+        const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
           credentials: 'include'
         });
         const contactsData = await contactsResponse.json();
@@ -727,43 +730,82 @@ const MessageComponent = ({ onClose }) => {
             </div>
           ) : (
             messages.map((msg, index) => {
-              // Check if this message is from the current user
               const isCurrentUser = msg.senderId === currentUser;
-              
+
+              const formatTime = (timeStr) => {
+                if (!timeStr) return '';
+                let [hour, minute] = timeStr.split(':');
+                let h = parseInt(hour, 10);
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                return `${h}:${minute} ${ampm}`;
+              };
+
+              const formatDateWithDay = (dateStr) => {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayName = days[date.getDay()];
+                return `${dayName}, ${dateStr}`;
+              };
+
+              // Check if this is the first message of a new date
+              const isFirstMessageOfDate = index === 0 ||
+                (messages[index - 1] && messages[index - 1].senddate !== msg.senddate);
+
               return (
-                <div key={index} className="mb-3">
-                  <div 
-                    className={`d-flex ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`}
-                  >
-                    <div
-                      className="chat-bubble"
-                      style={{ 
-                        maxWidth: '70%', 
-                        width: 'fit-content'
-                      }}
-                    >
+                <div key={index}>
+                  {isFirstMessageOfDate && msg.senddate && (
+                    <div className="d-flex justify-content-center mb-3">
                       <div
-                        className={`shadow-sm rounded-3 ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`}
+                        className=" text-black px-3 py-1"
                         style={{
-                          borderBottomRightRadius: isCurrentUser ? '0px' : '15px',
-                          borderBottomLeftRadius: isCurrentUser ? '15px' : '0px',
-                          borderTopRightRadius: '15px',
-                          borderTopLeftRadius: '15px',
-                          fontSize: sizes.fontSize.chat,
-                          wordBreak: 'break-word',
-                          overflowWrap: 'break-word',
-                          padding: '8px 15px',
+                          fontSize: sizes.fontSize.time,
+                          opacity: 0.8,
+                          backgroundColor: '#ebebeb',
+                          borderRadius: '8px'
                         }}
                       >
-                        {msg.content}
-                        <div 
-                          className="text-end" 
-                          style={{ 
-                            fontSize: sizes.fontSize.time,
-                            opacity: 0.8
+                        {formatDateWithDay(msg.senddate)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Message bubble */}
+                  <div className="mb-3">
+                    <div
+                      className={`d-flex ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`}
+                    >
+                      <div
+                        className="chat-bubble"
+                        style={{
+                          maxWidth: '80%',
+                          width: 'fit-content'
+                        }}
+                      >
+                        <div
+                          className={`shadow-sm ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`}
+                          style={{
+                            borderBottomRightRadius: isCurrentUser ? '0px' : '15px',
+                            borderBottomLeftRadius: isCurrentUser ? '15px' : '0px',
+                            borderTopRightRadius: '15px',
+                            borderTopLeftRadius: '15px',
+                            fontSize: sizes.fontSize.chat,
+                            wordBreak: 'break-word',
+                            overflowWrap: 'break-word',
+                            padding: '8px 15px',
                           }}
                         >
-                          {`${msg.senddate} ${msg.sendtime}`}
+                          {msg.content}
+                          <div
+                            className="text-end"
+                            style={{
+                              fontSize: sizes.fontSize.time,
+                              opacity: 0.8
+                            }}
+                          >
+                            {formatTime(msg.sendtime)}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -776,33 +818,29 @@ const MessageComponent = ({ onClose }) => {
 
         {/* Chat Input */}
         <div className="chat-input p-3 border-top bg-white">
-          <div className="d-flex align-items-center">
-            <button
-              className="btn btn-link text-muted me-2 flex-shrink-0"
-              aria-label="Attach file"
-            >
-              <FaPaperclip />
-            </button>
-            <div className="position-relative flex-grow-1">
+          <div className="d-flex align-items-center position-relative">
+            <div className="flex-grow-1">
               <input
                 ref={messageInputRef}
                 type="text"
                 className="form-control rounded-pill"
-                placeholder="Type a message..."
+                placeholder="Type a message ..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage() }}
-                style={{ fontSize: sizes.fontSize.message, paddingRight: '50px' }}
+                style={{ fontSize: sizes.fontSize.message, paddingRight: '50px', width: '85%' }}
               />
+            </div>
+            <div>
               <button
                 className="btn position-absolute d-flex justify-content-center align-items-center"
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  right: '8px',
+                  width: '35px',
+                  height: '35px',
+                  right: '1px',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  borderRadius: '50%',
+                  borderRadius: '40%',
                   backgroundColor: newMessage.trim() === '' ? '#e9ecef' : '#007bff',
                   color: newMessage.trim() === '' ? '#6c757d' : '#ffffff'
                 }}
@@ -810,7 +848,7 @@ const MessageComponent = ({ onClose }) => {
                 aria-label="Send message"
                 disabled={newMessage.trim() === ''}
               >
-                <FaPaperPlane size={14} />
+                <FaPaperPlane size={18} />
               </button>
             </div>
           </div>

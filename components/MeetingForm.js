@@ -9,12 +9,9 @@ import Calendar from '@/components/calendar';
 import { FaEdit, FaCalendarAlt, FaChevronDown, FaSearch, FaFilter, FaCheckCircle, FaBars, FaTimes } from 'react-icons/fa';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import SearchBar from '@/components/meetingsearchbar';
 
-const MeetingForm = () => {
-    const params = useParams();
-    const meetingId = params?.id;
+const MeetingForm = ({meetingId}) => {
+   
     
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -46,13 +43,8 @@ const MeetingForm = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [dateError, setDateError] = useState('');
     const [userProfiles, setUserProfiles] = useState({});
-    const [uploadedContent, setUploadedContent] = useState([]);
 
-    useEffect(() => {
-      console.log("Params object:", params);
-      console.log("Meeting ID:", meetingId);
-      console.log("URL path:", window.location.pathname);
-    }, [params, meetingId]);
+    
   
     // Fetch meeting data
     useEffect(() => {
@@ -323,7 +315,7 @@ const MeetingForm = () => {
               start: formatTime(startDate),
               end: formatTime(endDate),
               startTime: slot.startTime,
-              endTime: endDate
+              endTime: slot.endTime
             };
           });
           
@@ -533,58 +525,51 @@ const MeetingForm = () => {
 
     const handleAddTimeSlot = () => {
       setTimeError('');
-
+    
       if (!validateTimeFormat(startTime)) {
         setTimeError('Invalid start time format. Use HH:MM AM/PM');
         return;
       }
-
+    
       if (!validateTimeFormat(endTime)) {
         setTimeError('Invalid end time format. Use HH:MM AM/PM');
         return;
       }
-
+    
       const startMinutes = convertTo24HourFormat(startTime);
       const endMinutes = convertTo24HourFormat(endTime);
-
+    
       if (endMinutes <= startMinutes) {
         setTimeError('End time must be later than start time');
         return;
       }
-
+    
       // Convert to ISO format for API
       const startTimeISO = convertToISOFormat(selectedDate, startTime);
       const endTimeISO = convertToISOFormat(selectedDate, endTime);
-
+    
       const newTimeSlot = {
-        id: Date.now().toString(), // Convert to string to ensure consistent ID type
+        id: Date.now(),
         start: startTime,
         end: endTime,
         startTime: startTimeISO,
         endTime: endTimeISO
       };
-
-      // Add null check before accessing timeSlots
-      const currentTimeSlots = Array.isArray(timeSlots) ? timeSlots : [];
-      
-      const isDuplicate = currentTimeSlots.some(
-        slot => slot?.start === newTimeSlot.start && slot?.end === newTimeSlot.end
+    
+      const isDuplicate = timeSlots.some(
+        slot => slot.start === newTimeSlot.start && slot.end === newTimeSlot.end
       );
-
+    
       if (isDuplicate) {
         setTimeError('This time slot has already been added');
         return;
       }
-
-      setTimeSlots([...currentTimeSlots, newTimeSlot]);
+    
+      setTimeSlots([...timeSlots, newTimeSlot]);
     };
 
     const handleRemoveTimeSlot = (id) => {
-      if (!Array.isArray(timeSlots) || !id) return;
-      
-      setTimeSlots(prevSlots => 
-        prevSlots.filter(slot => slot?.id !== id)
-      );
+      setTimeSlots(timeSlots.filter(slot => slot.id !== id));
     };
 
     const handleTimeSelect = (time, type) => {
@@ -635,36 +620,9 @@ const MeetingForm = () => {
       };
     }, []);
     
-    // Fetch uploaded content
-    useEffect(() => {
-      const fetchContent = async () => {
-        if (!meetingId) return;
-
-        try {
-          const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/content`, {
-            credentials: 'include'
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch content');
-          }
-
-          const data = await response.json();
-          setUploadedContent(data.content || []);
-        } catch (error) {
-          console.error('Error fetching content:', error);
-        }
-      };
-
-      fetchContent();
-    }, [meetingId]);
-
     if (loading) return <div className="p-4 text-center">Loading meeting data...</div>;
     if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
     if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
-  
-    // Check if the user can edit the meeting
-    const canEdit = userRole === 'creator' && meetingData.status !== 'confirmed';
   
     return (
       <div className="container-fluid p-0">
@@ -674,24 +632,19 @@ const MeetingForm = () => {
               <h2 className="fw-bold mb-0 fs-4 fs-md-3">{title || 'Meeting name'}</h2>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
-                {canEdit ? (
-                  <button 
-                    className="btn btn-secondary d-flex align-items-center px-3 py-2"
-                    onClick={() => setIsEditing(!isEditing)}
-                  >
-                    <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
-                  </button>
-                ) : (
-                  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
-                )}
+                <button 
+                  className="btn btn-secondary d-flex align-items-center px-3 py-2"
+                  onClick={() => setIsEditing(!isEditing)}
+                  disabled={userRole === 'participant'}
+                >
+                  <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
+                </button>
               </div>
             </div>
   
             <div className="mb-3 mb-md-4">
               <p className="mb-1 fw-bold">Status</p>
-              <span className={`badge ${meetingData.status === 'confirmed' ? 'bg-success' : 'bg-primary'} px-3 py-2`}>
-                {meetingData.status === 'confirmed' ? 'Confirmed' : 'Pending'}
-              </span>
+              <span className="badge bg-primary px-3 py-2">Confirmed</span>
             </div>
             
             {meetingType && (
@@ -846,20 +799,20 @@ const MeetingForm = () => {
                         )}
                     </div>
 
-                  {/* Add Button */}
-                  <button
-                    type="button"
-                    className="btn btn-primary d-flex align-items-center justify-content-center"
-                    style={{
-                    minWidth: "40px",
-                    height: "38px",
-                    flexShrink: 0,
-                    }}
-                    onClick={handleAddTimeSlot}
-                    disabled={!isEditing}
-                  >
-                    <FaCheckCircle />
-                  </button>
+                    {/* Add Button */}
+                    <button
+                        type="button"
+                        className="btn btn-primary d-flex align-items-center justify-content-center"
+                        style={{
+                        minWidth: "40px",
+                        height: "38px",
+                        flexShrink: 0,
+                        }}
+                        onClick={handleAddTimeSlot}
+                        disabled={!isEditing}
+                    >
+                        <FaCheckCircle />
+                    </button>
                   </div>
 
                   {/* Display date error if any */}
@@ -868,80 +821,31 @@ const MeetingForm = () => {
                       {dateError}
                     </div>
                   )}
-                  {/* Display time slots with null checks */}
-                  {Array.isArray(timeSlots) && timeSlots.length > 0 && (
+                  {/* Display time slots */}
+                  {timeSlots.length > 0 && (
                     <div className="mt-3">
-                      <h6 className="mb-2">Time Slots:</h6>
-                      {meetingType === 'round_robin' ? (
-                        // Round Robin Display
-                        <div className="bg-light p-3 rounded">
-                          <div className="fw-bold mb-2">Round Robin Sessions</div>
-                          {timeSlots.map((slot, index) => (
-                            <div key={slot?.id || Math.random()} 
-                                 className="d-flex align-items-center mb-2 p-2 bg-white rounded">
-                              <div className="me-3">
-                                <span className="badge bg-primary">Session {index + 1}</span>
-                              </div>
-                              <div>
-                                <div className="fw-bold">
-                                  {new Date(slot.startTime).toLocaleDateString()}
-                                </div>
-                                <div>{slot?.start || ''} - {slot?.end || ''}</div>
-                                {roundRobinDuration && (
-                                  <small className="text-muted">
-                                    Duration: {roundRobinDuration} minutes per participant
-                                  </small>
-                                )}
-                              </div>
+                      <h6 className="mb-2">Added Time Slots:</h6>
+                      <div className="d-flex flex-wrap gap-2">
+                        {timeSlots.map((slot) => (
+                          <div key={slot.id} className="d-flex align-items-center bg-light p-2 rounded">
+                            <div>
+                              <span className="fw-bold">{new Date(slot.startTime).toLocaleDateString()}</span>
+                              <span className="mx-1">|</span>
+                              <span>{slot.start} - {slot.end}</span>
                             </div>
-                          ))}
-                        </div>
-                      ) : meetingType === 'group' ? (
-                        // Group Meeting Display
-                        <div className="bg-light p-3 rounded">
-                          <div className="fw-bold mb-2">Group Sessions</div>
-                          {timeSlots.map((slot) => (
-                            <div key={slot?.id || Math.random()} 
-                                 className="d-flex align-items-center mb-2 p-2 bg-white rounded">
-                              <div className="flex-grow-1">
-                                <div className="fw-bold">
-                                  {new Date(slot.startTime).toLocaleDateString()}
-                                </div>
-                                <div>Group Meeting: {slot?.start || ''} - {slot?.end || ''}</div>
-                                <div className="text-muted">
-                                  All participants will join at this time
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        // Regular Meeting Display
-                        <div className="d-flex flex-wrap gap-2">
-                          {timeSlots.map((slot) => (
-                            <div key={slot?.id || Math.random()} 
-                                 className="d-flex align-items-center bg-light p-2 rounded">
-                              <div>
-                                <span className="fw-bold">
-                                  {new Date(slot.startTime).toLocaleDateString()}
-                                </span>
-                                <span className="mx-1">|</span>
-                                <span>{slot?.start || ''} - {slot?.end || ''}</span>
-                              </div>
-                              {isEditing && canEdit && (
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-outline-danger ms-2"
-                                  onClick={() => handleRemoveTimeSlot(slot?.id)}
-                                  aria-label="Remove time slot"
-                                >
-                                  <FaTimes />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                            {isEditing && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger ms-2"
+                                onClick={() => handleRemoveTimeSlot(slot.id)}
+                                aria-label="Remove time slot"
+                              >
+                                <FaTimes />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1023,7 +927,7 @@ const MeetingForm = () => {
                 {/* Display participants section */}
                 {participants.length > 0 && (
                   <div>
-                    
+                    <h6 className="text-muted mb-2">Participants</h6>
                     {participants.map((participant) => (
                       <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
                         <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
@@ -1139,8 +1043,8 @@ const MeetingForm = () => {
                       Cancel Meeting
                     </button>
                   )}
-                  <Link href={`/content/${meetingId}`}><button className="btn btn-primary me-2">Upload</button></Link>
-                  <Link href={`/notes/${meetingId}`}><button className="btn btn-primary">Take notes</button></Link>
+                  <Link href={'/content'}><button className="btn btn-primary me-2">Upload</button></Link>
+                  <Link href={'/notes'}><button className="btn btn-primary">Take notes</button></Link>
                 </>
               )}
             </div>
@@ -1150,108 +1054,4 @@ const MeetingForm = () => {
     );
 };
 
-export default function Details() {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
-  const [isMobile, setIsMobile] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) setShowMobileMenu(false);
-    };
-    
-    handleResize(); // Initial check
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const handleSidebarToggle = (collapsed) => {
-    setIsSidebarCollapsed(collapsed);
-  };
-
-  // Add this handler function in the Details component
-  const handleMeetingSelect = (meeting) => {
-    if (meeting && meeting.id) {
-      window.location.href = `/meetingdetails/${meeting.id}`;
-    }
-  };
-
-  return (
-    <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>  
-      {/* Mobile Menu Button */}
-      {isMobile && (
-        <button 
-          className="btn btn-primary position-fixed d-flex align-items-center justify-content-center" 
-          style={{ top: '10px', left: '10px', zIndex: 1100, width: '40px', height: '40px' }}
-          onClick={() => setShowMobileMenu(!showMobileMenu)}
-        >
-          {showMobileMenu ? <FaTimes /> : <FaBars />}
-        </button>
-      )}
-      
-      {/* Sidebar */}
-      <div style={{ 
-        position: 'fixed', 
-        left: 10, 
-        top: 10, 
-        bottom: 0, 
-        zIndex: 1000,
-        display: isMobile ? (showMobileMenu ? 'block' : 'none') : 'block'
-      }}>
-        <SidebarMenu 
-          showmenuicon={true} 
-          onToggle={handleSidebarToggle}
-        />
-      </div>
-      
-      {/* Mobile Overlay */}
-      {isMobile && showMobileMenu && (
-        <div 
-          className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50" 
-          style={{ zIndex: 999 }}
-          onClick={() => setShowMobileMenu(false)}
-        >
-        </div>
-      )}
-      
-      {/* Main content */}
-      <div 
-        className="flex-grow-1 p-3 p-md-4" 
-        style={{
-          marginLeft: isMobile ? '0' : (isSidebarCollapsed ? '90px' : '340px'),
-          maxWidth: isMobile ? '100%' : (isSidebarCollapsed ? 'calc(100% - 120px)' : 'calc(100% - 360px)'),
-          transition: 'margin-left 0.3s ease-in-out, max-width 0.3s ease-in-out',
-          paddingTop: isMobile ? '60px' : '0'
-        }}
-      >
-        {/* Profile Header */}
-        <div className="mb-3 mb-md-4">
-          <ProfileHeader />
-        </div>
-
-        {/* Calendar Header */}
-        <div className="mb-3 mb-md-4">
-          <h1 className="h3 h2-md mb-1 mb-md-2 font-inter fw-bold">Meeting Details</h1>
-          <p className="text-muted small">
-            Dive into the details and make every meeting count.
-          </p>
-        </div>
-        
-        {/* Search Bar Component */}
-        <SearchBar 
-          onSelectMeeting={handleMeetingSelect}
-          placeholder="Search meetings..."
-          className="mb-3 mb-md-4"
-          context="meetings"
-        />
-        
-        <div>
-            <MeetingForm />
-        </div>
-      </div>
-    </div>
-  );
-}
+export default MeetingForm;

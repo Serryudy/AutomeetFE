@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -36,14 +37,14 @@ export default function Community() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const contactRes = await axios.get('http://localhost:8082/api/contacts', {
+        const contactRes = await axios.get('http://localhost:8080/api/community/contacts', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
         });
         setContacts(contactRes.data);
 
-        const groupRes = await axios.get('http://localhost:8082/api/groups', {
+        const groupRes = await axios.get('http://localhost:8080/api/community/groups', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
@@ -104,7 +105,7 @@ export default function Community() {
   // Function to create a new contact
   const createContact = async (newContact) => {
     try {
-      const response = await axios.post('http://localhost:8082/api/contacts', newContact, {
+      const response = await axios.post('http://localhost:8080/api/community/contacts', newContact, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -118,7 +119,7 @@ export default function Community() {
   // Function to create a new group
   const createGroup = async (newGroup) => {
     try {
-      const response = await axios.post('http://localhost:8082/api/groups', newGroup, {
+      const response = await axios.post('http://localhost:8080/api/community/groups', newGroup, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -395,7 +396,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await fetch('http://localhost:8082/api/contacts', {
+        const response = await fetch('http://localhost:8080/api/community/contacts', {
           credentials: 'include'
         });
         
@@ -417,38 +418,65 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
   }, []);
 
   const handleDelete = async (clientId) => {
-    try {
-      const response = await fetch(`http://localhost:8082/api/contacts/${clientId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
+  try {
+    // Get token from localStorage or your auth context
+    const token = localStorage.getItem('token');
+    
+    const response = await fetch(`http://localhost:8080/api/community/contacts/${clientId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      credentials: 'include'
+    });
 
-      if (!response.ok) {
-        throw new Error('Failed to delete contact');
-      }
-
-      setClients(clients.filter(client => client._id !== clientId));
-      setActivePopup(null);
-    } catch (err) {
-      console.error('Error deleting contact:', err);
-      alert('Failed to delete contact');
+    // Handle different response status codes
+    if (response.status === 404) {
+      throw new Error('Contact not found');
     }
-  };
+
+    if (response.status === 401) {
+      throw new Error('Unauthorized - Please login again');
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to delete contact');
+    }
+
+    // Update UI only after successful deletion
+    setClients(prevClients => prevClients.filter(client => client.id !== clientId));
+    setActivePopup(null);
+  } catch (err) {
+    console.error('Error deleting contact:', err);
+    alert(err.message || 'Failed to delete contact');
+  }
+};
+
+
+
 
 
   const togglePopup = (itemId, action) => {
-    if (action === 'edit') {
-      setActivePopup(null);
-      const clientId = parseInt(itemId.split('-')[1]);
-      const clientToEdit = clients.find(client => client.id === clientId);
-      if (clientToEdit) {
-        setEditingContact(clientToEdit);
-        setShowContactModal(true);
-      }
-    } else {
-      setActivePopup(activePopup === itemId ? null : itemId);
+  if (action === 'edit') {
+    setActivePopup(null);
+    const contactToEdit = clients.find(client => client.id === itemId);
+    if (contactToEdit) {
+      // Set the contact data for editing
+      setEditingContact({
+        id: contactToEdit.id,
+        username: contactToEdit.username,
+        email: contactToEdit.email,
+        phone: contactToEdit.phone,
+        profileimg: contactToEdit.profileimg
+      });
+      setShowContactModal(true);
     }
-  };
+  } else {
+    setActivePopup(activePopup === itemId ? null : itemId);
+  }
+};
 
   if (loading) {
     return <div className="text-center py-4">Loading contacts...</div>;
@@ -610,7 +638,7 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await fetch('http://localhost:8082/api/groups', {
+        const response = await fetch('http://localhost:8080/api/community/groups', {
           credentials: 'include'
         });
         
@@ -633,7 +661,7 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
 
   const handleDelete = async (groupId) => {
     try {
-      const response = await fetch(`http://localhost:8082/api/groups/${groupId}`, {
+      const response = await fetch(`http://localhost:8080/api/community/groups/${groupId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -828,51 +856,57 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
 
 const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setEditingContact }) => {
   const [formData, setFormData] = useState({
-    username: editingContact ? editingContact.username : '',
+    name: editingContact ? editingContact.username : '',
     email: editingContact ? editingContact.email : '',
     phone: editingContact ? editingContact.phone : '',
     profileimg: editingContact ? editingContact.profileimg : ''
   });
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      const url = editingContact 
-        ? `http://localhost:8082/api/contacts/${editingContact._id}`
-        : 'http://localhost:8082/api/contacts';
-        
-      const method = editingContact ? 'PUT' : 'POST';
+  e.preventDefault();
+  
+  try {
+    const url = editingContact 
+      ? `http://localhost:8080/api/community/contacts/${editingContact.id}`
+      : 'http://localhost:8080/api/community/contacts';
       
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          username: formData.email, // Using email as username
-          email: formData.email,
-          phone: formData.phone,
-          profileimg: formData.profileimg || 'https://example.com/default-profile.jpg'
-        })
-      });
+    const method = editingContact ? 'PUT' : 'POST';
+    const token = localStorage.getItem('token');
 
-      if (!response.ok) {
-        throw new Error('Failed to save contact');
-      }
+    // Prepare the request body
+    const contactData = {
+      username: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      profileimg: formData.profileimg || 'https://example.com/default-profile.jpg'
+    };
 
-      // Close modal and reset state
-      setShowContactModal(false);
-      setEditingContact(null);
-      
-      // Refresh the contacts list
-      window.location.reload();
-    } catch (err) {
-      console.error('Error saving contact:', err);
-      alert('Failed to save contact');
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      credentials: 'include',
+      body: JSON.stringify(contactData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to save contact');
     }
-  };
+
+    // Close modal and reset state
+    setShowContactModal(false);
+    setEditingContact(null);
+    
+    // Refresh the contacts list
+    window.location.reload();
+  } catch (err) {
+    console.error('Error saving contact:', err);
+    alert(err.message || 'Failed to save contact');
+  }
+};
 
   // Handle form input changes
   const handleChange = (e) => {
@@ -1028,7 +1062,7 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await fetch('http://localhost:8082/api/contacts', {
+        const response = await fetch('http://localhost:8080/api/community/contacts', {
           credentials: 'include'
         });
         
@@ -1051,8 +1085,8 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
     
     try {
       const url = editingGroup 
-        ? `http://localhost:8082/api/groups/${editingGroup._id}`
-        : 'http://localhost:8082/api/groups';
+        ? `http://localhost:8080/api/community/groups/${editingGroup._id}`
+        : 'http://localhost:8080/api/community/groups';
         
       const method = editingGroup ? 'PUT' : 'POST';
       
