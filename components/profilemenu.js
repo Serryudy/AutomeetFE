@@ -98,7 +98,7 @@ const ProfileMenu = () => {
         }
         
         // Then fetch fresh data
-        const response = await fetch('http://localhost:8080/api/users/profile', {
+        const response = await fetch('http://localhost:8084/api/users/profile', {
           method: 'GET',
           credentials: 'include', // Important to include cookies for authentication
         });
@@ -126,7 +126,7 @@ const ProfileMenu = () => {
   const handleLogout = async () => {
     try {
       // Call the server-side logout endpoint
-      const response = await fetch('http://localhost:8080/api/auth/logout', {
+      const response = await fetch('http://localhost:8083/api/auth/logout', {
         method: 'GET',
         credentials: 'include', // Important to include cookies
       });

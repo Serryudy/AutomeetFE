@@ -1140,7 +1140,7 @@ const MeetingForm = () => {
                     </button>
                   )}
                   <Link href={`/content/${meetingId}`}><button className="btn btn-primary me-2">Upload</button></Link>
-                  <Link href={'/notes'}><button className="btn btn-primary">Take notes</button></Link>
+                  <Link href={`/notes/${meetingId}`}><button className="btn btn-primary">Take notes</button></Link>
                 </>
               )}
             </div>
