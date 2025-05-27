@@ -207,7 +207,7 @@ export default function MeetingInsights() {
 // Add this function at the top level
 const fetchMeetingAnalytics = async (meetingId) => {
   try {
-    const response = await fetch(`http://localhost:8081/api/meetings/${meetingId}/analytics`, {
+    const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/analytics`, {
       credentials: 'include'
     });
     
@@ -225,7 +225,7 @@ const fetchMeetingAnalytics = async (meetingId) => {
 // Add this function at the top level
 const fetchUserAnalytics = async () => {
   try {
-    const response = await fetch('http://localhost:8081/api/users/analytics', {
+    const response = await fetch('http://localhost:8080/api/users/analytics', {
       credentials: 'include'
     });
     

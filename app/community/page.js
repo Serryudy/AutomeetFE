@@ -36,14 +36,14 @@ export default function Community() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const contactRes = await axios.get('http://localhost:8080/api/contacts', {
+        const contactRes = await axios.get('http://localhost:8080/api/community/community/contacts', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
         });
         setContacts(contactRes.data);
 
-        const groupRes = await axios.get('http://localhost:8080/api/groups', {
+        const groupRes = await axios.get('http://localhost:8080/api/community/community/groups', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
@@ -104,7 +104,7 @@ export default function Community() {
   // Function to create a new contact
   const createContact = async (newContact) => {
     try {
-      const response = await axios.post('http://localhost:8080/api/contacts', newContact, {
+      const response = await axios.post('http://localhost:8080/api/community/contacts', newContact, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -118,7 +118,7 @@ export default function Community() {
   // Function to create a new group
   const createGroup = async (newGroup) => {
     try {
-      const response = await axios.post('http://localhost:8080/api/groups', newGroup, {
+      const response = await axios.post('http://localhost:8080/api/community/groups', newGroup, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -395,7 +395,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/contacts', {
+        const response = await fetch('http://localhost:8080/api/community/contacts', {
           credentials: 'include'
         });
         
@@ -418,7 +418,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
 
   const handleDelete = async (clientId) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/contacts/${clientId}`, {
+      const response = await fetch(`http://localhost:8080/api/community/contacts/${clientId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -610,7 +610,7 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/groups', {
+        const response = await fetch('http://localhost:8080/api/community/groups', {
           credentials: 'include'
         });
         
@@ -633,7 +633,7 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
 
   const handleDelete = async (groupId) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/groups/${groupId}`, {
+      const response = await fetch(`http://localhost:8080/api/community/groups/${groupId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -684,24 +684,36 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
             <div className="col-md-4 d-flex align-items-center">
               <div className="avatar-circle bg-light text-secondary me-3 d-flex align-items-center justify-content-center" 
                 style={{ width: 60, height: 60, borderRadius: '50%', fontSize: '1.5rem' }}>
-                {group.name.charAt(0)}
+                {group.name ? group.name.charAt(0) : '?'}
               </div>
               <div>
                 <div className="fw-bold">{group.name}</div>
-                <div className="text-muted small">{group.email}</div>
+                <div className="text-muted small">{group.members?.length || 0} members</div>
               </div>
             </div>
             
             {/* Next Meeting */}
             <div className="col-md-4">
-              <div>{group.nextMeeting.type}</div>
-              <div className="text-muted">{group.nextMeeting.date}</div>
+              {group.nextMeeting ? (
+                <>
+                  <div>{group.nextMeeting.type}</div>
+                  <div className="text-muted">{group.nextMeeting.date}</div>
+                </>
+              ) : (
+                <div className="text-muted">No upcoming meetings</div>
+              )}
             </div>
             
             {/* Last Meeting */}
             <div className="col-md-3">
-              <div>{group.lastMeeting.type}</div>
-              <div className="text-muted">{group.lastMeeting.date}</div>
+              {group.lastMeeting ? (
+                <>
+                  <div>{group.lastMeeting.type}</div>
+                  <div className="text-muted">{group.lastMeeting.date}</div>
+                </>
+              ) : (
+                <div className="text-muted">No previous meetings</div>
+              )}
             </div>
             
             {/* Actions with popup */}
@@ -747,19 +759,23 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
           <div className="d-flex d-md-none position-relative">
             <div className="avatar-circle bg-light text-secondary me-3 d-flex align-items-center justify-content-center" 
               style={{ width: 50, height: 50, borderRadius: '50%', fontSize: '1.25rem', flexShrink: 0 }}>
-              {group.name.charAt(0)}
+              {group.name ? group.name.charAt(0) : '?'}
             </div>
             
             <div className="flex-grow-1">
               <div className="fw-bold">{group.name}</div>
-              <div className="text-muted small mb-1">{group.email}</div>
+              <div className="text-muted small mb-1">{group.members?.length || 0} members</div>
               
               <div className="d-flex flex-wrap gap-2 mt-2">
                 <div className="bg-light rounded-pill px-2 py-1 small">
-                  <span className="fw-semibold">Next:</span> {group.nextMeeting.date}
+                  <span className="fw-semibold">Next:</span> {
+                    group.nextMeeting?.date || 'No upcoming meetings'
+                  }
                 </div>
                 <div className="bg-light rounded-pill px-2 py-1 small">
-                  <span className="fw-semibold">Last:</span> {group.lastMeeting.date}
+                  <span className="fw-semibold">Last:</span> {
+                    group.lastMeeting?.date || 'No previous meetings'
+                  }
                 </div>
               </div>
             </div>
@@ -800,6 +816,12 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
           </div>
         </div>
       ))}
+
+      {groups.length === 0 && (
+        <div className="text-center py-4 text-muted">
+          No groups found. Create a new group to get started.
+        </div>
+      )}
     </div>
   );
 };
@@ -817,8 +839,8 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
     
     try {
       const url = editingContact 
-        ? `http://localhost:8080/api/contacts/${editingContact._id}`
-        : 'http://localhost:8080/api/contacts';
+        ? `http://localhost:8080/api/community/contacts/${editingContact._id}`
+        : 'http://localhost:8080/api/community/contacts';
         
       const method = editingContact ? 'PUT' : 'POST';
       
@@ -1006,7 +1028,7 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/contacts', {
+        const response = await fetch('http://localhost:8080/api/community/contacts', {
           credentials: 'include'
         });
         
@@ -1029,8 +1051,8 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
     
     try {
       const url = editingGroup 
-        ? `http://localhost:8080/api/groups/${editingGroup._id}`
-        : 'http://localhost:8080/api/groups';
+        ? `http://localhost:8080/api/community/groups/${editingGroup._id}`
+        : 'http://localhost:8080/api/community/groups';
         
       const method = editingGroup ? 'PUT' : 'POST';
       

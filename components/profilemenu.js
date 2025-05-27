@@ -98,7 +98,7 @@ const ProfileMenu = () => {
         }
         
         // Then fetch fresh data
-        const response = await fetch('http://localhost:8080/api/users/profile', {
+        const response = await fetch('http://localhost:8084/api/users/profile', {
           method: 'GET',
           credentials: 'include', // Important to include cookies for authentication
         });
