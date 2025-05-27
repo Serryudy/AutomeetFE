@@ -114,7 +114,7 @@ const DirectScheduleForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/contacts', {
+        const response = await axios.get('http://localhost:8082/api/contacts', {
           withCredentials: true
         });
 
@@ -726,7 +726,7 @@ const GroupMeetingForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/contacts', {
+        const response = await axios.get('http://localhost:8082/api/contacts', {
           withCredentials: true
         });
 
@@ -812,7 +812,7 @@ const GroupMeetingForm = () => {
         repeat
       };
 
-      await axios.post('http://localhost:8080/api/group/meetings', meetingPayload, {
+      await axios.post('http://localhost:8082/api/group/meetings', meetingPayload, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -1416,7 +1416,7 @@ const RoundRobinForm = () => {
     const fetchContactsAndHosts = async () => {
       try {        
         // Fetch participants (contacts)
-        const participantsResponse = await axios.get('http://localhost:8080/api/contacts', {
+        const participantsResponse = await axios.get('http://localhost:8082/api/contacts', {
           withCredentials: true
         });
         setContacts(Array.isArray(participantsResponse.data) ? participantsResponse.data : (participantsResponse.data.contacts || []));
