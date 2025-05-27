@@ -1,17 +1,21 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../../styles/global.css';
-import SidebarMenu from '../../components/SideMenucollapse';
+import '@/styles/global.css';
+import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import { FaPen, FaRegCheckCircle, FaDownload, FaTrash, FaCheckCircle, FaBars } from 'react-icons/fa';
+import { useParams } from 'next/navigation';
 
-const Takenote = ({ onClose, onSave }) => {
+const Takenote = ({ onClose, onSave, selectedNote }) => {
+  const params = useParams();
+  const meetingId = params.id;
   const [title, setTitle] = useState('Title');
   const [noteLines, setNoteLines] = useState(['', '', '', '', '', '', '', '', '']);
   const [charCount, setCharCount] = useState(0);
   const inputRefs = useRef([]);
+  const [isExistingNote, setIsExistingNote] = useState(false);
   
   // Maximum characters per line
   const MAX_CHARS_PER_LINE = 40;
@@ -89,6 +93,21 @@ const Takenote = ({ onClose, onSave }) => {
     const noteContent = noteLines.join('\n');
     onSave(title, noteContent);
   };
+
+  // Update initial states based on selectedNote
+  useEffect(() => {
+    if (selectedNote) {
+      setTitle(selectedNote.title || 'Title');
+      // Split the note content into lines, or use empty lines if no content
+      const contentLines = selectedNote.noteContent ? 
+        selectedNote.noteContent.split('\n') : 
+        ['', '', '', '', '', '', '', '', ''];
+      setNoteLines(contentLines);
+      setIsExistingNote(true); // Set to true if we're viewing an existing note
+    } else {
+      setIsExistingNote(false);
+    }
+  }, [selectedNote]);
   
   return (
     <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ zIndex: 1050 }}>
@@ -116,6 +135,7 @@ const Takenote = ({ onClose, onSave }) => {
           value={title} 
           onChange={(e) => setTitle(e.target.value)}
           style={{ outline: 'none' }}
+          readOnly={isExistingNote}
         />
         
         {/* Date display */}
@@ -138,19 +158,29 @@ const Takenote = ({ onClose, onSave }) => {
                   outline: 'none',
                   paddingBottom: '8px'
                 }}
+                readOnly={isExistingNote}
               />
             </div>
           ))}
         </div>
         
-        {/* Save button */}
+        {/* Save button - Updated with disabled state and different text */}
         <div className="d-flex justify-content-end">
-          <button 
-            className="btn btn-light fw-bold px-3 px-md-4 py-2 rounded-3 shadow-sm"
-            onClick={handleSave}
-          >
-            Save
-          </button>
+          {isExistingNote ? (
+            <button 
+              className="btn btn-secondary fw-bold px-3 px-md-4 py-2 rounded-3"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          ) : (
+            <button 
+              className="btn btn-light fw-bold px-3 px-md-4 py-2 rounded-3 shadow-sm"
+              onClick={handleSave}
+            >
+              Save
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -166,17 +196,10 @@ export default function Notes() {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [notes, setNotes] = useState([
-    {id: 1, title: 'Sample Note 1', date: '2023-06-01' },
-    {id: 2, title: 'Sample Note 2', date: '2023-06-02' },
-    {id: 3, title: 'Sample Note 3', date: '2023-06-02' },
-    {id: 4, title: 'Sample Note 4', date: '2023-06-02' },
-    {id: 5, title: 'Sample Note 5', date: '2023-06-02' },
-    {id: 6, title: 'Sample Note 6', date: '2023-06-02' },
-    {id: 7, title: 'Sample Note 7', date: '2023-06-02' },
-    {id: 8, title: 'Sample Note 8', date: '2023-06-03' },
-    {id: 9, title: 'Sample Note 9', date: '2023-06-03' },
-  ]);
+  const [notes, setNotes] = useState([]);
+
+  const params = useParams();
+  const meetingId = params.id;
 
   useEffect(() => {
     const handleResize = () => {
@@ -190,13 +213,32 @@ export default function Notes() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Fetch notes from server
+  const fetchNotes = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/notes`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch notes');
+      }
+
+      const data = await response.json();
+      setNotes(data); // Assuming the API returns an array of notes
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+      alert('Failed to load notes. Please try again.');
+    }
+  };
+
   // Handle sidebar state change
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
   };
 
   // Function to handle document selection
-  const handleDocClick = (docId) => {
+  const handleDocClick = async (docId) => {
     if (multiSelectMode) {
       // In multi-select mode, toggle document selection
       if (selectedDocs.includes(docId)) {
@@ -205,8 +247,12 @@ export default function Notes() {
         setSelectedDocs([...selectedDocs, docId]);
       }
     } else {
-      // In single-select mode, just set the selected document
-      setSelectedDoc(docId === selectedDoc ? null : docId);
+      // Get the selected note
+      const selectedNote = notes.find(note => note.id === docId);
+      if (selectedNote) {
+        setSelectedDoc(docId);
+        setShowTakeNote(true);
+      }
     }
   };
 
@@ -218,34 +264,98 @@ export default function Notes() {
     setSelectedDoc(null);
   };
 
-  // Function to handle download
+  // Update the handleDownload function
   const handleDownload = () => {
     const docsToDownload = multiSelectMode ? selectedDocs : (selectedDoc ? [selectedDoc] : []);
+    
     if (docsToDownload.length === 0) {
       alert("Please select document(s) to download");
       return;
     }
-    
-    const selectedDocuments = notes.filter(doc => docsToDownload.includes(doc.id));
-    alert(`Downloading ${selectedDocuments.length} document(s): ${selectedDocuments.map(doc => doc.title).join(', ')}`);
-    // In a real application, you would implement the actual download functionality here
+
+    // Get selected notes
+    const selectedNotes = notes.filter(note => docsToDownload.includes(note.id));
+
+    // Download each note
+    selectedNotes.forEach(note => {
+      // Create content for the text file
+      const content = [
+        `Title: ${note.title || 'Untitled Note'}`,
+        `Date: ${new Date(note.createdAt).toLocaleString()}`,
+        `Meeting ID: ${meetingId}`,
+        '-'.repeat(40), // Separator line
+        '',
+        note.noteContent || '',
+        '',
+        '-'.repeat(40),
+        'Generated from Meeting Notes'
+      ].join('\n');
+
+      // Create blob and download link
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      
+      // Set download attributes
+      downloadLink.href = url;
+      downloadLink.download = `${note.title || 'note'}_${note.id}.txt`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      
+      // Trigger download
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      
+      // Cleanup
+      document.body.removeChild(downloadLink);
+      window.URL.revokeObjectURL(url);
+    });
   };
 
-  // Function to handle delete
-  const handleDelete = () => {
+  // Update the handleDelete function
+  const handleDelete = async () => {
     const docsToDelete = multiSelectMode ? selectedDocs : (selectedDoc ? [selectedDoc] : []);
+    
     if (docsToDelete.length === 0) {
       alert("Please select document(s) to delete");
       return;
     }
     
     const confirmDelete = window.confirm(`Are you sure you want to delete ${docsToDelete.length} document(s)?`);
+    
     if (confirmDelete) {
-      // In a real application, you would implement the actual delete functionality here
-      alert(`Deleted ${docsToDelete.length} document(s)`);
-      // For demonstration, we'll just clear the selections
-      setSelectedDocs([]);
-      setSelectedDoc(null);
+      try {
+        // Delete all selected notes
+        const deletePromises = docsToDelete.map(noteId => 
+          fetch(`http://localhost:8080/api/meetings/notes/${noteId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          })
+        );
+
+        // Wait for all deletions to complete
+        const results = await Promise.allSettled(deletePromises);
+        
+        // Check for any failures
+        const failures = results.filter(result => result.status === 'rejected');
+        
+        if (failures.length > 0) {
+          console.error('Some deletions failed:', failures);
+          alert(`${failures.length} note(s) failed to delete. Please try again.`);
+        }
+
+        // Clear selections
+        setSelectedDocs([]);
+        setSelectedDoc(null);
+        
+        // Refresh the notes list
+        await fetchNotes();
+
+        // Show success message
+        alert(`Successfully deleted ${docsToDelete.length - failures.length} note(s)`);
+        
+      } catch (error) {
+        console.error('Error deleting notes:', error);
+        alert('Failed to delete notes. Please try again.');
+      }
     }
   };
 
@@ -255,18 +365,59 @@ export default function Notes() {
   };
 
   // Function to handle save note
-  const handleSaveNote = (title, content) => {
-    const newNote = {
-      id: notes.length + 1,
-      title: title,
-      date: new Date().toISOString().split('T')[0],
-      content: content
-    };
-    
-    setNotes([...notes, newNote]);
-    alert(`Note "${title}" saved successfully!`);
-    setShowTakeNote(false);
+  const handleSaveNote = async (title, content) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          noteContent: content
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save note');
+      }
+
+      // Refresh notes after saving
+      fetchNotes();
+      setShowTakeNote(false);
+    } catch (error) {
+      console.error('Error saving note:', error);
+      alert('Failed to save note. Please try again.');
+    }
   };
+
+  // Add this new hook inside the Notes component, after the state declarations
+  const handleClickOutside = useCallback((e) => {
+    // Check if click is outside of any note button
+    const isClickOutsideNotes = !e.target.closest('.note-grid-item');
+    const isClickOutsideModal = !e.target.closest('.take-note-modal');
+    const isActionButton = e.target.closest('.action-buttons');
+    
+    if (isClickOutsideNotes && isClickOutsideModal && !isActionButton && !showTakeNote) {
+      setSelectedDoc(null);
+      setSelectedDocs([]);
+      if (multiSelectMode) {
+        setMultiSelectMode(false);
+      }
+    }
+  }, [multiSelectMode, showTakeNote]);
+
+  // Add useEffect to handle click events
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [handleClickOutside]);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [meetingId]); // Re-fetch when meetingId changes
 
   return (
     <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>  
@@ -349,7 +500,7 @@ export default function Notes() {
           <div className='bg-white rounded-3 p-2 p-md-3 shadow-sm'>
             <div className='d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center border-bottom pb-2 mb-3'>
               <span className='fs-6 fw-semibold mb-2 mb-sm-0'>Sort by type</span>
-              <div className="d-flex gap-2 ms-auto">
+              <div className="d-flex gap-2 ms-auto action-buttons">
                 <button 
                   className={`btn ${multiSelectMode ? 'text-primary' : 'text-secondary'} border-0`}
                   onClick={toggleMultiSelectMode}
@@ -375,13 +526,13 @@ export default function Notes() {
             </div>
 
             {/* note grid - improved for mobile responsiveness */}
-            <div className="row g-2 g-md-3">
-              {notes.map((doc) => (
-                <div key={doc.id} className="col-6 col-sm-4 col-md-4 col-lg-3 col-xl-2">
+            <div className="row g-2 g-md-3 note-grid">
+              {notes.map((note) => (
+                <div key={note.id} className="col-6 col-sm-4 col-md-4 col-lg-3 col-xl-2 note-grid-item">
                   <button 
                     className={`btn btn-light w-100 h-100 d-flex flex-column align-items-center justify-content-center p-2 position-relative rounded-3 ${
-                      (multiSelectMode && selectedDocs.includes(doc.id)) || 
-                      (!multiSelectMode && selectedDoc === doc.id) 
+                      (multiSelectMode && selectedDocs.includes(note.id)) || 
+                      (!multiSelectMode && selectedDoc === note.id) 
                         ? "active border-primary shadow-sm" 
                         : ""
                     }`}
@@ -389,10 +540,10 @@ export default function Notes() {
                       minHeight: windowWidth < 576 ? '90px' : '120px',
                       border: '1px solid #dee2e6'
                     }}
-                    onClick={() => handleDocClick(doc.id)}
-                    aria-label={`Select ${doc.title}`}
+                    onClick={() => handleDocClick(note.id)}
+                    aria-label={`Select note`}
                   >
-                    {multiSelectMode && selectedDocs.includes(doc.id) && (
+                    {multiSelectMode && selectedDocs.includes(note.id) && (
                       <div className="position-absolute top-0 end-0 m-1 text-primary">
                         <FaCheckCircle size={windowWidth < 576 ? 14 : 16} />
                       </div>
@@ -406,8 +557,9 @@ export default function Notes() {
                         height: 'auto' 
                       }}
                     />
-                    <span className='fw-light text-truncate w-100 small mt-1' style={{ fontSize: windowWidth < 576 ? '0.75rem' : '0.875rem' }}>
-                      {doc.title}
+                    <span className='fw-light text-truncate w-100 small mt-1' 
+                      style={{ fontSize: windowWidth < 576 ? '0.75rem' : '0.875rem' }}>
+                      {note.title || 'Note'}
                     </span>
                   </button>
                 </div>
@@ -418,7 +570,13 @@ export default function Notes() {
       </div>
 
       {/* Take Note Modal */}
-      {showTakeNote && <Takenote onClose={toggleTakeNote} onSave={handleSaveNote} />}
+      {showTakeNote && (
+        <Takenote 
+          onClose={toggleTakeNote} 
+          onSave={handleSaveNote} 
+          selectedNote={notes.find(note => note.id === selectedDoc)}
+        />
+      )}
     </div>
   );
 }
