@@ -354,7 +354,8 @@ const HomePage = () => {
               Tired of managing calendars, links, and notes? AutoMeet automates organizing, hosting, and
               summarizing your meetings effortlessly.
             </p>
-            <div className="row ps-2 text-white">
+            <a href="register">
+              <div className="row ps-2 text-white">
               {[
                 {
                   style: styles.googleButton,
@@ -375,6 +376,7 @@ const HomePage = () => {
                 </div>
               ))}
             </div>
+            </a>
           </div>
           <div className="col-lg-6 col-md-12 d-none d-lg-block">
             <img src="/Home1.png" alt="Calendar interface" className="img-fluid" style={{ maxWidth: '100%', height: 'auto', paddingTop: "10px" }} />
