@@ -10,7 +10,7 @@ export default function Home() {
     // Check if user is logged in
     const checkAuth = async () => {
       try {
-        const response = await fetch('http://localhost:8083/api/auth/status', {
+        const response = await fetch('http://localhost:8080/api/auth/status', {
           credentials: 'include'
         });
         
