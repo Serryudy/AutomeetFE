@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 /* eslint-disable @next/next/no-img-element */
 'use client';
-import React from "react";
+import React, { useRef } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FiUser, FiClock, FiEdit2 } from 'react-icons/fi';
 import { useState } from 'react';
@@ -181,6 +181,20 @@ const HomePage = () => {
     }
   `;
 
+  const featuresRef = useRef(null);
+
+  const scrollToFeatures = (e) => {
+    e.preventDefault();
+    if (featuresRef.current) {
+      const elementPosition = featuresRef.current.offsetTop;
+      
+      window.scrollTo({
+        top: 2600,
+        behavior: "smooth"
+      });
+    }
+  };
+
   const renderNavbar = () => {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -285,26 +299,22 @@ const HomePage = () => {
             </Link>
 
             <div className="desktop-menu d-flex align-items-center" style={{ gap: '40px' }}>
-              {["Features"].map((item, i) => (
-                <Link
-                  key={i}
-                  className="nav-link"
-                  href={`#${item.toLowerCase().replace("?", "")}`}
-                  style={navStyles.navLink}
-                >
-                  {item}
-                </Link>
-              ))}
-              <a href="login">
-                <button className="btn login-btn" style={navStyles.loginButton} >
-                  Log In
-                </button>
+
+              <a
+                href="#features"
+                className="nav-link"
+                onClick={scrollToFeatures}
+                style={navStyles.navLink}
+              >
+                Features
               </a>
-              <a href="register">
-                <button className="btn get-started-btn" style={navStyles.getStartedButton}>
-                  Get Started
-                </button>
-              </a>
+              <button className="btn login-btn" style={navStyles.loginButton}>
+                Log In
+              </button>
+              <button className="btn get-started-btn" style={navStyles.getStartedButton}>
+                Get Started
+              </button>
+
             </div>
 
             <div
@@ -319,16 +329,17 @@ const HomePage = () => {
           </div>
 
           <div className={`mobile-menu ${isOpen ? '' : 'closed'}`} style={navStyles.mobileMenu}>
-            {["Features"].map((item, i) => (
-              <Link
-                key={i}
-                className="nav-link px-3"
-                href={`#${item.toLowerCase().replace("?", "")}`}
-                style={navStyles.navLink}
-              >
-                {item}
-              </Link>
-            ))}
+            <a
+              href="#features"
+              className="nav-link px-3"
+              onClick={(e) => {
+                scrollToFeatures(e);
+                setIsOpen(false);
+              }}
+              style={navStyles.navLink}
+            >
+              Features
+            </a>
             <div style={navStyles.mobileButtons}>
               <button className="btn login-btn w-100" style={navStyles.loginButton}>
                 Log In
@@ -423,7 +434,7 @@ const HomePage = () => {
     const timeRemaining = "2 hours 30 minutes";
 
     return (
-      <section className="py-4 mobile-section-padding">
+      <section ref={featuresRef} id="features" className="py-4 mobile-section-padding">
         <div className="container justify-content-center mobile-padding" style={{ width: "90%" }}>
           <div className="row">
             <div className="col-lg-6 col-md-12 mobile-mb-4" style={{ margin: "0 auto", padding: "0 4%" }}>
