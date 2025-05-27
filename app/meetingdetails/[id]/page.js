@@ -10,6 +10,7 @@ import { FaEdit, FaCalendarAlt, FaChevronDown, FaSearch, FaFilter, FaCheckCircle
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import SearchBar from '@/components/meetingsearchbar';
 
 const MeetingForm = () => {
     const params = useParams();
@@ -45,6 +46,7 @@ const MeetingForm = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [dateError, setDateError] = useState('');
     const [userProfiles, setUserProfiles] = useState({});
+    const [uploadedContent, setUploadedContent] = useState([]);
 
     useEffect(() => {
       console.log("Params object:", params);
@@ -321,7 +323,7 @@ const MeetingForm = () => {
               start: formatTime(startDate),
               end: formatTime(endDate),
               startTime: slot.startTime,
-              endTime: slot.endTime
+              endTime: endDate
             };
           });
           
@@ -531,51 +533,58 @@ const MeetingForm = () => {
 
     const handleAddTimeSlot = () => {
       setTimeError('');
-    
+
       if (!validateTimeFormat(startTime)) {
         setTimeError('Invalid start time format. Use HH:MM AM/PM');
         return;
       }
-    
+
       if (!validateTimeFormat(endTime)) {
         setTimeError('Invalid end time format. Use HH:MM AM/PM');
         return;
       }
-    
+
       const startMinutes = convertTo24HourFormat(startTime);
       const endMinutes = convertTo24HourFormat(endTime);
-    
+
       if (endMinutes <= startMinutes) {
         setTimeError('End time must be later than start time');
         return;
       }
-    
+
       // Convert to ISO format for API
       const startTimeISO = convertToISOFormat(selectedDate, startTime);
       const endTimeISO = convertToISOFormat(selectedDate, endTime);
-    
+
       const newTimeSlot = {
-        id: Date.now(),
+        id: Date.now().toString(), // Convert to string to ensure consistent ID type
         start: startTime,
         end: endTime,
         startTime: startTimeISO,
         endTime: endTimeISO
       };
-    
-      const isDuplicate = timeSlots.some(
-        slot => slot.start === newTimeSlot.start && slot.end === newTimeSlot.end
+
+      // Add null check before accessing timeSlots
+      const currentTimeSlots = Array.isArray(timeSlots) ? timeSlots : [];
+      
+      const isDuplicate = currentTimeSlots.some(
+        slot => slot?.start === newTimeSlot.start && slot?.end === newTimeSlot.end
       );
-    
+
       if (isDuplicate) {
         setTimeError('This time slot has already been added');
         return;
       }
-    
-      setTimeSlots([...timeSlots, newTimeSlot]);
+
+      setTimeSlots([...currentTimeSlots, newTimeSlot]);
     };
 
     const handleRemoveTimeSlot = (id) => {
-      setTimeSlots(timeSlots.filter(slot => slot.id !== id));
+      if (!Array.isArray(timeSlots) || !id) return;
+      
+      setTimeSlots(prevSlots => 
+        prevSlots.filter(slot => slot?.id !== id)
+      );
     };
 
     const handleTimeSelect = (time, type) => {
@@ -626,6 +635,30 @@ const MeetingForm = () => {
       };
     }, []);
     
+    // Fetch uploaded content
+    useEffect(() => {
+      const fetchContent = async () => {
+        if (!meetingId) return;
+
+        try {
+          const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/content`, {
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch content');
+          }
+
+          const data = await response.json();
+          setUploadedContent(data.content || []);
+        } catch (error) {
+          console.error('Error fetching content:', error);
+        }
+      };
+
+      fetchContent();
+    }, [meetingId]);
+
     if (loading) return <div className="p-4 text-center">Loading meeting data...</div>;
     if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
     if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
@@ -805,20 +838,20 @@ const MeetingForm = () => {
                         )}
                     </div>
 
-                    {/* Add Button */}
-                    <button
-                        type="button"
-                        className="btn btn-primary d-flex align-items-center justify-content-center"
-                        style={{
-                        minWidth: "40px",
-                        height: "38px",
-                        flexShrink: 0,
-                        }}
-                        onClick={handleAddTimeSlot}
-                        disabled={!isEditing}
-                    >
-                        <FaCheckCircle />
-                    </button>
+                  {/* Add Button */}
+                  <button
+                    type="button"
+                    className="btn btn-primary d-flex align-items-center justify-content-center"
+                    style={{
+                    minWidth: "40px",
+                    height: "38px",
+                    flexShrink: 0,
+                    }}
+                    onClick={handleAddTimeSlot}
+                    disabled={!isEditing}
+                  >
+                    <FaCheckCircle />
+                  </button>
                   </div>
 
                   {/* Display date error if any */}
@@ -827,23 +860,32 @@ const MeetingForm = () => {
                       {dateError}
                     </div>
                   )}
-                  {/* Display time slots */}
-                  {timeSlots.length > 0 && (
+                  {/* Display time slots with null checks */}
+                  {Array.isArray(timeSlots) && timeSlots.length > 0 && (
                     <div className="mt-3">
                       <h6 className="mb-2">Added Time Slots:</h6>
                       <div className="d-flex flex-wrap gap-2">
                         {timeSlots.map((slot) => (
-                          <div key={slot.id} className="d-flex align-items-center bg-light p-2 rounded">
+                          <div 
+                            key={slot?.id || Math.random()} 
+                            className="d-flex align-items-center bg-light p-2 rounded"
+                          >
                             <div>
-                              <span className="fw-bold">{new Date(slot.startTime).toLocaleDateString()}</span>
-                              <span className="mx-1">|</span>
-                              <span>{slot.start} - {slot.end}</span>
+                              {slot?.startTime && (
+                                <>
+                                  <span className="fw-bold">
+                                    {new Date(slot.startTime).toLocaleDateString()}
+                                  </span>
+                                  <span className="mx-1">|</span>
+                                </>
+                              )}
+                              <span>{slot?.start || ''} - {slot?.end || ''}</span>
                             </div>
                             {isEditing && (
                               <button
                                 type="button"
                                 className="btn btn-sm btn-outline-danger ms-2"
-                                onClick={() => handleRemoveTimeSlot(slot.id)}
+                                onClick={() => handleRemoveTimeSlot(slot?.id)}
                                 aria-label="Remove time slot"
                               >
                                 <FaTimes />
@@ -1049,8 +1091,8 @@ const MeetingForm = () => {
                       Cancel Meeting
                     </button>
                   )}
-                  <Link href={'/content'}><button className="btn btn-primary me-2">Upload</button></Link>
-                  <Link href={'/notes'}><button className="btn btn-primary">Take notes</button></Link>
+                  <Link href={`/content/${meetingId}`}><button className="btn btn-primary me-2">Upload</button></Link>
+                  <Link href={`/notes/${meetingId}`}><button className="btn btn-primary">Take notes</button></Link>
                 </>
               )}
             </div>
@@ -1080,6 +1122,13 @@ export default function Details() {
 
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
+  };
+
+  // Add this handler function in the Details component
+  const handleMeetingSelect = (meeting) => {
+    if (meeting && meeting.id) {
+      window.location.href = `/meetingdetails/${meeting.id}`;
+    }
   };
 
   return (
@@ -1143,23 +1192,13 @@ export default function Details() {
           </p>
         </div>
         
-        <div className="d-flex justify-content-between align-items-center mb-3 mb-md-4">
-            <div className="position-relative flex-grow-1 me-3">
-                <div className="input-group bg-white rounded-pill" style={{ height: isMobile ? '40px' : '48px', border: '2px solid #ccc' }}>
-                    <span className="input-group-text bg-transparent border-0">
-                        <FaSearch className="text-muted" />
-                    </span>
-                    <input 
-                    type="text" 
-                    className="form-control border-0"
-                    placeholder={isMobile ? "Search..." : "Try searching anything related to the meeting"}
-                    />
-                    <button className="btn btn-light rounded-pill d-flex align-items-center gap-2">
-                        {isMobile ? <FaFilter /> : <>Filter <FaFilter /></>}
-                    </button>
-                </div>
-            </div>
-        </div>
+        {/* Search Bar Component */}
+        <SearchBar 
+          onSelectMeeting={handleMeetingSelect}
+          placeholder="Search meetings..."
+          className="mb-3 mb-md-4"
+          context="meetings"
+        />
         
         <div>
             <MeetingForm />

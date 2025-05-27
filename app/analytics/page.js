@@ -160,13 +160,15 @@ export default function MeetingInsights() {
           </p>
         </div>
 
-        {/* SearchBar Component */}
-        <SearchBar 
-          onSelectMeeting={handleSelectMeeting}
-          onFilter={handleFilter}
-          placeholder="Search for meetings to analyze"
-          context="analytics"
-        />
+        {/* SearchBar Component - Only show when Meeting tab is active */}
+        {activeTab === 'meeting' && (
+          <SearchBar 
+            onSelectMeeting={handleSelectMeeting}
+            onFilter={handleFilter}
+            placeholder="Search for meetings to analyze"
+            context="analytics"
+          />
+        )}
 
         {/* Tabs and rest of the content */}
         <div className='container bg-white p-4 rounded-4 shadow'>
@@ -202,14 +204,98 @@ export default function MeetingInsights() {
   );
 }
 
+// Add this function at the top level
+const fetchMeetingAnalytics = async (meetingId) => {
+  try {
+    const response = await fetch(`http://localhost:8081/api/meetings/${meetingId}/analytics`, {
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch analytics');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    throw error;
+  }
+};
+
+// Add this function at the top level
+const fetchUserAnalytics = async () => {
+  try {
+    const response = await fetch('http://localhost:8081/api/users/analytics', {
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch user analytics');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching user analytics:', error);
+    throw error;
+  }
+};
+
 // MeetingTab component modifications
 function MeetingTab({ selectedMeeting }) {
-  // Chart data for rescheduling frequency
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (selectedMeeting?.id || selectedMeeting?._id) {
+      setIsLoading(true);
+      setError(null);
+      
+      fetchMeetingAnalytics(selectedMeeting.id || selectedMeeting._id)
+        .then(data => {
+          setAnalyticsData(data);
+        })
+        .catch(err => {
+          setError(err.message);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [selectedMeeting]);
+
+  if (!selectedMeeting) {
+    return (
+      <div className="text-center p-5 bg-light rounded-3">
+        <h3 className="text-muted">Please select a meeting to view analytics</h3>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="text-center p-5">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        Failed to load analytics: {error}
+      </div>
+    );
+  }
+
+  // Update chart data with API response
   const rescheduleChartData = {
-    labels: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
+    labels: analyticsData?.reschedulingFrequency.map(item => item.day.substring(0, 3).toUpperCase()) || [],
     datasets: [{
       label: 'Continuity',
-      data: [1000, 1800, 4500, 1800, 2000, 4000, 3500],
+      data: analyticsData?.reschedulingFrequency.map(item => item.frequency) || [],
       borderColor: '#2E9AFE',
       backgroundColor: 'rgba(46, 154, 254, 0.1)',
       tension: 0.4,
@@ -218,11 +304,29 @@ function MeetingTab({ selectedMeeting }) {
       pointBackgroundColor: '#2E9AFE',
       pointBorderColor: '#FFFFFF',
       pointBorderWidth: 2,
-      pointHoverRadius: 6,
-      pointHoverBackgroundColor: '#2E9AFE',
-      pointHoverBorderColor: '#FFFFFF',
-      pointHoverBorderWidth: 2
+      pointHoverRadius: 6
     }]
+  };
+
+  const schedulingChartData = {
+    labels: analyticsData?.schedulingAccuracy.map(item => item.day.substring(0, 1)) || [],
+    datasets: [{
+      data: analyticsData?.schedulingAccuracy.map(item => item.accuracy * 100) || [],
+      backgroundColor: (context) => {
+        const index = context.dataIndex;
+        const value = context.dataset.data[index];
+        return value > 80 ? '#4B49FF' : '#D0D0D0';
+      },
+      borderRadius: 5,
+      barThickness: 20
+    }]
+  };
+
+  // Update engagement metrics with API data
+  const engagementData = analyticsData?.engagement || {
+    speakingTime: 0,
+    participantEngagement: 0,
+    chatEngagement: 0
   };
 
   // Chart options for rescheduling frequency
@@ -270,22 +374,6 @@ function MeetingTab({ selectedMeeting }) {
     }
   };
   
-  // Chart data for scheduling accuracy
-  const schedulingChartData = {
-    labels: ['S', 'T', 'M', 'Th', 'W', 'St', 'S'],
-    datasets: [{
-      data: [30, 50, 25, 65, 40, 20, 35],
-      backgroundColor: (context) => {
-        return context.dataIndex === 3 ? '#4B49FF' : '#D0D0D0';
-      },
-      borderRadius: 5,
-      barThickness: 20,
-      hoverBackgroundColor: (context) => {
-        return context.dataIndex === 3 ? '#3f3de0' : '#b8b8b8';
-      }
-    }]
-  };
-
   // Chart options for scheduling accuracy
   const schedulingChartOptions = {
     ...commonChartOptions,
@@ -335,7 +423,7 @@ function MeetingTab({ selectedMeeting }) {
   };
 
   // Chart data for engagement metrics
-  const engagementData = {
+  const engagementDataPrepared = {
     speakingTime: 92,
     participantEngagement: 68,
     chatEngagement: 10
@@ -384,21 +472,21 @@ function MeetingTab({ selectedMeeting }) {
               <EngagementMetric 
                 title="Speaking Time Distribution"
                 subtitle="percent is given to the Host"
-                value={engagementData.speakingTime}
+                value={engagementDataPrepared.speakingTime}
                 color="#00D8FF"
               />
               
               <EngagementMetric 
                 title="Participant engagement"
                 subtitle="Shows an average percentage of engagement"
-                value={engagementData.participantEngagement}
+                value={engagementDataPrepared.participantEngagement}
                 color="#FF9F40"
               />
               
               <EngagementMetric 
                 title="Chat engagement"
                 subtitle="Chats conducted on the topic of this meeting"
-                value={engagementData.chatEngagement}
+                value={engagementDataPrepared.chatEngagement}
                 color="#FF5EAA"
               />
             </div>
@@ -522,12 +610,65 @@ function EngagementMetric({ title, subtitle, value, color }) {
 
 // YourTab Component
 function YourTab() {
-  // Chart data for meeting span
-  const meetingSpanData = {
-    labels: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        setIsLoading(true);
+        const data = await fetchUserAnalytics();
+        setAnalyticsData(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAnalytics();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="text-center p-5">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        Failed to load analytics: {error}
+      </div>
+    );
+  }
+
+  // Update availability data with API response
+  const availabilityData = {
+    labels: ['Available', 'Unavailable', 'Tendency'],
     datasets: [{
-      label: 'Continuity',
-      data: [1500, 2000, 4000, 2000, 2500, 4000, 3500],
+      data: [
+        analyticsData?.availability?.available || 0,
+        analyticsData?.availability?.unavailable || 0,
+        analyticsData?.availability?.tendency || 0
+      ],
+      backgroundColor: ['#4361EE', '#FF8FA3', '#FEB95F'],
+      borderWidth: 0,
+      cutout: '60%',
+    }]
+  };
+
+  // Update meeting frequency data
+  const meetingSpanData = {
+    labels: analyticsData?.meetingFrequency.map(item => item.day.substring(0, 3).toUpperCase()) || [],
+    datasets: [{
+      label: 'Meeting Frequency',
+      data: analyticsData?.meetingFrequency.map(item => item.count) || [],
       borderColor: '#36A2EB',
       backgroundColor: 'rgba(54, 162, 235, 0.1)',
       tension: 0.4,
@@ -575,18 +716,6 @@ function YourTab() {
     }
   };
 
-  // Availability data for doughnut chart
-  const availabilityData = {
-    labels: ['Available', 'Unavailable', 'Tendency'],
-    datasets: [{
-      data: [60, 20, 20],
-      backgroundColor: ['#4361EE', '#FF8FA3', '#FEB95F'],
-      borderWidth: 0,
-      cutout: '60%',
-      
-    }]
-  };
-
   // Options for doughnut chart
   const availabilityOptions = {
     ...commonChartOptions,
@@ -631,27 +760,22 @@ function YourTab() {
               </div>
               
               <div className="row text-center">
-                <div className="d-flex align-items-center mb-2 w-100 justify-content-between">
-                  <div className="d-flex align-items-center mb-2">
-                    <div className="rounded-circle me-2" style={{ width: '10px', height: '10px', backgroundColor: '#4361EE' }}></div>
-                    <div className="text-start">{availabilityData.labels[0]}</div>
+                {availabilityData.labels.map((label, index) => (
+                  <div key={label} className="d-flex align-items-center mb-2 w-100 justify-content-between">
+                    <div className="d-flex align-items-center mb-2">
+                      <div 
+                        className="rounded-circle me-2" 
+                        style={{ 
+                          width: '10px', 
+                          height: '10px', 
+                          backgroundColor: availabilityData.datasets[0].backgroundColor[index] 
+                        }}
+                      ></div>
+                      <div className="text-start">{label}</div>
+                    </div>
+                    <div className="fw-bold">{availabilityData.datasets[0].data[index].toFixed(1)}%</div>
                   </div>
-                  <div className="fw-bold">{availabilityData.datasets[0].data[0]}</div>
-                </div>
-                <div className="d-flex align-items-center mb-2 w-100 justify-content-between">
-                  <div className="d-flex align-items-center mb-2">
-                    <div className="rounded-circle me-2" style={{ width: '10px', height: '10px', backgroundColor: '#FF8FA3' }}></div>
-                    <div className="text-start">{availabilityData.labels[1]}</div>
-                  </div>
-                  <div className="fw-bold">{availabilityData.datasets[0].data[1]}</div>
-                </div>
-                <div className="d-flex align-items-center mb-2 w-100 justify-content-between">
-                  <div className="d-flex align-items-center mb-2">
-                    <div className="rounded-circle me-2" style={{ width: '10px', height: '10px', backgroundColor: '#FEB95F' }}></div>
-                    <div className="text-start">{availabilityData.labels[2]}</div>
-                  </div>
-                  <div className="fw-bold">{availabilityData.datasets[0].data[2]}</div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -664,7 +788,11 @@ function YourTab() {
               <h5 className="fw-bold text-center mb-4">Participation</h5>
               
               <div className="d-flex justify-content-center align-items-center mb-4" style={{ height: '180px' }}>
-                <GaugeChart value={10} maxValue={50} label="Excellent" />
+                <GaugeChart 
+                  value={analyticsData?.participation?.participationRate || 0} 
+                  maxValue={100} 
+                  label="Participation Rate" 
+                />
               </div>
               
               <div className="text-center">
@@ -674,13 +802,13 @@ function YourTab() {
           </div>
         </div>
         
-        {/* Meeting Span Card */}
+        {/* Meeting Frequency Card */}
         <div className="col-12 col-md-4">
           <div className="card border-0 shadow-sm rounded-4">
             <div className="card-body p-4">
               <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="fw-bold mb-0">Meeting Span</h5>
-                <div className="text-muted small">— CONTINUITY</div>
+                <h5 className="fw-bold mb-0">Meeting Frequency</h5>
+                <div className="text-muted small">— WEEKLY</div>
               </div>
               
               <div style={{ height: '220px' }}>

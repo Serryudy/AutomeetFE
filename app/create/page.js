@@ -95,10 +95,11 @@ export default function Create() {
             Stay on track with this upcoming/past session.
           </p>
         </div>
-
+   
         {/* Create Event Section */}
         <div className='w-100'>
           <CreateEvent />
+
         </div>
       </div>
     </div>

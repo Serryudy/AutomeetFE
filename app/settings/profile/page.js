@@ -58,7 +58,7 @@ export default function Content() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/users/profile', {
+        const response = await fetch('http://localhost:8084/api/users/profile', {
           method: 'GET',
           credentials: 'include',
           headers: {
@@ -149,8 +149,8 @@ export default function Content() {
       setIsUploading(true);
       
       // Cloudinary configuration
-      const cloudName = 'duocpqb1j'; // Replace with your cloud name
-      const uploadPreset = 'profile_uploads'; // Replace with your upload preset
+      const cloudName = 'duocpqb1j'; 
+      const uploadPreset = 'profile_uploads';
       
       const formData = new FormData();
       formData.append('file', file);
@@ -251,7 +251,7 @@ export default function Content() {
       }
       
       // Send PUT request to update user profile
-      const response = await fetch('http://localhost:8080/api/users/edit', {
+      const response = await fetch('http://localhost:8084/api/users/edit', {
         method: 'PUT',
         credentials: 'include',
         headers: {

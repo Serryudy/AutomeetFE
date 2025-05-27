@@ -33,7 +33,7 @@ export const UserProfileProvider = ({ children }) => {
         }
         
         // Always fetch fresh data
-        const response = await fetch('http://localhost:8080/api/users/profile', {
+        const response = await fetch('http://localhost:8084/api/users/profile', {
           method: 'GET',
           credentials: 'include',
         });
@@ -100,7 +100,7 @@ const ProfileHeader = () => {
         }
         
         // Then fetch fresh data
-        const response = await fetch('http://localhost:8080/api/users/profile', {
+        const response = await fetch('http://localhost:8084/api/users/profile', {
           method: 'GET',
           credentials: 'include',
         });
@@ -252,15 +252,3 @@ const ProfileHeader = () => {
 };
 
 export default ProfileHeader;
-
-// The App component would need to be updated to use the provider
-// Example usage:
-// import { UserProfileProvider } from './ProfileHeader';
-// 
-// function MyApp({ Component, pageProps }) {
-//   return (
-//     <UserProfileProvider>
-//       <Component {...pageProps} />
-//     </UserProfileProvider>
-//   );
-// }

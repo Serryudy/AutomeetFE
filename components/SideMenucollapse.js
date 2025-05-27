@@ -124,7 +124,13 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
       {/* Fixed Header Section */}
       <div className="flex-shrink-0 w-100">
         <div className={`d-flex align-items-center ${isCollapsed ? "justify-content-center" : "justify-content-between"} w-100 mb-4`}>
-          {!isCollapsed && <h4 className="text-primary m-0">AutoMeet</h4>}
+          {!isCollapsed && (
+            <img
+              src="\logo.png"  // <-- Change this to your actual logo path
+              alt="AutoMeet Logo"
+              style={{ height: "60px", objectFit: "contain" }}
+            />
+          )}
           {showmenuicon && (
             <img
               src="/collapse.png"
@@ -142,24 +148,29 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
         </div>
 
         {/* Create Button */}
-        <div className="d-flex mb-3 w-100" style={{ justifyContent: isCollapsed ? "center" : "flex-start" }}>
-          <Link href="/create" className="text-decoration-none">
+       <div className="d-flex mb-3 w-100" style={{ justifyContent: isCollapsed ? "center" : "flex-start" }}>
+         <Link href="/create" className="text-decoration-none">
             <button
-              className="btn d-flex align-items-center justify-content-center"
-              style={{
-                width: isCollapsed ? "45px" : "120px",
-                height: "45px",
-                backgroundColor: "#DDE5F9",
-                border: "none",
-                color: "#000",
-                borderRadius: isCollapsed ? "50%" : "30px",
-                transition: "all 0.3s ease-in-out",
+             className="btn d-flex align-items-center justify-content-center"
+             style={{
+             width: isCollapsed ? "45px" : "120px",
+             height: "45px",
+             backgroundColor: "#DDE5F9",
+             border: "none",
+             color: "#000",
+             borderRadius: isCollapsed ? "50%" : "30px",
+            transition: "all 0.3s ease-in-out",
               }}
-            >
-              <img src="/icons/add.png" alt="Create" style={{ width: "20px" }} className="me-2" />
-              {!isCollapsed && <span className="ms-2 fw-semibold">Create</span>}
-            </button>
-          </Link>
+           >
+         <img 
+             src="/icons/add.png" 
+             alt="Create" 
+             style={{ width: "20px" }} 
+             className={!isCollapsed ? "me-2" : ""} // Only apply margin when not collapsed
+         />
+            {!isCollapsed && <span className="ms-2 fw-semibold">Create</span>}
+          </button>
+         </Link>
         </div>
       </div>
 

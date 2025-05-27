@@ -24,7 +24,6 @@ const MessageComponent = ({ onClose }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [showChatView, setShowChatView] = useState(false);
-  const [showChat, setShowChat] = useState(true);
   const [newMessage, setNewMessage] = useState("");
   const searchInputRef = useRef(null);
   const messageInputRef = useRef(null);
@@ -92,11 +91,11 @@ const MessageComponent = ({ onClose }) => {
         const response = await fetch('http://localhost:8080/api/users/profile', {
           credentials: 'include'
         });
-
+        
         if (response.ok) {
           const userData = await response.json();
           setCurrentUser(userData.username);
-
+          
           // After getting user profile, fetch rooms and contacts
           fetchRoomsAndContacts(userData.username);
         } else {
@@ -108,7 +107,6 @@ const MessageComponent = ({ onClose }) => {
     };
 
     fetchUserProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // WebSocket connection
@@ -123,9 +121,9 @@ const MessageComponent = ({ onClose }) => {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-
+      
       // Handle different types of WebSocket messages
-      switch (data._type) {
+      switch(data._type) {
         case 'new_message':
           // Add new message to current conversation if in the right room
           if (selectedMessage && data.roomId === selectedMessage.id) {
@@ -146,7 +144,7 @@ const MessageComponent = ({ onClose }) => {
               participants: data.participants,
               roomName: data.roomName
             });
-
+            
             // Refresh chat rooms list
             fetchRoomsAndContacts();
           }
@@ -173,10 +171,10 @@ const MessageComponent = ({ onClose }) => {
   // Update the fetchRoomsAndContacts function
   const fetchRoomsAndContacts = useCallback(async (currentUsername = currentUser) => {
     if (!currentUsername) return;
-
+    
     try {
       setIsLoading(true);
-
+      
       // Fetch chat rooms
       const roomsResponse = await fetch('http://localhost:9092/api/chat/rooms', {
         credentials: 'include'
@@ -189,9 +187,9 @@ const MessageComponent = ({ onClose }) => {
           ...room,
           displayName: getOtherParticipant(room.participants, currentUsername)
         }));
-
+        
         setChatRooms(updatedRooms);
-
+        
         if (searchQuery.trim() === '') {
           setSearchResults(updatedRooms);
         }
@@ -252,7 +250,7 @@ const MessageComponent = ({ onClose }) => {
   // Function to handle contact click
   const handleContactClick = async (contact) => {
     console.log('Contact clicked:', contact);
-
+    
     // First, check if we already have a chat room with this contact
     const existingRoom = chatRooms.find(room => {
       // Check if this is a direct message room with exactly 2 participants
@@ -276,7 +274,7 @@ const MessageComponent = ({ onClose }) => {
         setIsCreatingRoom(true);
         // Use the contact's username or email as the participant
         const participantId = contact.username || contact.email;
-
+        
         // Create room request to the websocket
         websocket.send(JSON.stringify({
           _type: 'create_room',
@@ -308,7 +306,7 @@ const MessageComponent = ({ onClose }) => {
       const messagesResponse = await fetch(`http://localhost:9092/api/chat/rooms/${selectedMessage.id}/messages`, {
         credentials: 'include'
       });
-
+      
       const messagesData = await messagesResponse.json();
 
       if (messagesData.success) {
@@ -387,11 +385,7 @@ const MessageComponent = ({ onClose }) => {
     setSearchQuery('');
   };
 
-  // Handle back button click in message list view
-  const handleCloseChat = () => {
-    setShowChat(false);
-  };
-
+  // Handle back button click in chat view
   const handleBackToList = () => {
     setShowChatView(false);
     setSelectedMessage(null);
@@ -451,13 +445,13 @@ const MessageComponent = ({ onClose }) => {
       setIsSearching(true);
       const query = debouncedQuery.toLowerCase().trim();
 
-      const roomResults = chatRooms.filter(room =>
+      const roomResults = chatRooms.filter(room => 
         room.displayName?.toLowerCase().includes(query) ||
         room.participants?.some(p => p.toLowerCase().includes(query)) ||
         (room.roomName && room.roomName.toLowerCase().includes(query))
       );
 
-      const contactResults = contacts.filter(contact =>
+      const contactResults = contacts.filter(contact => 
         contact.username?.toLowerCase().includes(query) ||
         contact.email?.toLowerCase().includes(query)
       );
@@ -474,7 +468,7 @@ const MessageComponent = ({ onClose }) => {
   // Render message list view
   const renderMessageListView = () => {
     const sizes = getResponsiveSizes();
-    
+
     return (
       <>
         {/* Header */}
@@ -482,7 +476,7 @@ const MessageComponent = ({ onClose }) => {
           style={{ padding: sizes.padding.container }}>
           {showSearch ? (
             <div className="search-container d-flex align-items-center w-100"
-              style={{ padding: "1px 0" }}>
+            style={{padding:"1px 0"}}>
               <div className="position-relative w-100">
                 <input
                   ref={searchInputRef}
@@ -520,7 +514,7 @@ const MessageComponent = ({ onClose }) => {
                   </button>
                   <button
                     className="btn btn-sm btn-link text-dark"
-                    onClick={handleCloseChat}
+                    onClick={onClose}
                     aria-label="Close messages"
                     style={{ fontSize: '17px' }}
                   >
@@ -529,7 +523,6 @@ const MessageComponent = ({ onClose }) => {
                 </div>
               </div>
             </div>
-
           )}
         </div>
 
@@ -588,7 +581,7 @@ const MessageComponent = ({ onClose }) => {
               >
                 <div className="position-relative me-2 flex-shrink-0">
                   <img
-                    src={item.profileimg && item.profileimg.trim() !== "" ? item.profileimg : "/profile.png"}
+                    src={item.profileimg || "/profile.png"}
                     alt={item.username || item.roomName || "User"}
                     className="rounded-circle bg-light"
                     style={{
@@ -598,7 +591,7 @@ const MessageComponent = ({ onClose }) => {
                       marginRight: '5px',
                       border: `2px solid ${isContact(item) ? '#28a745' : '#007bff'}`,
                     }}
-                    onError={(e) => { e.target.onerror = null; e.target.src = "/avatars/placeholder.jpg"; }}
+                    onError={(e) => { e.target.src = "/avatars/placeholder.jpg" }}
                   />
                   {isContact(item) && (
                     <span className="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle"
@@ -613,13 +606,13 @@ const MessageComponent = ({ onClose }) => {
                       fontSize: sizes.fontSize.name,
                       maxWidth: containerWidth < 400 ? '60%' : '70%'
                     }}>
-                      {searchQuery ?
-                        highlightText(isContact(item) ?
-                          (item.username || item.email) :
-                          item.displayName,
-                          searchQuery) :
-                        (isContact(item) ?
-                          (item.username || item.email) :
+                      {searchQuery ? 
+                        highlightText(isContact(item) ? 
+                          (item.username || item.email) : 
+                          item.displayName, 
+                        searchQuery) : 
+                        (isContact(item) ? 
+                          (item.username || item.email) : 
                           item.displayName)
                       }
                       {isContact(item) && <span className="ms-2 badge bg-success">Contact</span>}
@@ -735,82 +728,43 @@ const MessageComponent = ({ onClose }) => {
             </div>
           ) : (
             messages.map((msg, index) => {
+              // Check if this message is from the current user
               const isCurrentUser = msg.senderId === currentUser;
-
-              const formatTime = (timeStr) => {
-                if (!timeStr) return '';
-                let [hour, minute] = timeStr.split(':');
-                let h = parseInt(hour, 10);
-                const ampm = h >= 12 ? 'PM' : 'AM';
-                h = h % 12 || 12;
-                return `${h}:${minute} ${ampm}`;
-              };
-
-              const formatDateWithDay = (dateStr) => {
-                if (!dateStr) return '';
-                const date = new Date(dateStr);
-                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                const dayName = days[date.getDay()];
-                return `${dayName}, ${dateStr}`;
-              };
-
-              // Check if this is the first message of a new date
-              const isFirstMessageOfDate = index === 0 ||
-                (messages[index - 1] && messages[index - 1].senddate !== msg.senddate);
-
+              
               return (
-                <div key={index}>
-                  {isFirstMessageOfDate && msg.senddate && (
-                    <div className="d-flex justify-content-center mb-3">
-                      <div
-                        className=" text-black px-3 py-1"
-                        style={{
-                          fontSize: sizes.fontSize.time,
-                          opacity: 0.8,
-                          backgroundColor: '#ebebeb',
-                          borderRadius: '8px'
-                        }}
-                      >
-                        {formatDateWithDay(msg.senddate)}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Message bubble */}
-                  <div className="mb-3">
+                <div key={index} className="mb-3">
+                  <div 
+                    className={`d-flex ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`}
+                  >
                     <div
-                      className={`d-flex ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`}
+                      className="chat-bubble"
+                      style={{ 
+                        maxWidth: '70%', 
+                        width: 'fit-content'
+                      }}
                     >
                       <div
-                        className="chat-bubble"
+                        className={`shadow-sm rounded-3 ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`}
                         style={{
-                          maxWidth: '80%',
-                          width: 'fit-content'
+                          borderBottomRightRadius: isCurrentUser ? '0px' : '15px',
+                          borderBottomLeftRadius: isCurrentUser ? '15px' : '0px',
+                          borderTopRightRadius: '15px',
+                          borderTopLeftRadius: '15px',
+                          fontSize: sizes.fontSize.chat,
+                          wordBreak: 'break-word',
+                          overflowWrap: 'break-word',
+                          padding: '8px 15px',
                         }}
                       >
-                        <div
-                          className={`shadow-sm ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`}
-                          style={{
-                            borderBottomRightRadius: isCurrentUser ? '0px' : '15px',
-                            borderBottomLeftRadius: isCurrentUser ? '15px' : '0px',
-                            borderTopRightRadius: '15px',
-                            borderTopLeftRadius: '15px',
-                            fontSize: sizes.fontSize.chat,
-                            wordBreak: 'break-word',
-                            overflowWrap: 'break-word',
-                            padding: '8px 15px',
+                        {msg.content}
+                        <div 
+                          className="text-end" 
+                          style={{ 
+                            fontSize: sizes.fontSize.time,
+                            opacity: 0.8
                           }}
                         >
-                          {msg.content}
-                          <div
-                            className="text-end"
-                            style={{
-                              fontSize: sizes.fontSize.time,
-                              opacity: 0.8
-                            }}
-                          >
-                            {formatTime(msg.sendtime)}
-                          </div>
+                          {`${msg.senddate} ${msg.sendtime}`}
                         </div>
                       </div>
                     </div>
@@ -823,29 +777,33 @@ const MessageComponent = ({ onClose }) => {
 
         {/* Chat Input */}
         <div className="chat-input p-3 border-top bg-white">
-          <div className="d-flex align-items-center position-relative">
-            <div className="flex-grow-1">
+          <div className="d-flex align-items-center">
+            <button
+              className="btn btn-link text-muted me-2 flex-shrink-0"
+              aria-label="Attach file"
+            >
+              <FaPaperclip />
+            </button>
+            <div className="position-relative flex-grow-1">
               <input
                 ref={messageInputRef}
                 type="text"
                 className="form-control rounded-pill"
-                placeholder="Type a message ..."
+                placeholder="Type a message..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage() }}
-                style={{ fontSize: sizes.fontSize.message, paddingRight: '50px', width: '85%' }}
+                style={{ fontSize: sizes.fontSize.message, paddingRight: '50px' }}
               />
-            </div>
-            <div>
               <button
                 className="btn position-absolute d-flex justify-content-center align-items-center"
                 style={{
-                  width: '35px',
-                  height: '35px',
-                  right: '1px',
+                  width: '36px',
+                  height: '36px',
+                  right: '8px',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  borderRadius: '40%',
+                  borderRadius: '50%',
                   backgroundColor: newMessage.trim() === '' ? '#e9ecef' : '#007bff',
                   color: newMessage.trim() === '' ? '#6c757d' : '#ffffff'
                 }}
@@ -853,7 +811,7 @@ const MessageComponent = ({ onClose }) => {
                 aria-label="Send message"
                 disabled={newMessage.trim() === ''}
               >
-                <FaPaperPlane size={18} />
+                <FaPaperPlane size={14} />
               </button>
             </div>
           </div>
@@ -864,21 +822,19 @@ const MessageComponent = ({ onClose }) => {
 
   // Render method
   return (
-    showChat && (
-      <div
-        ref={containerRef}
-        className="position-relative bg-white font-inter shadow-sm d-flex flex-column"
-        style={{
-          height: '90vh', // Adjust as needed
-          borderRadius: "15px",
-          width: "100%",
-          overflow: "hidden",
-          transition: "all 0.3s ease"
-        }}
-      >
-        {showChatView ? renderChatView() : renderMessageListView()}
-      </div>
-    )
+    <div
+      ref={containerRef}
+      className="position-relative bg-white font-inter shadow-sm d-flex flex-column"
+      style={{
+        height: '90vh', // Adjust as needed
+        borderRadius: "15px",
+        width: "100%",
+        overflow: "hidden",
+        transition: "all 0.3s ease"
+      }}
+    >
+      {showChatView ? renderChatView() : renderMessageListView()}
+    </div>
   );
 };
 
