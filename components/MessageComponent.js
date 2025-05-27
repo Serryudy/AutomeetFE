@@ -175,7 +175,7 @@ const MessageComponent = ({ onClose }) => {
       setIsLoading(true);
       
       // Fetch chat rooms
-      const roomsResponse = await fetch('http://localhost:9092/api/chat/rooms', {
+      const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
         credentials: 'include'
       });
       const roomsData = await roomsResponse.json();
@@ -195,7 +195,7 @@ const MessageComponent = ({ onClose }) => {
       }
 
       // Fetch all contacts at once
-      const contactsResponse = await fetch('http://localhost:8080/api/contacts', {
+      const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
         credentials: 'include'
       });
       const contactsData = await contactsResponse.json();
@@ -230,7 +230,7 @@ const MessageComponent = ({ onClose }) => {
       }
 
       // Fetch room messages
-      const messagesResponse = await fetch(`http://localhost:9092/api/chat/rooms/${room.id}/messages`, {
+      const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages`, {
         credentials: 'include'
       });
       const messagesData = await messagesResponse.json();
@@ -302,7 +302,7 @@ const MessageComponent = ({ onClose }) => {
       setNewMessage('');
 
       // Fetch updated messages
-      const messagesResponse = await fetch(`http://localhost:9092/api/chat/rooms/${selectedMessage.id}/messages`, {
+      const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${selectedMessage.id}/messages`, {
         credentials: 'include'
       });
       
@@ -370,7 +370,7 @@ const MessageComponent = ({ onClose }) => {
     // Try to fetch contacts if not already loaded
     if (contacts.length === 0) {
       try {
-        const contactsResponse = await fetch('http://localhost:8080/api/contacts', {
+        const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
           credentials: 'include'
         });
         const contactsData = await contactsResponse.json();
