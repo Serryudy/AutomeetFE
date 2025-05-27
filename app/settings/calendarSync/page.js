@@ -9,7 +9,7 @@ import { FaBars, FaPlus, FaTrash, FaCalendarAlt, FaSync } from 'react-icons/fa';
 import { Toast, ToastContainer, Modal, Button } from 'react-bootstrap';
 
 // API URL - change to match your API deployment
-const API_URL = 'http://localhost:8084';
+const API_URL = 'http://localhost:8080';
 
 export default function CalendarSync() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);

@@ -32,7 +32,7 @@ const MeetingCard = ({ meeting }) => {
           if (profiles[username]) continue;
           
           try {
-            const response = await fetch(`http://localhost:8084/api/users/${username}`, {
+            const response = await fetch(`http://localhost:8080/api/users/${username}`, {
               credentials: 'include',
             });
             

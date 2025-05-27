@@ -114,7 +114,7 @@ const DirectScheduleForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/contacts', {
+        const response = await axios.get('http://localhost:8080/apicommunity/contacts', {
           withCredentials: true
         });
 
@@ -726,7 +726,7 @@ const GroupMeetingForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/contacts', {
+        const response = await axios.get('http://localhost:8080/api/community/contacts', {
           withCredentials: true
         });
 
@@ -1416,13 +1416,13 @@ const RoundRobinForm = () => {
     const fetchContactsAndHosts = async () => {
       try {        
         // Fetch participants (contacts)
-        const participantsResponse = await axios.get('http://localhost:8080/api/contacts', {
+        const participantsResponse = await axios.get('http://localhost:8080/api/community/contacts', {
           withCredentials: true
         });
         setContacts(Array.isArray(participantsResponse.data) ? participantsResponse.data : (participantsResponse.data.contacts || []));
 
         // Fetch current user's hosts
-        const hostsResponse = await axios.get('http://localhost:8080/api/contact/users', {
+        const hostsResponse = await axios.get('http://localhost:8080/api/community/contact/users', {
           withCredentials: true
         });
         const fetchedHosts = Array.isArray(hostsResponse.data) ? hostsResponse.data : (hostsResponse.data.users || []);
