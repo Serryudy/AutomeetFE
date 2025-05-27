@@ -190,7 +190,7 @@ const DirectScheduleForm = () => {
         participantIds: participants.map(p => p.id),
         repeat
       };
-
+      console.log(meetingPayload);
       const response = await axios.post('http://localhost:8080/api/direct/meetings', meetingPayload, {
         headers: {
           'Content-Type': 'application/json'

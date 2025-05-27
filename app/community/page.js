@@ -36,14 +36,14 @@ export default function Community() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const contactRes = await axios.get('http://localhost:8080/api/contacts', {
+        const contactRes = await axios.get('http://localhost:8082/api/contacts', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
         });
         setContacts(contactRes.data);
 
-        const groupRes = await axios.get('http://localhost:8080/api/groups', {
+        const groupRes = await axios.get('http://localhost:8082/api/groups', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
@@ -104,7 +104,7 @@ export default function Community() {
   // Function to create a new contact
   const createContact = async (newContact) => {
     try {
-      const response = await axios.post('http://localhost:8080/api/contacts', newContact, {
+      const response = await axios.post('http://localhost:8082/api/contacts', newContact, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -118,7 +118,7 @@ export default function Community() {
   // Function to create a new group
   const createGroup = async (newGroup) => {
     try {
-      const response = await axios.post('http://localhost:8080/api/groups', newGroup, {
+      const response = await axios.post('http://localhost:8082/api/groups', newGroup, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -395,7 +395,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/contacts', {
+        const response = await fetch('http://localhost:8082/api/contacts', {
           credentials: 'include'
         });
         
@@ -418,7 +418,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
 
   const handleDelete = async (clientId) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/contacts/${clientId}`, {
+      const response = await fetch(`http://localhost:8082/api/contacts/${clientId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -610,7 +610,7 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/groups', {
+        const response = await fetch('http://localhost:8082/api/groups', {
           credentials: 'include'
         });
         
@@ -633,7 +633,7 @@ const Groups = ({ setShowGroupModal, setEditingGroup }) => {
 
   const handleDelete = async (groupId) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/groups/${groupId}`, {
+      const response = await fetch(`http://localhost:8082/api/groups/${groupId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -839,8 +839,8 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
     
     try {
       const url = editingContact 
-        ? `http://localhost:8080/api/contacts/${editingContact._id}`
-        : 'http://localhost:8080/api/contacts';
+        ? `http://localhost:8082/api/contacts/${editingContact._id}`
+        : 'http://localhost:8082/api/contacts';
         
       const method = editingContact ? 'PUT' : 'POST';
       
@@ -1028,7 +1028,7 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/contacts', {
+        const response = await fetch('http://localhost:8082/api/contacts', {
           credentials: 'include'
         });
         
@@ -1051,8 +1051,8 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
     
     try {
       const url = editingGroup 
-        ? `http://localhost:8080/api/groups/${editingGroup._id}`
-        : 'http://localhost:8080/api/groups';
+        ? `http://localhost:8082/api/groups/${editingGroup._id}`
+        : 'http://localhost:8082/api/groups';
         
       const method = editingGroup ? 'PUT' : 'POST';
       
