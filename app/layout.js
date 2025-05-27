@@ -22,7 +22,7 @@ export const metadata = {
       { url: '/favicon.ico' }
     ],
     apple: [
-      { url: '/meta.png', type: 'image/png' }  // For iOS devices
+      { url: '/meta.png', type: 'image/png' }  
     ],
   },
 };
