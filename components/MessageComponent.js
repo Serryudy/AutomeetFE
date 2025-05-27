@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperPlane } from "react-icons/fa";
 

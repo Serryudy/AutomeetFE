@@ -379,7 +379,7 @@ export default function NotificationPage() {
                   <div className="text-center py-5">
                     <FaBell className="text-muted mb-3" size={32} />
                     <h5>No notifications</h5>
-                    <p className="text-muted">You don't have any {activeTab === 'unread' ? 'unread' : activeTab === 'read' ? 'read' : ''} notifications.</p>
+                    <p className="text-muted">You don&apos;t have any {activeTab === 'unread' ? 'unread' : activeTab === 'read' ? 'read' : ''} notifications.</p>
                   </div>
                 ) : (
                   Object.entries(filteredNotifications()).map(([date, items]) => (

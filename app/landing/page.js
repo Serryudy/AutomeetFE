@@ -294,12 +294,16 @@ const HomePage = () => {
                   {item}
                 </Link>
               ))}
-              <button className="btn login-btn" style={navStyles.loginButton}>
+              <a href="login">
+                <button className="btn login-btn" style={navStyles.loginButton} >
                 Log In
               </button>
-              <button className="btn get-started-btn" style={navStyles.getStartedButton}>
-                Get Started
-              </button>
+              </a>
+              <a href="register">
+                <button className="btn get-started-btn" style={navStyles.getStartedButton}>
+                  Get Started
+                </button>
+              </a>	
             </div>
 
             <div
@@ -350,7 +354,8 @@ const HomePage = () => {
               Tired of managing calendars, links, and notes? AutoMeet automates organizing, hosting, and
               summarizing your meetings effortlessly.
             </p>
-            <div className="row ps-2 text-white">
+            <a href="register" style={{ textDecoration: "none" }}>
+              <div className="row ps-2 text-white">
               {[
                 {
                   style: styles.googleButton,
@@ -371,6 +376,7 @@ const HomePage = () => {
                 </div>
               ))}
             </div>
+            </a>
           </div>
           <div className="col-lg-6 col-md-12 d-none d-lg-block">
             <img src="/Home1.png" alt="Calendar interface" className="img-fluid" style={{ maxWidth: '100%', height: 'auto', paddingTop: "10px" }} />
@@ -540,7 +546,7 @@ const HomePage = () => {
           <h4 className="responsive-subheading mt-4 mb-5" style={{ fontSize: "1.5rem" }}>
             AutoMeet simplifies meeting scheduling with AI, real-time availability, seamless collaboration, smart notifications, content sharing, and analysis even for participants without accounts. Meetings, redefined.
           </h4>
-          <a href="register">
+          <a href="register" style={{ textDecoration: "none" }}>
             <button className="btn btn-lg d-flex align-items-center justify-content-center mx-auto"
               style={{ fontSize: "1.3rem", background: "#3B3BD7", color: "white", padding: "12px 24px", borderRadius: "8px", textDecoration: "none" }}>
               Create an Account
