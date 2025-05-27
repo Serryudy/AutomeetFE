@@ -12,10 +12,9 @@ const NotificationIcon = ({ onClick }) => {
     try {
       setLoading(true);
       const response = await axios.get('http://localhost:8080/api/notifications', {
-        withCredentials: true // Important to include cookies for authentication
+        withCredentials: true
       });
-      
-      // Count only unread notifications
+    
       const unreadCount = response.data.filter(notification => !notification.isRead).length;
       setNotificationCount(unreadCount);
       setError(null);
@@ -28,21 +27,18 @@ const NotificationIcon = ({ onClick }) => {
   };
 
   useEffect(() => {
-    // Initial fetch
     fetchNotifications();
 
-    // Set up polling interval to check for new notifications
+    // Check every 30 seconds
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 30000); // Check every 30 seconds
-
-    // Clean up on unmount
+    }, 30000); 
+    
     return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="position-relative">
-      {/* Notification icon with badge */}
       <FaBell
         size="1.5em"
         style={{

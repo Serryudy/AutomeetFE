@@ -61,11 +61,10 @@ const NotificationsComponent = () => {
   // Function to mark a notification as read
   const markNotificationAsRead = async (notificationId) => {
     try {
-      // Find the notification to update
       const notificationToUpdate = notifications.find(n => n.id === notificationId);
       
       if (!notificationToUpdate || notificationToUpdate.read) {
-        return; // Already read or not found
+        return; 
       }
 
       // Update locally first for better UX
@@ -98,7 +97,7 @@ const NotificationsComponent = () => {
   // Function to mark all notifications as read
   const handleMarkAllAsRead = async () => {
     try {
-      // Update locally first for better UX
+
       setNotifications(notifications.map(notif => ({ ...notif, read: true })));
       
       const response = await fetch('http://localhost:8080/api/notifications/markallread', {
@@ -126,12 +125,9 @@ const NotificationsComponent = () => {
   };
 
   const navigateToMeeting = (meetingId, notificationType) => {
-    // Redirect based on notification type
     if (notificationType === 'availability_request') {
-      // Redirect to the availability page with the meeting ID
       window.location.href = `/availability/${meetingId}`;
     } else {
-      // Default behavior: redirect to meeting details page
       window.location.href = `/meetingdetails/${meetingId}`;
     }
   };
@@ -294,8 +290,6 @@ const NotificationsComponent = () => {
           <button 
             className="btn btn-link text-primary text-decoration-none"
             onClick={() => {
-              // Here you would navigate to a full notifications page
-              // For now, let's just refresh the notifications
               fetchNotifications();
             }}
           >
