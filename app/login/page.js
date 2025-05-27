@@ -66,7 +66,7 @@ const Login = () => {
 
     try {
       // Connect to your Ballerina backend login endpoint
-      const response = await fetch('http://localhost:8080/api/auth/login', {
+      const response = await fetch('http://localhost:8083/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -103,7 +103,7 @@ const Login = () => {
 
   // Google Sign-In handler
   const handleGoogleSignIn = () => {
-    window.location.href = 'http://localhost:8080/api/auth/google';
+    window.location.href = 'http://localhost:8083/api/auth/google';
   };
 
   return (
