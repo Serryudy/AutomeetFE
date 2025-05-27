@@ -212,7 +212,7 @@ const HomePage = () => {
         transition: 'all 0.3s ease',
         fontSize: '17px',
         backgroundColor: 'transparent',
-        color: '#000000'
+        color: '#000000',
       },
       getStartedButton: {
         borderRadius: '8px',
@@ -268,6 +268,7 @@ const HomePage = () => {
       },
     };
 
+
     return (
       <>
         <nav className="navbar navbar-expand-lg navbar-light navbar-container fixed-top px-3 px-md-5" style={{ backgroundColor: "#f0f0f0", height: "auto", minHeight: "80px", zIndex: 1000 }}>
@@ -296,14 +297,14 @@ const HomePage = () => {
               ))}
               <a href="login">
                 <button className="btn login-btn" style={navStyles.loginButton} >
-                Log In
-              </button>
+                  Log In
+                </button>
               </a>
               <a href="register">
                 <button className="btn get-started-btn" style={navStyles.getStartedButton}>
                   Get Started
                 </button>
-              </a>	
+              </a>
             </div>
 
             <div
@@ -356,26 +357,26 @@ const HomePage = () => {
             </p>
             <a href="register" style={{ textDecoration: "none" }}>
               <div className="row ps-2 text-white">
-              {[
-                {
-                  style: styles.googleButton,
-                  icon: <img src="/gmail.png" style={{ width: '30px', marginRight: '30px' }} />,
-                  text: "Sign up with Google"
-                },
-                {
-                  style: styles.emailButton,
-                  icon: <img src="/email.png" style={{ width: '30px', marginRight: '40px' }} />,
-                  text: "Sign up with Email"
-                }
-              ].map((btn, i) => (
-                <div key={i} className="col-lg-10 col-md-8 col-12 mb-2 mt-3 " >
-                  <button className="btn btn-lg w-100 d-flex align-items-center justify-content-center" style={btn.style}>
-                    {btn.icon}
-                    <span>{btn.text}</span>
-                  </button>
-                </div>
-              ))}
-            </div>
+                {[
+                  {
+                    style: styles.googleButton,
+                    icon: <img src="/gmail.png" style={{ width: '30px', marginRight: '30px' }} />,
+                    text: "Sign up with Google"
+                  },
+                  {
+                    style: styles.emailButton,
+                    icon: <img src="/email.png" style={{ width: '30px', marginRight: '40px' }} />,
+                    text: "Sign up with Email"
+                  }
+                ].map((btn, i) => (
+                  <div key={i} className="col-lg-10 col-md-8 col-12 mb-2 mt-3 " >
+                    <button className="btn btn-lg w-100 d-flex align-items-center justify-content-center" style={btn.style}>
+                      {btn.icon}
+                      <span>{btn.text}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
             </a>
           </div>
           <div className="col-lg-6 col-md-12 d-none d-lg-block">
@@ -550,7 +551,7 @@ const HomePage = () => {
             <button className="btn btn-lg d-flex align-items-center justify-content-center mx-auto"
               style={{ fontSize: "1.3rem", background: "#3B3BD7", color: "white", padding: "12px 24px", borderRadius: "8px", textDecoration: "none" }}>
               Create an Account
-              <svg width="25" height="25" viewBox="0 0 24 28" fill="currentColor" className="ms-2">
+              <svg width="25" height="25" viewBox="0 0 28 24" fill="currentColor" className="ms-1">
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
               </svg>
             </button>
@@ -646,6 +647,8 @@ const HomePage = () => {
       "Company": ["About Us", "Careers", "Blog", "Press", "Contact"],
       "Resources": ["Help Center", "Documentation", "Tutorials", "Community", "Status"]
     };
+
+
 
     return (
       <footer className="pt-5 pb-3 mt-5" style={{ backgroundColor: "#232342", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -749,7 +752,9 @@ const HomePage = () => {
             style={{
               width: "50px", height: "50px", backgroundColor: "#3B3BD7", borderRadius: "50%",
               cursor: "pointer", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.3)", zIndex: 1000
-            }}>
+            }}
+            onClick={function () { window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          >
             <i className="bi bi-arrow-up text-white"></i>
           </div>
         </div>
