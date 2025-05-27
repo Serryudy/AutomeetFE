@@ -36,14 +36,14 @@ export default function Community() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const contactRes = await axios.get('http://localhost:8080/api/community/community/contacts', {
+        const contactRes = await axios.get('http://localhost:8080/api/community/contacts', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
         });
         setContacts(contactRes.data);
 
-        const groupRes = await axios.get('http://localhost:8080/api/community/community/groups', {
+        const groupRes = await axios.get('http://localhost:8080/api/community/groups', {
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
