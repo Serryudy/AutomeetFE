@@ -294,7 +294,7 @@ const HomePage = () => {
                   {item}
                 </Link>
               ))}
-              <button className="btn login-btn" style={navStyles.loginButton}>
+              <button className="btn login-btn" style={navStyles.loginButton} >
                 Log In
               </button>
               <button className="btn get-started-btn" style={navStyles.getStartedButton}>
