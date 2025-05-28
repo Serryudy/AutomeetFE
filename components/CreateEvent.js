@@ -114,7 +114,7 @@ const DirectScheduleForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/apicommunity/contacts', {
+        const response = await axios.get('http://localhost:8080/api/community/contacts', {
           withCredentials: true
         });
 
@@ -812,7 +812,7 @@ const GroupMeetingForm = () => {
         repeat
       };
 
-      await axios.post('http://localhost:8082/api/group/meetings', meetingPayload, {
+      await axios.post('http://localhost:/api/group/meetings', meetingPayload, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -1242,7 +1242,7 @@ const GroupMeetingForm = () => {
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4">
-              <h4 className="form-label fw-medium mb-3">Add participants*</h4>
+              <h4 className="form-label fw-medium mb-3">Add participants</h4>
               
               <div className="mb-3 position-relative" ref={contactDropdownRef}>
                 <div className="input-group">
