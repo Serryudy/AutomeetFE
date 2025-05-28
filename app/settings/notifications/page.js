@@ -169,11 +169,11 @@ export default function NotificationPage() {
       case 'availability_request':
         return `/availability/${meetingId}`;
       case 'reminder':
-        return `/meetings/${meetingId}`;
+        return `/meetingdetails/${meetingId}`;
       case 'cancellation':
-        return `/meetings/canceled/${meetingId}`;
+        return `/meetingdetails/${meetingId}`;
       default:
-        return `/meetings/${meetingId}`;
+        return `/meetingdetails/${meetingId}`;
     }
   };
 

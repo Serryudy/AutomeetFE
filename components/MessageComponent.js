@@ -1,15 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperPlane } from "react-icons/fa";
+import { useProfile } from '@/hooks/useProfile';
 
-// Add debounce utility at the top of the file after imports
-const debounce = (func, wait) => {
-  let timeout;
-  return (...args) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
 
 // Add this helper function after the imports
 const getOtherParticipant = (participants, currentUser) => {
@@ -84,31 +77,17 @@ const MessageComponent = ({ onClose }) => {
     }
   }, [showChatView]);
 
-  // Fetch user profile on mount
+  // Replace profile fetching with useProfile hook
+  const { profile, loading: profileLoading } = useProfile();
+
+  // Update the profile effect
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch('http://localhost:8080/api/users/profile', {
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          setCurrentUser(userData.username);
-
-          // After getting user profile, fetch rooms and contacts
-          fetchRoomsAndContacts(userData.username);
-        } else {
-          console.error('Failed to fetch user profile:', response.status);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-      }
-    };
-
-    fetchUserProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (profile) {
+      setCurrentUser(profile.username);
+      // After getting user profile, fetch rooms and contacts
+      fetchRoomsAndContacts(profile.username);
+    }
+  }, [profile]);
 
   // WebSocket connection
   useEffect(() => {
@@ -624,12 +603,10 @@ const MessageComponent = ({ onClose }) => {
 
         {/* Message List */}
         <div className="message-list flex-grow-1 overflow-auto" style={{ marginRight: '10px' }}>
-          {isLoading || isCreatingRoom ? (
+          {isLoading || profileLoading ? (
             <div className="d-flex justify-content-center align-items-center h-100">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">
-                  {isCreatingRoom ? 'Creating chat room...' : 'Loading...'}
-                </span>
+                <span className="visually-hidden">Loading...</span>
               </div>
             </div>
           ) : memoizedSearchResults.length > 0 ? (
