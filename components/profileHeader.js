@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { MdGroupAdd } from 'react-icons/md';
@@ -33,7 +34,7 @@ export const UserProfileProvider = ({ children }) => {
         }
         
         // Always fetch fresh data
-        const response = await fetch('http://localhost:8084/api/users/profile', {
+        const response = await fetch('http://localhost:8080/api/users/profile', {
           method: 'GET',
           credentials: 'include',
         });
