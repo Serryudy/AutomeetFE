@@ -7,6 +7,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import { refreshAccessToken } from '@/utils/auth';
+import { fetchAndStoreProfile } from '@/utils/profileManager';
 
 const Login = () => {
   const router = useRouter();
@@ -79,8 +80,7 @@ const Login = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+        throw new Error('Login failed');
       }
 
       const data = await response.json();
@@ -91,6 +91,9 @@ const Login = () => {
         isAdmin: data.isAdmin,
         role: data.role
       }));
+
+      // Fetch and store profile data
+      await fetchAndStoreProfile();
 
       // Set up token refresh
       setupTokenRefresh();

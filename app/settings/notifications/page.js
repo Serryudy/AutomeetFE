@@ -132,12 +132,21 @@ export default function NotificationPage() {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffMs = now - date;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffMs = now.setHours(0,0,0,0) - date.setHours(0,0,0,0);
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    return date.toLocaleDateString();
+    let dateLabel;
+    if (diffDays === 0) dateLabel = 'Today';
+    else if (diffDays === 1) dateLabel = 'Yesterday';
+    else dateLabel = date.toLocaleDateString();
+
+    const timeLabel = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    return `${dateLabel}, ${timeLabel}`;
   };
 
   // Helper function to get action button text
@@ -154,17 +163,17 @@ export default function NotificationPage() {
     }
   };
 
-  // Helper function to get action URL
+  // Helper function to get action
   const getActionUrl = (meetingId, type) => {
     switch (type) {
       case 'availability_request':
         return `/availability/${meetingId}`;
       case 'reminder':
-        return `/meetings/${meetingId}`;
+        return `/meetingdetails/${meetingId}`;
       case 'cancellation':
-        return `/meetings/canceled/${meetingId}`;
+        return `/meetingdetails/${meetingId}`;
       default:
-        return `/meetings/${meetingId}`;
+        return `/meetingdetails/${meetingId}`;
     }
   };
 
@@ -228,6 +237,31 @@ export default function NotificationPage() {
       // visible briefly to ensure smooth transition
       setTimeout(() => setIsLoading(false), 100);
     });
+  };
+
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    // Remove time part for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+
+    const diffDays = (today - compareDate) / (1000 * 60 * 60 * 24);
+
+    let dateLabel;
+    if (diffDays === 0) dateLabel = 'Today';
+    else if (diffDays === 1) dateLabel = 'Yesterday';
+    else dateLabel = date.toLocaleDateString();
+
+    const timeLabel = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    return `${dateLabel}, ${timeLabel}`;
   };
 
   return (
@@ -396,7 +430,7 @@ export default function NotificationPage() {
 
               {/* Notifications List */}
               <div className="notifications-list">
-                {Object.keys(filteredNotifications()).length === 0 ? (
+                {Object.values(filteredNotifications()).flat().length === 0 ? (
                   <div className="text-center py-5">
                     <FaBell className="text-muted mb-3" size={32} />
                     <h5>No notifications</h5>
@@ -405,7 +439,7 @@ export default function NotificationPage() {
                 ) : (
                   Object.entries(filteredNotifications()).map(([date, items]) => (
                     <div key={date} className="mb-4">
-                      <h6 className="text-uppercase text-muted mb-3 fw-bold small">{date}</h6>
+                      
                       {items.map(notification => (
                         <div 
                           key={notification.id} 
@@ -423,10 +457,11 @@ export default function NotificationPage() {
                             <div className="d-flex justify-content-between align-items-start">
                               <div>
                                 <h6 className="fw-bold mb-2">{notification.title}</h6>
-                                <p className="mb-0 text-muted">{notification.message}</p>
+                                <p className="mb-0 text-muted" style={{fontSize: '0.875rem'}}>{notification.message}</p>
                               </div>
-                              <div className="d-flex flex-column align-items-end" style={{ minWidth: '60px' }}>
-                                <small className="text-muted">{notification.time}</small>
+                              <div className="d-flex flex-column align-items-end" style={{ minWidth: '150px' }}>
+                                <small className="text-muted">{formatDateTime(notification.createdAt)}</small>
+                                
                                 <button 
                                   className="btn btn-sm text-danger mt-2 p-0"
                                   onClick={(e) => deleteNotification(notification.id, e)}

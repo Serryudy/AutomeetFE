@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-
+import { useProfile } from '@/hooks/useProfile';
 const WeeklyCalendar = ({ selectedDate }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [visibleDays, setVisibleDays] = useState(7);
@@ -124,8 +124,8 @@ const WeeklyCalendar = ({ selectedDate }) => {
           color,
           status: event.status,
           meetingType: event.meetingType,
-          startDate, // Store the original date objects
-          endDate,
+          startDate: new Date(event.directTimeSlot.startTime), // Store the original date objects
+          endDate: new Date(event.directTimeSlot.endTime),
           role: event.role || 'participant',
           participants: event.participants || []
         };
@@ -187,20 +187,47 @@ const WeeklyCalendar = ({ selectedDate }) => {
   // Scroll to current time on load
   useEffect(() => {
     if (calendarRef.current) {
-      const currentTimePosition = ((currentHour + currentMinute / 60) - 6) * 60; // Adjust for 6 AM start
-      
-      // Scroll to current time (with some offset) if it's between 6 AM and midnight
-      if (currentHour >= 6 && currentHour <= 23) {
-        calendarRef.current.scrollTop = currentTimePosition - 100;
-      } else {
-        calendarRef.current.scrollTop = 0; // Default to 6 AM
-      }
+      const currentTimePosition = (currentHour + currentMinute / 60) * 60; // Remove 6 AM offset
+      calendarRef.current.scrollTop = currentTimePosition - 100;
     }
   }, [currentHour, currentMinute]);
   
-  // Generate time slots from 6:00 AM to 5:00 AM (24-hour format)
+  // Replace userProfile state and fetch with useProfile hook
+  const { profile, loading: profileLoading } = useProfile();
+
+  // Update timezone when profile changes
+  useEffect(() => {
+    if (profile?.time_zone) {
+      const gmtOffset = getGMTOffset(profile.time_zone);
+      setTimeZone(gmtOffset);
+    }
+  }, [profile]);
+
+  const getGMTOffset = (timeZone) => {
+  try {
+    // Create a date in the specified timezone
+    const date = new Date();
+    const options = { timeZone, timeZoneName: 'short' };
+    
+    // Get the timezone offset in minutes
+    const offsetInMinutes = -new Date(date.toLocaleString('en-US', options)).getTimezoneOffset();
+    
+    // Convert to hours and minutes
+    const hours = Math.floor(Math.abs(offsetInMinutes) / 60);
+    const minutes = Math.abs(offsetInMinutes) % 60;
+    
+    // Format as GMT±HH:MM
+    const sign = offsetInMinutes >= 0 ? '+' : '-';
+    return `GMT${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
+  } catch (error) {
+    console.error('Error converting timezone:', error);
+    return 'GMT+0:00';
+  }
+};
+
+  // Update timeSlots generation to show 12 AM to 11 PM
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
-    const hour = (i + 6) % 24; // Start from 6 AM (adjust to display hours 6-23, then 0-5)
+    const hour = i; // Start from 0 (12 AM)
     const period = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
     return {
@@ -209,59 +236,20 @@ const WeeklyCalendar = ({ selectedDate }) => {
     };
   });
   
-  // Current time indicator position
-  const currentTimePosition = ((currentHour + currentMinute / 60) - 6) * 60; // Adjust for 6 AM start
-  
-  // Define column sizes consistently for headers and content
-  const timeColumnWidth = isMobile ? '40px' : '60px';
-  const dayColumnWidth = isMobile ? '60px' : '100px';
-  
-  // Generate array of dates for the current view
-  const getDaysArray = () => {
-    if (!viewStartDate) return [];
-    
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(viewStartDate);
-      date.setDate(viewStartDate.getDate() + i);
-      return {
-        dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
-        date: date,
-        dayOfMonth: date.getDate(),
-        isToday: date.toDateString() === new Date().toDateString(),
-        isInSelectedWeek: true,
-      };
-    });
-  };
-  
-  const daysArray = getDaysArray();
-  
-  // Filter visible days based on screen size
-  const visibleDaysArray = visibleDays === 7 
-    ? daysArray 
-    : daysArray.slice(0, visibleDays);
-  
-  // Function to calculate event position
+  // Update event position calculation
   const getEventStyle = (event, dayDate) => {
     // Check if the event falls on this day
     const eventDate = event.startDate;
     const isSameDay = eventDate.getDate() === dayDate.getDate() && 
-                       eventDate.getMonth() === dayDate.getMonth() && 
-                       eventDate.getFullYear() === dayDate.getFullYear();
+                     eventDate.getMonth() === dayDate.getMonth() && 
+                     eventDate.getFullYear() === dayDate.getFullYear();
     
     if (!isSameDay) return null;
     
     const hourHeight = 60; // 60px per hour
     
-    // Calculate correct start offset based on the 6am start time
-    // If the event starts before 6am, adjust accordingly
-    let startHourNormalized = event.startHour;
-    if (startHourNormalized < 6) {
-      // Events before 6am are shown after the PM hours
-      startHourNormalized += 24;
-    }
-    
-    // Adjust the offset based on 6am start time
-    const startOffset = ((startHourNormalized - 6) + (event.startMinute / 60)) * hourHeight;
+    // Calculate position without 6am offset
+    const startOffset = (event.startHour + (event.startMinute / 60)) * hourHeight;
     
     // Calculate event height
     let eventDuration;
@@ -290,6 +278,46 @@ const WeeklyCalendar = ({ selectedDate }) => {
       cursor: 'pointer'
     };
   };
+
+  // Update scroll to current time logic
+  useEffect(() => {
+    if (calendarRef.current) {
+      const currentTimePosition = (currentHour + currentMinute / 60) * 60; // Remove 6 AM offset
+      calendarRef.current.scrollTop = currentTimePosition - 100;
+    }
+  }, [currentHour, currentMinute]);
+
+  // Update current time indicator position calculation
+  const currentTimePosition = (currentHour + currentMinute / 60) * 60; // Remove 6 AM offset
+
+  // Define column sizes consistently for headers and content
+  const timeColumnWidth = isMobile ? '40px' : '60px';
+  const dayColumnWidth = isMobile ? '60px' : '100px';
+  
+  // Generate array of dates for the current view
+  const getDaysArray = () => {
+    if (!viewStartDate) return [];
+    
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(viewStartDate);
+      date.setDate(viewStartDate.getDate() + i);
+      return {
+        dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
+        date: date,
+        dayOfMonth: date.getDate(),
+        isToday: date.toDateString() === new Date().toDateString(),
+        isInSelectedWeek: true,
+      };
+    });
+  };
+  
+  const daysArray = getDaysArray();
+  
+  // Filter visible days based on screen size
+  const visibleDaysArray = visibleDays === 7 
+    ? daysArray 
+    : daysArray.slice(0, visibleDays);
+  
 
   // Handle event click
   const handleEventClick = (event) => {

@@ -10,7 +10,7 @@ import { FaBars, FaInstagram, FaTwitter, FaLinkedin, FaFacebook } from 'react-ic
 import ReactCountryFlag from 'react-country-flag';
 import countries from 'country-telephone-data';
 import moment from 'moment-timezone';
-
+import { useProfile } from '@/hooks/useProfile';
 
 
 export default function Content() {
@@ -54,58 +54,38 @@ export default function Content() {
     setTimezones(allTimezones);
   }, []);
 
-  // Fetch user profile data on component mount
+  // Replace the useEffect profile fetch with useProfile hook
+  const { profile, loading, error } = useProfile();
+
+  // Update form data when profile is loaded
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch('http://localhost:8084/api/users/profile', {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+    if (profile) {
+      setFormData({
+        name: profile.name || '',
+        bio: profile.bio || '',
+        phone: profile.mobile_no || '+94',
+        timezone: profile.time_zone || 'Asia/Colombo',
+        socialMedia: profile.social_media || '',
+        industry: profile.industry || '',
+        company: profile.company || '',
+        profileImageUrl: profile.profile_pic || ''
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Error fetching profile:', errorData);
-          return;
-        }
-
-        const userData = await response.json();
-        
-        // Update form data with user profile information
-        setFormData({
-          name: userData.name || '',
-          bio: userData.bio || '',
-          phone: userData.mobile_no || '+94',
-          timezone: userData.time_zone || 'Asia/Colombo',
-          socialMedia: userData.social_media || '',
-          industry: userData.industry || '',
-          company: userData.company || '',
-          profileImageUrl: userData.profile_pic || ''
-        });
-
-        // Update profile image if it exists
-        if (userData.profile_pic) {
-          setProfileImage(userData.profile_pic);
-        }
-
-        // Update selected country based on phone number
-        if (userData.mobile_no) {
-          const dialCode = userData.mobile_no.split('+')[1]?.substring(0, 2) || '94';
-          const country = countries.allCountries.find(c => c.dialCode === dialCode);
-          if (country) {
-            setSelectedCountry(country);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
+      // Update profile image if it exists
+      if (profile.profile_pic) {
+        setProfileImage(profile.profile_pic);
       }
-    };
 
-    fetchUserProfile();
-  }, []);
+      // Update selected country based on phone number
+      if (profile.mobile_no) {
+        const dialCode = profile.mobile_no.split('+')[1]?.substring(0, 2) || '94';
+        const country = countries.allCountries.find(c => c.dialCode === dialCode);
+        if (country) {
+          setSelectedCountry(country);
+        }
+      }
+    }
+  }, [profile]);
 
   // Handle window resize
   useEffect(() => {
@@ -251,7 +231,7 @@ export default function Content() {
       }
       
       // Send PUT request to update user profile
-      const response = await fetch('http://localhost:8084/api/users/edit', {
+      const response = await fetch('http://localhost:8080/api/users/edit', {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -295,6 +275,26 @@ export default function Content() {
       // Implement account deletion logic here
     }
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="alert alert-danger m-4" role="alert">
+        Failed to load profile: {error}
+      </div>
+    );
+  }
 
   return (
     <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>
