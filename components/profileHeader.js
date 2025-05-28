@@ -5,6 +5,8 @@ import { MdGroupAdd } from 'react-icons/md';
 import NotificationIcon from './NotificationIcon';
 import ProfileMenu from './profilemenu'; // This now imports just the ProfileMenu component
 import NotificationsComponent from './notification';
+import { useProfile } from '@/hooks/useProfile';
+
 
 // Create a user profile context to share between components
 export const UserProfileContext = React.createContext({
@@ -33,17 +35,9 @@ export const UserProfileProvider = ({ children }) => {
           setLoading(false);
         }
         
-        // Always fetch fresh data
-        const response = await fetch('http://localhost:8080/api/users/profile', {
-          method: 'GET',
-          credentials: 'include',
-        });
+        const { profile, loading: profileLoading } = useProfile();
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch user profile');
-        }
-
-        const data = await response.json();
+        const data = profile;
         setUserProfile(data);
         setLoading(false);
         

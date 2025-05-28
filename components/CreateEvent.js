@@ -1242,7 +1242,7 @@ const GroupMeetingForm = () => {
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4">
-              <h4 className="form-label fw-medium mb-3">Add participants*</h4>
+              <h4 className="form-label fw-medium mb-3">Add participants</h4>
               
               <div className="mb-3 position-relative" ref={contactDropdownRef}>
                 <div className="input-group">

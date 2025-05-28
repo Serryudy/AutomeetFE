@@ -34,7 +34,7 @@ const Calendar = ({ onDateSelect }) => {
             today.getFullYear() === year;
 
           const todayStyle = isToday ? {
-            backgroundColor: '#413db3',
+            backgroundColor: '#9698d4',
             color: '#ffffff',
             fontWeight: 'bold'
           } : {};

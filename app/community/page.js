@@ -392,7 +392,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch contacts on component mount
+  // Fetch contacts and their profiles
   useEffect(() => {
     const fetchContacts = async () => {
       try {
@@ -404,8 +404,35 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
           throw new Error('Failed to fetch contacts');
         }
         
-        const data = await response.json();
-        setClients(data);
+        const contactsData = await response.json();
+        
+        // Fetch user profiles for each contact
+        const contactsWithProfiles = await Promise.all(
+          contactsData.map(async (contact) => {
+            try {
+              const profileResponse = await fetch(`http://localhost:8080/api/users/${contact.username}`, {
+                credentials: 'include'
+              });
+              
+              if (profileResponse.ok) {
+                const profileData = await profileResponse.json();
+                return {
+                  ...contact,
+                  name: profileData.name || null,
+                  profile_pic: profileData.profile_pic || null,
+                  company: profileData.company || null,
+                  industry: profileData.industry || null
+                };
+              }
+              return contact;
+            } catch (err) {
+              console.error(`Error fetching profile for ${contact.username}:`, err);
+              return contact;
+            }
+          })
+        );
+
+        setClients(contactsWithProfiles);
       } catch (err) {
         console.error('Error fetching contacts:', err);
         setError(err.message);
@@ -488,35 +515,52 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
 
   return (
     <div className="client-list">
-      {/* Table Header - Hidden on mobile */}
+      {/* Table Header - Updated to remove email column */}
       <div className="d-none d-md-flex row border-bottom pb-3 fw-bold">
-        <div className="col-md-3 ps-md-4">Name</div>
-        <div className="col-md-3">Email</div>
+        <div className="col-md-4 ps-md-4">Contact</div>
+        <div className="col-md-4">Company</div>
         <div className="col-md-3">Phone</div>
-        <div className="col-md-2">Created By</div>
         <div className="col-md-1"></div>
       </div>
       
-      {/* Table Body - Responsive */}
+      {/* Table Body - Updated layout */}
       {clients.map(client => (
         <div key={client.id} className="pt-3 pb-3 border-bottom position-relative">
           {/* Desktop View */}
           <div className="d-none d-md-flex row align-items-center">
-            {/* Name column with avatar */}
-            <div className="col-md-3 d-flex align-items-center">
-              <div className="avatar-circle bg-light text-secondary me-3 d-flex align-items-center justify-content-center" 
-                style={{ width: 60, height: 60, borderRadius: '50%', fontSize: '1.5rem' }}>
-                {client.username ? client.username.charAt(0).toUpperCase() : '?'}
+            {/* Contact info column with avatar */}
+            <div className="col-md-4 d-flex align-items-center">
+              <div className="avatar-circle me-3 d-flex align-items-center justify-content-center" 
+                style={{ 
+                  width: 60, 
+                  height: 60, 
+                  borderRadius: '50%', 
+                  overflow: 'hidden',
+                  backgroundColor: '#f0f0f0'
+                }}
+              >
+                {client.profile_pic ? (
+                  <img 
+                    src={client.profile_pic} 
+                    alt={client.name || client.username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div className="text-secondary" style={{ fontSize: '1.5rem' }}>
+                    {(client.name || client.username).charAt(0).toUpperCase()}
+                  </div>
+                )}
               </div>
               <div>
-                <div className="fw-bold">{client.username}</div>
-                <div className="text-muted small">{client.email}</div>
+                <div className="fw-bold">{client.name || client.username}</div>
+                {client.name && <div className="text-muted small">{client.username}</div>}
+                {client.industry && <div className="text-muted small">{client.industry}</div>}
               </div>
             </div>
             
-            {/* Email */}
-            <div className="col-md-3">
-              <div className="text-muted">{client.email}</div>
+            {/* Company */}
+            <div className="col-md-4">
+              <div className="text-muted">{client.company || 'Not specified'}</div>
             </div>
             
             {/* Phone */}
@@ -524,12 +568,7 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
               <div className="text-muted">{client.phone || 'No phone'}</div>
             </div>
             
-            {/* Created By */}
-            <div className="col-md-2">
-              <div className="text-muted">{client.createdBy}</div>
-            </div>
-            
-            {/* Actions with popup */}
+            {/* Actions column remains the same */}
             <div className="col-md-1 text-end position-relative">
               <button 
                 className="btn btn-link text-dark"
@@ -568,28 +607,57 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
             </div>
           </div>
 
-          {/* Mobile View */}
+          {/* Mobile View - Updated */}
           <div className="d-flex d-md-none position-relative">
-            <div className="avatar-circle bg-light text-secondary me-3 d-flex align-items-center justify-content-center" 
-              style={{ width: 50, height: 50, borderRadius: '50%', fontSize: '1.25rem', flexShrink: 0 }}>
-              {client.username ? client.username.charAt(0).toUpperCase() : '?'}
+            <div className="avatar-circle me-3" 
+              style={{ 
+                width: 50, 
+                height: 50, 
+                borderRadius: '50%', 
+                overflow: 'hidden',
+                flexShrink: 0,
+                backgroundColor: '#f0f0f0'
+              }}
+            >
+              {client.profile_pic ? (
+                <img 
+                  src={client.profile_pic} 
+                  alt={client.name || client.username}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div className="text-secondary d-flex align-items-center justify-content-center h-100" 
+                  style={{ fontSize: '1.25rem' }}
+                >
+                  {(client.name || client.username).charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
             
             <div className="flex-grow-1">
-              <div className="fw-bold">{client.username}</div>
-              <div className="text-muted small mb-1">{client.email}</div>
+              <div className="fw-bold">{client.name || client.username}</div>
+              {client.name && <div className="text-muted small mb-1">{client.username}</div>}
               
               <div className="d-flex flex-wrap gap-2 mt-2">
-                <div className="bg-light rounded-pill px-2 py-1 small">
-                  <span className="fw-semibold">Phone:</span> {client.phone || 'No phone'}
-                </div>
-                <div className="bg-light rounded-pill px-2 py-1 small">
-                  <span className="fw-semibold">Created by:</span> {client.createdBy}
-                </div>
+                {client.company && (
+                  <div className="bg-light rounded-pill px-2 py-1 small">
+                    <span className="fw-semibold">Company:</span> {client.company}
+                  </div>
+                )}
+                {client.phone && (
+                  <div className="bg-light rounded-pill px-2 py-1 small">
+                    <span className="fw-semibold">Phone:</span> {client.phone}
+                  </div>
+                )}
+                {client.industry && (
+                  <div className="bg-light rounded-pill px-2 py-1 small">
+                    <span className="fw-semibold">Industry:</span> {client.industry}
+                  </div>
+                )}
               </div>
             </div>
             
-            {/* Actions button with popup for mobile */}
+            {/* Mobile actions remain the same */}
             <div className="position-absolute" style={{ top: 0, right: 0 }}>
               <button 
                 className="btn btn-link text-dark"
@@ -859,62 +927,119 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
     name: editingContact ? editingContact.username : '',
     email: editingContact ? editingContact.email : '',
     phone: editingContact ? editingContact.phone : '',
-    profileimg: editingContact ? editingContact.profileimg : ''
+    profileimg: editingContact ? editingContact.profileimg : '',
+    timezone: editingContact ? editingContact.timezone : ''
   });
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  try {
-    const url = editingContact 
-      ? `http://localhost:8080/api/community/contacts/${editingContact.id}`
-      : 'http://localhost:8080/api/community/contacts';
-      
-    const method = editingContact ? 'PUT' : 'POST';
-    const token = localStorage.getItem('token');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isTimezoneEditable, setIsTimezoneEditable] = useState(true);
+  const searchTimeout = useRef(null);
 
-    // Prepare the request body
-    const contactData = {
-      username: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      profileimg: formData.profileimg || 'https://example.com/default-profile.jpg'
-    };
-
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      credentials: 'include',
-      body: JSON.stringify(contactData)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to save contact');
+  // Add debounced search function
+  const handleEmailSearch = async (value) => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
     }
 
-    // Close modal and reset state
-    setShowContactModal(false);
-    setEditingContact(null);
-    
-    // Refresh the contacts list
-    window.location.reload();
-  } catch (err) {
-    console.error('Error saving contact:', err);
-    alert(err.message || 'Failed to save contact');
-  }
-};
+    searchTimeout.current = setTimeout(async () => {
+      if (value.length > 0) {
+        try {
+          const response = await fetch(`http://localhost:8080/api/users/search?q=${value}`, {
+            credentials: 'include'
+          });
 
-  // Handle form input changes
+          if (response.ok) {
+            const data = await response.json();
+            setSearchResults(data);
+            setShowDropdown(true);
+          }
+        } catch (error) {
+          console.error('Error searching users:', error);
+        }
+      } else {
+        setSearchResults([]);
+        setShowDropdown(false);
+      }
+    }, 300); // Debounce time of 300ms
+  };
+
+  // Handle user selection from dropdown
+  const handleUserSelect = (user) => {
+    setFormData({
+      ...formData,
+      name: user.username,
+      email: user.username,
+      timezone: user.time_zone,
+      phone: user.mobile_no || ''
+    });
+    setIsTimezoneEditable(false);
+    setShowDropdown(false);
+  };
+
+  // Update the email field change handler
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData({
       ...formData,
       [id]: value
     });
+
+    if (id === 'email') {
+      handleEmailSearch(value);
+    }
+
+    // Reset timezone editability if email is changed manually
+    if (id === 'email') {
+      setIsTimezoneEditable(true);
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const url = editingContact 
+        ? `http://localhost:8080/api/community/contacts/${editingContact.id}`
+        : 'http://localhost:8080/api/community/contacts';
+        
+      const method = editingContact ? 'PUT' : 'POST';
+      const token = localStorage.getItem('token');
+
+      // Prepare the request body
+      const contactData = {
+        username: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        profileimg: formData.profileimg || 'https://example.com/default-profile.jpg'
+      };
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include',
+        body: JSON.stringify(contactData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save contact');
+      }
+
+      // Close modal and reset state
+      setShowContactModal(false);
+      setEditingContact(null);
+      
+      // Refresh the contacts list
+      window.location.reload();
+    } catch (err) {
+      console.error('Error saving contact:', err);
+      alert(err.message || 'Failed to save contact');
+    }
   };
 
   // Handle modal close
@@ -924,27 +1049,20 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
   };
 
   return(
-    <div 
-      className="position-fixed top-0 start-0 w-100 h-100" 
+    <div className="position-fixed top-0 start-0 w-100 h-100" 
       style={{ 
         backgroundColor: 'rgba(0,0,0,0.5)', 
         zIndex: 1050,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center'
-      }}
-    >
-      {/* Modal Content */}
-      <div 
-        ref={contactModalRef}
-        className="bg-white rounded-3 shadow position-relative"
+      }}>
+      <div ref={contactModalRef} className="bg-white rounded-3 shadow position-relative"
         style={{ 
           maxWidth: '500px', 
           width: '90%',
           animation: 'fadeIn 0.3s'
-        }}
-      >
-        {/* Close button */}
+        }}>
         <button 
           className="btn btn-link position-absolute"
           style={{ top: '15px', right: '15px', color: '#555' }}
@@ -953,12 +1071,10 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
           <FaTimes size={20} />
         </button>
         
-        {/* Modal Header */}
         <div className="p-4 pb-2">
           <h2 className="h4 mb-1">{editingContact ? 'Edit Contact' : 'Add New Contact'}</h2>
         </div>
         
-        {/* Form Content */}
         <form className="p-4 pt-2" onSubmit={handleSubmit}>
           {/* Name Field */}
           <div className="mb-3">
@@ -976,8 +1092,8 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
             />
           </div>
           
-          {/* Email Field */}
-          <div className="mb-3">
+          {/* Email Field with Dropdown */}
+          <div className="mb-3 position-relative">
             <label htmlFor="email" className="form-label fw-bold">
               Email <span className="text-danger">*</span>
             </label>
@@ -989,7 +1105,30 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
               required
               value={formData.email}
               onChange={handleChange}
+              autoComplete="off"
             />
+            
+            {/* Search Results Dropdown */}
+            {showDropdown && searchResults.length > 0 && (
+              <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded-3 border" 
+                style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
+                {searchResults.map((user, index) => (
+                  <div 
+                    key={index}
+                    className="p-2 hover-bg-light cursor-pointer"
+                    onClick={() => handleUserSelect(user)}
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                    <div className="fw-bold">{user.username}</div>
+                    {user.name !== user.username && (
+                      <div className="small text-muted">{user.name}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Time Zone Field */}
@@ -1002,6 +1141,11 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
               id="timezone"
               value={formData.timezone}
               onChange={handleChange}
+              disabled={!isTimezoneEditable}
+              style={{ 
+                backgroundColor: isTimezoneEditable ? 'white' : '#f8f9fa',
+                cursor: isTimezoneEditable ? 'pointer' : 'not-allowed'
+              }}
             >
               <option value="">Select time zone</option>
               <option value="EST">Eastern Time (EST)</option>
