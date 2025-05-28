@@ -124,8 +124,8 @@ const WeeklyCalendar = ({ selectedDate }) => {
           color,
           status: event.status,
           meetingType: event.meetingType,
-          startDate, // Store the original date objects
-          endDate,
+          startDate: new Date(event.directTimeSlot.startTime), // Store the original date objects
+          endDate: new Date(event.directTimeSlot.endTime),
           role: event.role || 'participant',
           participants: event.participants || []
         };
@@ -192,26 +192,16 @@ const WeeklyCalendar = ({ selectedDate }) => {
     }
   }, [currentHour, currentMinute]);
   
+  // Replace userProfile state and fetch with useProfile hook
+  const { profile, loading: profileLoading } = useProfile();
 
-  // Add new state for user profile
-  const [userProfile, setUserProfile] = useState(null);
-
-  // Add function to fetch user profile
+  // Update timezone when profile changes
   useEffect(() => {
-    const fetchUserProfile = async () => {
-        const { profile, loading: profileLoading } = useProfile();
-      
-        setUserProfile(profile);
-        
-        // Set timezone from profile
-        if (profile.time_zone) {
-          setTimeZone(profile.time_zone);
-        }
-      
-    };
-
-    fetchUserProfile();
-  }, []);
+    if (profile?.time_zone) {
+      const gmtOffset = getGMTOffset(profile.time_zone);
+      setTimeZone(gmtOffset);
+    }
+  }, [profile]);
 
   const getGMTOffset = (timeZone) => {
   try {
