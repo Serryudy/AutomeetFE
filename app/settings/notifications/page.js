@@ -54,9 +54,14 @@ export default function NotificationPage() {
         title: notification.title,
         message: notification.message,
         date: formatDate(notification.createdAt),
-        time: new Date(notification.createdAt).toLocaleTimeString(),
+        time: new Date(notification.createdAt).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        }),
         read: notification.isRead,
         from: notification.from || 'Meeting System',
+        createdAt: notification.createdAt, // Keep original timestamp for sorting
         details: {
           meetingTitle: notification.meetingTitle,
           organizer: notification.organizer,
@@ -65,7 +70,12 @@ export default function NotificationPage() {
           actionUrl: getActionUrl(notification.meetingId, notification.notificationType),
           footer: notification.footer || ''
         }
-      }));
+      }))
+      // Option 1: Simple reverse (if API returns in chronological order)
+      .reverse();
+      
+      // Option 2: Sort by creation date (more reliable)
+      // .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       setNotifications(formattedNotifications);
     } catch (err) {
@@ -390,7 +400,7 @@ export default function NotificationPage() {
                   <div className="text-center py-5">
                     <FaBell className="text-muted mb-3" size={32} />
                     <h5>No notifications</h5>
-                    <p className="text-muted">You don't have any {activeTab === 'unread' ? 'unread' : activeTab === 'read' ? 'read' : ''} notifications.</p>
+                    <p className="text-muted">You don&apos;t have any {activeTab === 'unread' ? 'unread' : activeTab === 'read' ? 'read' : ''} notifications.</p>
                   </div>
                 ) : (
                   Object.entries(filteredNotifications()).map(([date, items]) => (
@@ -415,7 +425,7 @@ export default function NotificationPage() {
                                 <h6 className="fw-bold mb-2">{notification.title}</h6>
                                 <p className="mb-0 text-muted">{notification.message}</p>
                               </div>
-                              <div className="d-flex flex-column align-items-end">
+                              <div className="d-flex flex-column align-items-end" style={{ minWidth: '60px' }}>
                                 <small className="text-muted">{notification.time}</small>
                                 <button 
                                   className="btn btn-sm text-danger mt-2 p-0"
