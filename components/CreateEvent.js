@@ -114,7 +114,7 @@ const DirectScheduleForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/apicommunity/contacts', {
+        const response = await axios.get('http://localhost:8080/api/community/contacts', {
           withCredentials: true
         });
 
