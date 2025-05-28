@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { MdGroupAdd } from 'react-icons/md';
