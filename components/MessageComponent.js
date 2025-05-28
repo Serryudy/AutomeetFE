@@ -201,16 +201,14 @@ const MessageComponent = ({ onClose }) => {
         })
       );
 
-      // Sort by latestMessageDateTime descending (newest first)
+      // Sort newest first
       updatedRooms.sort((a, b) => {
-        // If both have a date, compare them
         if (a.latestMessageDateTime && b.latestMessageDateTime) {
           return b.latestMessageDateTime - a.latestMessageDateTime;
         }
         // If only one has a date, that one comes first
         if (a.latestMessageDateTime) return -1;
         if (b.latestMessageDateTime) return 1;
-        // Otherwise, keep original order
         return 0;
       });
 
