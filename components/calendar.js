@@ -8,6 +8,7 @@ const Calendar = ({ onDateSelect }) => {
   const renderCalendar = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
+    const today = new Date();
 
     const firstDayOfMonth = new Date(year, month, 1);
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -27,14 +28,25 @@ const Calendar = ({ onDateSelect }) => {
         } else {
           const currentDateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const isSelected = selectedDate === currentDateStr;
+          const isToday = 
+            today.getDate() === day && 
+            today.getMonth() === month && 
+            today.getFullYear() === year;
+
+          const todayStyle = isToday ? {
+            backgroundColor: '#413db3',
+            color: '#ffffff',
+            fontWeight: 'bold'
+          } : {};
 
           week.push(
             <td
               key={day}
               className={`day ${isSelected ? "selected" : ""}`}
+              style={todayStyle}
               onClick={() => {
-                setSelectedDate(currentDateStr); // Update local state
-                onDateSelect(currentDateStr); // Pass selected date to parent
+                setSelectedDate(currentDateStr);
+                onDateSelect(currentDateStr);
               }}
             >
               {day}
