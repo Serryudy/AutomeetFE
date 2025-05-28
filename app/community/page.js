@@ -340,9 +340,10 @@ export default function Community() {
           src='/chat.png' 
           alt="Chat" 
           style={{
-            width: '40px', 
-            height: '40px',
-            objectFit: 'contain'
+            width: '50px', 
+            height: '50px',
+            objectFit: 'contain',
+            margin: '0 50px 40px 0'
           }}
         />
       </button>
