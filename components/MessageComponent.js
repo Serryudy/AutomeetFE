@@ -91,11 +91,11 @@ const MessageComponent = ({ onClose }) => {
         const response = await fetch('http://localhost:8080/api/users/profile', {
           credentials: 'include'
         });
-        
+
         if (response.ok) {
           const userData = await response.json();
           setCurrentUser(userData.username);
-          
+
           // After getting user profile, fetch rooms and contacts
           fetchRoomsAndContacts(userData.username);
         } else {
@@ -107,7 +107,7 @@ const MessageComponent = ({ onClose }) => {
     };
 
     fetchUserProfile();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // WebSocket connection
@@ -122,9 +122,9 @@ const MessageComponent = ({ onClose }) => {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      
+
       // Handle different types of WebSocket messages
-      switch(data._type) {
+      switch (data._type) {
         case 'new_message':
           // Add new message to current conversation if in the right room
           if (selectedMessage && data.roomId === selectedMessage.id) {
@@ -145,7 +145,7 @@ const MessageComponent = ({ onClose }) => {
               participants: data.participants,
               roomName: data.roomName
             });
-            
+
             // Refresh chat rooms list
             fetchRoomsAndContacts();
           }
@@ -167,49 +167,94 @@ const MessageComponent = ({ onClose }) => {
     return () => {
       if (ws) ws.close();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMessage, isCreatingRoom]);
 
   // Update the fetchRoomsAndContacts function
   const fetchRoomsAndContacts = useCallback(async (currentUsername = currentUser) => {
-    if (!currentUsername) return;
-    
-    try {
-      setIsLoading(true);
-      
-      // Fetch chat rooms
-      const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
-        credentials: 'include'
-      });
-      const roomsData = await roomsResponse.json();
+  if (!currentUsername) return;
 
-      if (roomsData.success) {
-        // Update room names to show other participant's name
-        const updatedRooms = roomsData.data.map(room => ({
-          ...room,
-          displayName: getOtherParticipant(room.participants, currentUsername)
-        }));
-        
-        setChatRooms(updatedRooms);
-        
-        if (searchQuery.trim() === '') {
-          setSearchResults(updatedRooms);
+  try {
+    setIsLoading(true);
+
+    // Fetch chat rooms
+    const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
+      credentials: 'include'
+    });
+    const roomsData = await roomsResponse.json();
+
+    if (roomsData.success) {
+      // For each room, fetch the latest message
+      const updatedRooms = await Promise.all(
+        roomsData.data.map(async room => {
+          // Fetch latest message for this room
+          const msgRes = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages?limit=1`, {
+            credentials: 'include'
+          });
+          const msgData = await msgRes.json();
+          let latestMessage = "";
+          let latestMessageDate = "";
+          let latestMessageTime = "";
+          let latestMessageDateTime = null;
+          if (msgData.success && msgData.data.length > 0) {
+            const msg = msgData.data[0];
+            latestMessage = msg.content;
+            // Try to get date and time from senddate/sendtime or fallback to createdAt
+            if (msg.senddate && msg.sendtime) {
+              latestMessageDate = msg.senddate;
+              latestMessageTime = msg.sendtime;
+              latestMessageDateTime = new Date(`${msg.senddate}T${msg.sendtime}`);
+            } else if (msg.createdAt) {
+              const dt = new Date(msg.createdAt);
+              latestMessageDate = dt.toLocaleDateString();
+              latestMessageTime = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              latestMessageDateTime = dt;
+            }
+          }
+          return {
+            ...room,
+            displayName: getOtherParticipant(room.participants, currentUsername),
+            latestMessage,
+            latestMessageDate,
+            latestMessageTime,
+            latestMessageDateTime, // for sorting
+          };
+        })
+      );
+
+      // Sort by latestMessageDateTime descending (newest first)
+      updatedRooms.sort((a, b) => {
+        // If both have a date, compare them
+        if (a.latestMessageDateTime && b.latestMessageDateTime) {
+          return b.latestMessageDateTime - a.latestMessageDateTime;
         }
-      }
-
-      // Fetch all contacts at once
-      const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
-        credentials: 'include'
+        // If only one has a date, that one comes first
+        if (a.latestMessageDateTime) return -1;
+        if (b.latestMessageDateTime) return 1;
+        // Otherwise, keep original order
+        return 0;
       });
-      const contactsData = await contactsResponse.json();
-      setContacts(contactsData);
 
-    } catch (error) {
-      console.error('Error fetching rooms or contacts:', error);
-    } finally {
-      setIsLoading(false);
+      setChatRooms(updatedRooms);
+
+      if (searchQuery.trim() === '') {
+        setSearchResults(updatedRooms);
+      }
     }
-  }, [currentUser, searchQuery]);
+
+    // Fetch all contacts at once
+    const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
+      credentials: 'include'
+    });
+    const contactsData = await contactsResponse.json();
+    setContacts(contactsData);
+
+  } catch (error) {
+    console.error('Error fetching rooms or contacts:', error);
+  } finally {
+    setIsLoading(false);
+  }
+}, [currentUser, searchQuery]);
 
   // Add memoized search results
   const memoizedSearchResults = useMemo(() => {
@@ -252,7 +297,7 @@ const MessageComponent = ({ onClose }) => {
   // Function to handle contact click
   const handleContactClick = async (contact) => {
     console.log('Contact clicked:', contact);
-    
+
     // First, check if we already have a chat room with this contact
     const existingRoom = chatRooms.find(room => {
       // Check if this is a direct message room with exactly 2 participants
@@ -276,7 +321,7 @@ const MessageComponent = ({ onClose }) => {
         setIsCreatingRoom(true);
         // Use the contact's username or email as the participant
         const participantId = contact.username || contact.email;
-        
+
         // Create room request to the websocket
         websocket.send(JSON.stringify({
           _type: 'create_room',
@@ -308,7 +353,7 @@ const MessageComponent = ({ onClose }) => {
       const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${selectedMessage.id}/messages`, {
         credentials: 'include'
       });
-      
+
       const messagesData = await messagesResponse.json();
 
       if (messagesData.success) {
@@ -392,6 +437,7 @@ const MessageComponent = ({ onClose }) => {
     setShowChatView(false);
     setSelectedMessage(null);
     setMessages([]);
+    fetchRoomsAndContacts();
   };
 
   // Function to highlight matched text
@@ -447,13 +493,13 @@ const MessageComponent = ({ onClose }) => {
       setIsSearching(true);
       const query = debouncedQuery.toLowerCase().trim();
 
-      const roomResults = chatRooms.filter(room => 
+      const roomResults = chatRooms.filter(room =>
         room.displayName?.toLowerCase().includes(query) ||
         room.participants?.some(p => p.toLowerCase().includes(query)) ||
         (room.roomName && room.roomName.toLowerCase().includes(query))
       );
 
-      const contactResults = contacts.filter(contact => 
+      const contactResults = contacts.filter(contact =>
         contact.username?.toLowerCase().includes(query) ||
         contact.email?.toLowerCase().includes(query)
       );
@@ -467,6 +513,29 @@ const MessageComponent = ({ onClose }) => {
     performSearch();
   }, [debouncedQuery, chatRooms, contacts]);
 
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    let [hour, minute] = timeStr.split(':');
+    let h = parseInt(hour, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${minute} ${ampm}`;
+  };
+
+  const formatMessageDate = (dateStr) => {
+    if (!dateStr) return '';
+    const today = new Date();
+    const date = new Date(dateStr);
+    // Remove time part for comparison
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    const diff = (today - date) / (1000 * 60 * 60 * 24);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    return dateStr;
+  };
+
   // Render message list view
   const renderMessageListView = () => {
     const sizes = getResponsiveSizes();
@@ -478,7 +547,7 @@ const MessageComponent = ({ onClose }) => {
           style={{ padding: sizes.padding.container }}>
           {showSearch ? (
             <div className="search-container d-flex align-items-center w-100"
-            style={{padding:"1px 0"}}>
+              style={{ padding: "1px 0" }}>
               <div className="position-relative w-100">
                 <input
                   ref={searchInputRef}
@@ -608,39 +677,37 @@ const MessageComponent = ({ onClose }) => {
                       fontSize: sizes.fontSize.name,
                       maxWidth: containerWidth < 400 ? '60%' : '70%'
                     }}>
-                      {searchQuery ? 
-                        highlightText(isContact(item) ? 
-                          (item.username || item.email) : 
-                          item.displayName, 
-                        searchQuery) : 
-                        (isContact(item) ? 
-                          (item.username || item.email) : 
+                      {searchQuery ?
+                        highlightText(isContact(item) ?
+                          (item.username || item.email) :
+                          item.displayName,
+                          searchQuery) :
+                        (isContact(item) ?
+                          (item.username || item.email) :
                           item.displayName)
                       }
                       {isContact(item) && <span className="ms-2 badge bg-success">Contact</span>}
                     </div>
-                    <div className="message-time text-muted ms-1 flex-shrink-0" style={{
-                      fontSize: sizes.fontSize.time,
-                    }}>
-                      {item.time || item.createdAt}
+                    <div className="message-date text-muted" style={{ fontSize: sizes.fontSize.time }}>
+                      {formatMessageDate(item.latestMessageDate || item.date || "")}
                     </div>
                   </div>
-                  {item.participants && (
-                    <div className="message-preview text-muted text-truncate " style={{
-                      fontSize: sizes.fontSize.message1,
-                      maxWidth: '88%',
-                    }}>
-                      {item.participants.join(', ')}
+                  <div className="d-flex ">
+                    <div style={{ flexGrow: 1, minWidth: '0' }}>
+                      {item.latestMessage && (
+                        <div className="message-preview text-muted text-truncate" style={{
+                          fontSize: sizes.fontSize.message1,
+                          maxWidth: '90%',
+                        }}>
+                          {item.latestMessage}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {isContact(item) && (
-                    <div className="message-preview text-muted text-truncate " style={{
-                      fontSize: sizes.fontSize.message1,
-                      maxWidth: '88%',
-                    }}>
-                      {item.email || "Click to start chatting"}
+                    <div className="message-time text-muted " style={{ fontSize: sizes.fontSize.time, minWidth: '50px', textAlign: 'right' }}>
+                      {formatTime(item.latestMessageTime || item.time || "")}
                     </div>
-                  )}
+                  </div>
+
                 </div>
               </div>
             ))
@@ -731,15 +798,6 @@ const MessageComponent = ({ onClose }) => {
           ) : (
             messages.map((msg, index) => {
               const isCurrentUser = msg.senderId === currentUser;
-
-              const formatTime = (timeStr) => {
-                if (!timeStr) return '';
-                let [hour, minute] = timeStr.split(':');
-                let h = parseInt(hour, 10);
-                const ampm = h >= 12 ? 'PM' : 'AM';
-                h = h % 12 || 12;
-                return `${h}:${minute} ${ampm}`;
-              };
 
               const formatDateWithDay = (dateStr) => {
                 if (!dateStr) return '';
