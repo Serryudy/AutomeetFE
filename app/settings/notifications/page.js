@@ -163,7 +163,7 @@ export default function NotificationPage() {
     }
   };
 
-  // Helper function to get action URL
+  // Helper function to get action
   const getActionUrl = (meetingId, type) => {
     switch (type) {
       case 'availability_request':
