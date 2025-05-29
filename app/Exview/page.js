@@ -27,7 +27,7 @@ export default function Meeting() {
   // Simulate API call
   useEffect(() => {
     setIsLoading(true);
-    fetch('/api/meetings') // Replace with your actual API endpoint
+    fetch(`http://localhost:8080/api/meetings/${meetingId}`) // Replace with your actual API endpoint
       .then(res => res.json())
       .then(data => {
         handleSearchResult(data); // or setMeetings(data) if you don't want filtering
