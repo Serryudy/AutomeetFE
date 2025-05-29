@@ -88,11 +88,6 @@ export default function MeetingInsights() {
     console.log('Selected meeting:', meeting);
   };
 
-  // Handler for filter button click
-  const handleFilter = () => {
-    console.log('Filter button clicked');
-    // Implement your filter functionality here
-  };
 
   return (
     <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>  
