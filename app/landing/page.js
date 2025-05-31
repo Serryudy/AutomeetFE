@@ -183,13 +183,14 @@ const HomePage = () => {
 
   const featuresRef = useRef(null);
 
+  // Scroll to Features Section
   const scrollToFeatures = (e) => {
     e.preventDefault();
     if (featuresRef.current) {
       const elementPosition = featuresRef.current.offsetTop;
       
       window.scrollTo({
-        top: 2600,
+        top: 2320,
         behavior: "smooth"
       });
     }

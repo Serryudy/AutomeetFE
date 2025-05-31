@@ -7,11 +7,9 @@ import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import { FaBars, FaTrashAlt, FaBell, FaArrowLeft } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
-import { useLoading } from '@/context/LoadingContext';
 
 export default function NotificationPage() {
   const router = useRouter();
-  const { setIsLoading } = useLoading();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [isMobile, setIsMobile] = useState(false);
@@ -21,8 +19,11 @@ export default function NotificationPage() {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoadingState] = useState(true);
   const [error, setError] = useState(null);
+  const [meetingDetails, setMeetingDetails] = useState(null);
+  const [meetingFetchError, setMeetingFetchError] = useState(null);
+  const [currentView, setCurrentView] = useState('list');
 
-  // Fetch notifications when component mounts
+
   useEffect(() => {
     fetchNotifications();
   }, []);
@@ -44,7 +45,7 @@ export default function NotificationPage() {
       if (!response.ok) {
         throw new Error(`Error fetching notifications: ${response.status}`);
       }
-
+      console.log(response);
       const data = await response.json();
       
       // Transform the API response to match the component's data structure
@@ -193,16 +194,46 @@ export default function NotificationPage() {
     setIsSidebarCollapsed(collapsed);
   };
 
-  const handleNotificationClick = (id) => {
-    markAsRead(id);
-    setSelectedNotificationId(id);
+  // Handle notification click to fetch meeting details
+  const handleNotificationClick = async (id) => {
+    try {
+      markAsRead(id);
+      setSelectedNotificationId(id);
+      setMeetingFetchError(null); // Reset error message
+      
+      const notification = notifications.find(n => n.id === id);
+      if (!notification) return;
+
+      const meetingId = notification.details.actionUrl.split('/').pop();
+      
+      const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setMeetingFetchError('This meeting is no longer available.');
+        } else {
+          setMeetingFetchError('Unable to load meeting details at this time.');
+        }
+        setMeetingDetails(null);
+        return;
+      }
+
+      setMeetingDetails(data);
+    } catch (error) {
+      setMeetingFetchError('Unable to load meeting details at this time.');
+      setMeetingDetails(null);
+    }
   };
 
   const handleBackToList = () => {
     setSelectedNotificationId(null);
   };
 
-  // Update the filteredNotifications function
+  // Update the filtered Notifications related page
   const filteredNotifications = () => {
     if (isLoading) return {};
     if (error) return {};
@@ -221,6 +252,7 @@ export default function NotificationPage() {
     }, {});
   };
 
+  //get unread count
   const getUnreadCount = () => {
     return notifications.filter(notification => !notification.read).length;
   };
@@ -231,12 +263,7 @@ export default function NotificationPage() {
 
   // Update the navigation handler
   const handleNavigation = (url) => {
-    setIsLoading(true); // Show loading immediately
-    router.push(url).then(() => {
-      // This will run after navigation is complete, but we'll keep the overlay 
-      // visible briefly to ensure smooth transition
-      setTimeout(() => setIsLoading(false), 100);
-    });
+    router.push(url);
   };
 
   const formatDateTime = (dateString) => {
@@ -336,7 +363,6 @@ export default function NotificationPage() {
             </div>
             
             <div className="card border-0 bg-light rounded-4 shadow-sm">
-              {/* Header with sender and timestamp */}
               <div className="card-header bg-transparent border-bottom py-3 px-4">
                 <div className="d-flex justify-content-between align-items-center">
                   <div className="d-flex align-items-center">
@@ -344,37 +370,72 @@ export default function NotificationPage() {
                     <span className="fw-bold ms-2">{getSelectedNotification().from}</span>
                   </div>
                   <div className="text-muted">
-                    {getSelectedNotification().date}, {getSelectedNotification().time}
+                    {getSelectedNotification().date.split(',')[0]}, {getSelectedNotification().time}
                   </div>
                 </div>
               </div>
               
               {/* Main content */}
               <div className="card-body p-4 p-md-5">
-                {/* Title */}
+
                 <h2 className="text-center fw-bold mb-4">{getSelectedNotification().title}</h2>
-                
-                {/* Main message */}
                 <p className="mx-5 px-5 mb-5">{getSelectedNotification().message}</p>
-                
-                {/* Meeting details */}
-                <div className="m-5 px-5">
-                  <div className="mb-1">
-                    <span className="fw-medium">Meeting: </span>
-                    <span className="fw-bold">{getSelectedNotification().details.meetingTitle}</span>
+
+                {meetingFetchError ? (
+                  <div className="alert alert-info m-5 px-5 text-center">
+                    <p className="mb-0">{meetingFetchError}</p>
                   </div>
-                  <div className="mb-1">
-                    <span className="fw-medium">Organizer: </span>
-                    <span className="fw-bold">{getSelectedNotification().details.organizer}</span>
+                ) : meetingDetails && (
+                  <div className="m-5 px-5">
+                    <div className="mb-3">
+                      <span className="fw-medium">Meeting Title: </span>
+                      <span className="fw-bold">{meetingDetails.title}</span>
+                    </div>
+                    <div className="mb-3">
+                      <span className="fw-medium">Organizer: </span>
+                      <span className="fw-bold">{meetingDetails.createdBy}</span>
+                    </div>
+                    <div className="mb-3">
+                      <span className="fw-medium">Date & Time: </span>
+                      <span className="fw-bold">
+                        {meetingDetails.directTimeSlot ? (
+                          <>
+                            {new Date(meetingDetails.directTimeSlot.startTime).toLocaleString()} - {' '}
+                            {new Date(meetingDetails.directTimeSlot.endTime).toLocaleTimeString()}
+                          </>
+                        ) : meetingDetails.proposedTimeSlots ? (
+                          <div className="mt-2">
+                            {meetingDetails.proposedTimeSlots.map((slot, index) => (
+                              <div key={index} className="mb-1">
+                                Option {index + 1}: {new Date(slot.startTime).toLocaleString()} - {' '}
+                                {new Date(slot.endTime).toLocaleTimeString()}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          'Time not specified'
+                        )}
+                      </span>
+                    </div>
+                    <div className="mb-3">
+                      <span className="fw-medium">Location: </span>
+                      <span className="fw-bold">{meetingDetails.location || 'Not specified'}</span>
+                    </div>
+                    <div className="mb-3">
+                      <span className="fw-medium">Status: </span>
+                      <span className="fw-bold text-capitalize">{meetingDetails.status}</span>
+                    </div>
+                    {meetingDetails.description && (
+                      <div className="mb-3">
+                        <span className="fw-medium">Description: </span>
+                        <span className="fw-bold">{meetingDetails.description}</span>
+                      </div>
+                    )}
+                    
                   </div>
-                  <div className="mb-1">
-                    <span className="fw-medium">Date: </span>
-                    <span className="fw-bold">{getSelectedNotification().details.date}</span>
-                  </div>
-                </div>
-                
-                {/* Action button */}
-                <div className=" m-5 mb-4 px-5">
+                )}
+
+                <div className="m-5 mb-4 px-5">
                   <button 
                     className="btn btn-primary px-4 py-2"
                     onClick={() => handleNavigation(getSelectedNotification().details.actionUrl)}
@@ -382,9 +443,6 @@ export default function NotificationPage() {
                     {getSelectedNotification().details.actionButton}
                   </button>
                 </div>
-                
-                {/* Footer message */}
-                <p className="text-center text-muted mt-5">{getSelectedNotification().details.footer}</p>
               </div>
             </div>
           </div>
@@ -439,7 +497,6 @@ export default function NotificationPage() {
                 ) : (
                   Object.entries(filteredNotifications()).map(([date, items]) => (
                     <div key={date} className="mb-4">
-                      
                       {items.map(notification => (
                         <div 
                           key={notification.id} 

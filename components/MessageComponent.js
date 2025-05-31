@@ -4,7 +4,6 @@ import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperP
 import { useProfile } from '@/hooks/useProfile';
 
 
-// Add this helper function after the imports
 const getOtherParticipant = (participants, currentUser) => {
   return participants.find(p => p !== currentUser) || participants[0];
 };
@@ -817,15 +816,14 @@ const MessageComponent = ({ onClose }) => {
                         }}
                       >
                         <div
-                          className={`shadow-sm ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`}
+                          className={`${isCurrentUser ? 'bg-primary text-white' : 'text-dark'}`}
                           style={{
+                            backgroundColor: isCurrentUser ? '' : '#ebebeb',
                             borderBottomRightRadius: isCurrentUser ? '0px' : '15px',
                             borderBottomLeftRadius: isCurrentUser ? '15px' : '0px',
                             borderTopRightRadius: '15px',
                             borderTopLeftRadius: '15px',
                             fontSize: sizes.fontSize.chat,
-                            wordBreak: 'break-word',
-                            overflowWrap: 'break-word',
                             padding: '8px 15px',
                           }}
                         >
@@ -890,7 +888,7 @@ const MessageComponent = ({ onClose }) => {
     );
   };
 
-  // Render method
+  
   return (
     <div
       ref={containerRef}
