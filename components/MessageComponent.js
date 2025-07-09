@@ -942,7 +942,7 @@ const MessageComponent = ({ onClose }) => {
       ref={containerRef}
       className="position-relative bg-white font-inter shadow-sm d-flex flex-column"
       style={{
-        height: '90vh', // Adjust as needed
+        height: '90vh',
         borderRadius: "15px",
         width: "100%",
         overflow: "hidden",
