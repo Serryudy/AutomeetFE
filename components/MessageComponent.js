@@ -955,3 +955,42 @@ const MessageComponent = ({ onClose }) => {
 };
 
 export default MessageComponent;
+
+
+export const loginuserWithProfiles = async () => {
+  // Automatically get username from localStorage
+  const username = localStorage.getItem('username');
+  if (!username) {
+    throw new Error('No logged-in user found');
+  }
+  try {
+    const response = await fetch(`http://localhost:8080/api/users/${username}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch user profile');
+    }
+    const userData = await response.json();
+    return userData;
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    return null;
+  }
+};
+
+export function getTimezoneOffsetToUser(userTimeZone) {
+  const now = new Date();
+
+  // Get local time in UTC minutes
+  const localUtcMinutes = now.getTimezoneOffset() * -1;
+
+  // Get user time in UTC minutes
+  const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
+  const userUtcMinutes = userDate.getHours() * 60 + userDate.getMinutes() - (now.getHours() * 60 + now.getMinutes()) + localUtcMinutes;
+
+  // Calculate the offset to add to local time to get user time
+  const offsetMinutes = userUtcMinutes;
+
+  const hours = Math.floor(offsetMinutes / 60);
+  const minutes = offsetMinutes % 60;
+
+  return { hours, minutes };
+}
