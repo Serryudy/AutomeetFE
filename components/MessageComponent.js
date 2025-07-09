@@ -86,7 +86,7 @@ const MessageComponent = ({ onClose }) => {
       // After getting user profile, fetch rooms and contacts
       fetchRoomsAndContacts(profile.username);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   // WebSocket connection
@@ -151,136 +151,136 @@ const MessageComponent = ({ onClose }) => {
 
   // Update the fetchRoomsAndContacts function
   const fetchRoomsAndContacts = useCallback(async (currentUsername = currentUser) => {
-  if (!currentUsername) return;
+    if (!currentUsername) return;
 
-  try {
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    // Fetch chat rooms
-    const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
-      credentials: 'include'
-    });
-    const roomsData = await roomsResponse.json();
+      // Fetch chat rooms
+      const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
+        credentials: 'include'
+      });
+      const roomsData = await roomsResponse.json();
 
-    if (roomsData.success) {
-      // For each room, fetch the latest message
-      const updatedRooms = await Promise.all(
-        roomsData.data.map(async room => {
-          const otherParticipant = getOtherParticipant(room.participants, currentUsername);
-          
-          try {
-            // Fetch profile
-            const profileResponse = await fetch(`http://localhost:8080/api/users/${otherParticipant}`, {
-              credentials: 'include'
-            });
-            const profileData = await profileResponse.json();
+      if (roomsData.success) {
+        // For each room, fetch the latest message
+        const updatedRooms = await Promise.all(
+          roomsData.data.map(async room => {
+            const otherParticipant = getOtherParticipant(room.participants, currentUsername);
 
-            // Fetch latest message
-            const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages?limit=1`, {
-              credentials: 'include'
-            });
-            const messagesData = await messagesResponse.json();
-            
-            let latestMessage = "";
-            let latestMessageDate = "";
-            let latestMessageTime = "";
-            let latestMessageDateTime = null;
+            try {
+              // Fetch profile
+              const profileResponse = await fetch(`http://localhost:8080/api/users/${otherParticipant}`, {
+                credentials: 'include'
+              });
+              const profileData = await profileResponse.json();
 
-            if (messagesData.success && messagesData.data.length > 0) {
-              const lastMsg = messagesData.data[0];
-              latestMessage = lastMsg.content;
-              latestMessageDate = lastMsg.senddate;
-              latestMessageTime = lastMsg.sendtime;
-              latestMessageDateTime = new Date(`${lastMsg.senddate}T${lastMsg.sendtime}`);
+              // Fetch latest message
+              const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages?limit=1`, {
+                credentials: 'include'
+              });
+              const messagesData = await messagesResponse.json();
+
+              let latestMessage = "";
+              let latestMessageDate = "";
+              let latestMessageTime = "";
+              let latestMessageDateTime = null;
+
+              if (messagesData.success && messagesData.data.length > 0) {
+                const lastMsg = messagesData.data[0];
+                latestMessage = lastMsg.content;
+                latestMessageDate = lastMsg.senddate;
+                latestMessageTime = lastMsg.sendtime;
+                latestMessageDateTime = new Date(`${lastMsg.senddate}T${lastMsg.sendtime}`);
+              }
+
+              return {
+                ...room,
+                displayName: profileData.name || otherParticipant,
+                profile_pic: profileData.profile_pic || "/profile.png",
+                latestMessage,
+                latestMessageDate,
+                latestMessageTime,
+                latestMessageDateTime
+              };
+            } catch (err) {
+              console.error(`Error fetching details for ${otherParticipant}:`, err);
+              return {
+                ...room,
+                displayName: otherParticipant,
+                profile_pic: "/profile.png",
+                latestMessage: "",
+                latestMessageDate: "",
+                latestMessageTime: "",
+                latestMessageDateTime: null
+              };
             }
-            
+          })
+        );
+
+        // Sort newest first
+        updatedRooms.sort((a, b) => {
+          if (a.latestMessageDateTime && b.latestMessageDateTime) {
+            return b.latestMessageDateTime - a.latestMessageDateTime;
+          }
+          // If only one has a date, that one comes first
+          if (a.latestMessageDateTime) return -1;
+          if (b.latestMessageDateTime) return 1;
+          return 0;
+        });
+
+        setChatRooms(updatedRooms);
+
+        if (searchQuery.trim() === '') {
+          setSearchResults(updatedRooms);
+        }
+      }
+
+      // Fetch all contacts at once
+      const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
+        credentials: 'include'
+      });
+      const contactsData = await contactsResponse.json();
+
+      // Fetch profile for each contact and merge
+      const contactsWithProfiles = await Promise.all(
+        contactsData.map(async (contact) => {
+          try {
+            const profileResponse = await fetch(`http://localhost:8080/api/users/${contact.username}`, {
+              credentials: 'include'
+            });
+            if (profileResponse.ok) {
+              const profileData = await profileResponse.json();
+              return {
+                ...contact,
+                name: profileData.name || contact.username,
+                profile_pic: profileData.profile_pic || "/profile.png"
+              };
+            }
             return {
-              ...room,
-              displayName: profileData.name || otherParticipant,
-              profile_pic: profileData.profile_pic || "/profile.png",
-              latestMessage,
-              latestMessageDate,
-              latestMessageTime,
-              latestMessageDateTime
+              ...contact,
+              name: contact.username,
+              profile_pic: "/profile.png"
             };
           } catch (err) {
-            console.error(`Error fetching details for ${otherParticipant}:`, err);
+            console.error(`Error fetching profile for ${contact.username}:`, err);
             return {
-              ...room,
-              displayName: otherParticipant,
-              profile_pic: "/profile.png",
-              latestMessage: "",
-              latestMessageDate: "",
-              latestMessageTime: "",
-              latestMessageDateTime: null
+              ...contact,
+              name: contact.username,
+              profile_pic: "/profile.png"
             };
           }
         })
       );
 
-      // Sort newest first
-      updatedRooms.sort((a, b) => {
-        if (a.latestMessageDateTime && b.latestMessageDateTime) {
-          return b.latestMessageDateTime - a.latestMessageDateTime;
-        }
-        // If only one has a date, that one comes first
-        if (a.latestMessageDateTime) return -1;
-        if (b.latestMessageDateTime) return 1;
-        return 0;
-      });
+      setContacts(contactsWithProfiles);
 
-      setChatRooms(updatedRooms);
-
-      if (searchQuery.trim() === '') {
-        setSearchResults(updatedRooms);
-      }
+    } catch (error) {
+      console.error('Error fetching rooms or contacts:', error);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Fetch all contacts at once
-    const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
-      credentials: 'include'
-    });
-    const contactsData = await contactsResponse.json();
-
-    // Fetch profile for each contact and merge
-    const contactsWithProfiles = await Promise.all(
-      contactsData.map(async (contact) => {
-        try {
-          const profileResponse = await fetch(`http://localhost:8080/api/users/${contact.username}`, {
-            credentials: 'include'
-          });
-          if (profileResponse.ok) {
-            const profileData = await profileResponse.json();
-            return {
-              ...contact,
-              name: profileData.name || contact.username,
-              profile_pic: profileData.profile_pic || "/profile.png"
-            };
-          }
-          return {
-            ...contact,
-            name: contact.username,
-            profile_pic: "/profile.png"
-          };
-        } catch (err) {
-          console.error(`Error fetching profile for ${contact.username}:`, err);
-          return {
-            ...contact,
-            name: contact.username,
-            profile_pic: "/profile.png"
-          };
-        }
-      })
-    );
-
-    setContacts(contactsWithProfiles);
-
-  } catch (error) {
-    console.error('Error fetching rooms or contacts:', error);
-  } finally {
-    setIsLoading(false);
-  }
-}, [currentUser, searchQuery]);
+  }, [currentUser, searchQuery]);
 
   // Add memoized search results
   const memoizedSearchResults = useMemo(() => {
@@ -562,6 +562,46 @@ const MessageComponent = ({ onClose }) => {
     return dateStr;
   };
 
+  // fetch logged-in user details
+  const loginuserWithProfiles = async () => {
+    // Automatically get username from localStorage
+    const username = localStorage.getItem('username');
+    if (!username) {
+      throw new Error('No logged-in user found');
+    }
+    try {
+      const response = await fetch(`http://localhost:8080/api/users/${username}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile');
+      }
+      const userData = await response.json();
+      return userData.time_zone ? userData.time_zone : 'UTC'; 
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+  };
+
+  
+  function getTimezoneOffsetToUser(userTimeZone) {
+    const now = new Date();
+
+    // Get local time in UTC minutes
+    const localUtcMinutes = now.getTimezoneOffset() * -1;
+
+    // Get user time in UTC minutes
+    const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
+    const userUtcMinutes = userDate.getHours() * 60 + userDate.getMinutes() - (now.getHours() * 60 + now.getMinutes()) + localUtcMinutes;
+
+    // Calculate the offset to add to local time to get user time
+    const offsetMinutes = userUtcMinutes;
+
+    const hours = Math.floor(offsetMinutes / 60);
+    const minutes = offsetMinutes % 60;
+
+    return { hours, minutes };
+  }
+
   // Render message list view
   const renderMessageListView = () => {
     const sizes = getResponsiveSizes();
@@ -805,7 +845,7 @@ const MessageComponent = ({ onClose }) => {
             )}
           </div>
           <div className="chat-user-info flex-grow-1 overflow-hidden">
-            <div className="fw-bold text-truncate" style={{ fontSize: "1.2rem"}}>
+            <div className="fw-bold text-truncate" style={{ fontSize: "1.2rem" }}>
               {selectedMessage.displayName || selectedMessage.roomName || selectedMessage.participants?.join(', ')}
             </div>
           </div>
@@ -936,7 +976,7 @@ const MessageComponent = ({ onClose }) => {
     );
   };
 
-  
+
   return (
     <div
       ref={containerRef}
@@ -957,40 +997,3 @@ const MessageComponent = ({ onClose }) => {
 export default MessageComponent;
 
 
-export const loginuserWithProfiles = async () => {
-  // Automatically get username from localStorage
-  const username = localStorage.getItem('username');
-  if (!username) {
-    throw new Error('No logged-in user found');
-  }
-  try {
-    const response = await fetch(`http://localhost:8080/api/users/${username}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch user profile');
-    }
-    const userData = await response.json();
-    return userData;
-  } catch (error) {
-    console.error('Error fetching user profile:', error);
-    return null;
-  }
-};
-
-export function getTimezoneOffsetToUser(userTimeZone) {
-  const now = new Date();
-
-  // Get local time in UTC minutes
-  const localUtcMinutes = now.getTimezoneOffset() * -1;
-
-  // Get user time in UTC minutes
-  const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
-  const userUtcMinutes = userDate.getHours() * 60 + userDate.getMinutes() - (now.getHours() * 60 + now.getMinutes()) + localUtcMinutes;
-
-  // Calculate the offset to add to local time to get user time
-  const offsetMinutes = userUtcMinutes;
-
-  const hours = Math.floor(offsetMinutes / 60);
-  const minutes = offsetMinutes % 60;
-
-  return { hours, minutes };
-}
