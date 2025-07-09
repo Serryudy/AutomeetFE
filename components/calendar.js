@@ -39,18 +39,6 @@ const Calendar = ({ onDateSelect }) => {
             fontWeight: 'bold'
           } : {};
 
-          const isToday = 
-            today.getDate() === day && 
-            today.getMonth() === month && 
-            today.getFullYear() === year;
-
-          const todayStyle = isToday ? {
-            backgroundColor: '#9698d4',
-            color: '#ffffff',
-
-            fontWeight: 'bold'
-          } : {};
-
           week.push(
             <td
               key={day}
