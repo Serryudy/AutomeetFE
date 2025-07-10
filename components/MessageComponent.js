@@ -30,6 +30,7 @@ const MessageComponent = ({ onClose }) => {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [hasUserTyped, setHasUserTyped] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  const [timezoneOffset, setTimezoneOffset] = useState(null);
 
   // Handle window resize
   useEffect(() => {
@@ -191,18 +192,33 @@ const MessageComponent = ({ onClose }) => {
                 latestMessage = lastMsg.content;
                 latestMessageDate = lastMsg.senddate;
                 latestMessageTime = lastMsg.sendtime;
-                latestMessageDateTime = new Date(`${lastMsg.senddate}T${lastMsg.sendtime}`);
-              }
 
-              return {
-                ...room,
-                displayName: profileData.name || otherParticipant,
-                profile_pic: profileData.profile_pic || "/profile.png",
-                latestMessage,
-                latestMessageDate,
-                latestMessageTime,
-                latestMessageDateTime
-              };
+                // Combine date and time into a Date object
+                let latestMessageDateTime = new Date(`${lastMsg.senddate}T${lastMsg.sendtime}`);
+                // If timezoneOffset is available, add it
+                if (timezoneOffset && typeof timezoneOffset.hours === 'number' && typeof timezoneOffset.minutes === 'number') {
+                  latestMessageDateTime.setHours(latestMessageDateTime.getHours() + timezoneOffset.hours);
+                  alert(`Timezone offset applied: ${timezoneOffset.hours} hours, ${timezoneOffset.minutes} minutes`);
+                  latestMessageDateTime.setMinutes(latestMessageDateTime.getMinutes() + timezoneOffset.minutes);
+                }
+
+                // If you want to update the date and time strings after offset
+                const offsetDate = latestMessageDateTime.toISOString().slice(0, 10); // YYYY-MM-DD
+                const offsetTime = latestMessageDateTime.toTimeString().slice(0, 5); // HH:MM
+
+                latestMessageDate = offsetDate;
+                latestMessageTime = offsetTime;
+
+                return {
+                  ...room,
+                  displayName: profileData.name || otherParticipant,
+                  profile_pic: profileData.profile_pic || "/profile.png",
+                  latestMessage,
+                  latestMessageDate,
+                  latestMessageTime,
+                  latestMessageDateTime
+                };
+              }
             } catch (err) {
               console.error(`Error fetching details for ${otherParticipant}:`, err);
               return {
@@ -280,6 +296,7 @@ const MessageComponent = ({ onClose }) => {
     } finally {
       setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, searchQuery]);
 
   // Add memoized search results
@@ -539,6 +556,15 @@ const MessageComponent = ({ onClose }) => {
     performSearch();
   }, [debouncedQuery, chatRooms, contacts]);
 
+  // timezone offset effect
+  useEffect(() => {
+    if (profile && profile.username) {
+      getUserTimezoneOffset(profile.username).then(result => {
+        setTimezoneOffset(result);
+      });
+    }
+  }, [profile]);
+
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
     let [hour, minute] = timeStr.split(':');
@@ -563,44 +589,49 @@ const MessageComponent = ({ onClose }) => {
   };
 
   // fetch logged-in user details
-  const loginuserWithProfiles = async () => {
+  const getUserTimezoneOffset = async (username) => {
     // Automatically get username from localStorage
-    const username = localStorage.getItem('username');
     if (!username) {
       throw new Error('No logged-in user found');
     }
+
     try {
-      const response = await fetch(`http://localhost:8080/api/users/${username}`);
+      // Fetch user profile to get timezone
+      const response = await fetch(`http://localhost:8080/api/users/${username}`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch user profile');
       }
+
       const userData = await response.json();
-      return userData.time_zone ? userData.time_zone : 'UTC'; 
+      const userTimeZone = userData.time_zone ? userData.time_zone : 'UTC';
+
+      // Calculate timezone offset
+      const now = new Date();
+
+      // Get local time in UTC minutes
+      const localUtcMinutes = now.getTimezoneOffset() * -1;
+
+      // Get user time in UTC minutes
+      const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
+      const userUtcMinutes = userDate.getHours() * 60 + userDate.getMinutes() - (now.getHours() * 60 + now.getMinutes()) + localUtcMinutes;
+
+      // Calculate the offset to add to local time to get user time
+      const offsetMinutes = userUtcMinutes;
+
+      const hours = Math.floor(offsetMinutes / 60);
+      const minutes = offsetMinutes % 60;
+
+      return { hours, minutes };
+
     } catch (error) {
       console.error('Error fetching user profile:', error);
       return null;
     }
   };
 
-  
-  function getTimezoneOffsetToUser(userTimeZone) {
-    const now = new Date();
 
-    // Get local time in UTC minutes
-    const localUtcMinutes = now.getTimezoneOffset() * -1;
-
-    // Get user time in UTC minutes
-    const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
-    const userUtcMinutes = userDate.getHours() * 60 + userDate.getMinutes() - (now.getHours() * 60 + now.getMinutes()) + localUtcMinutes;
-
-    // Calculate the offset to add to local time to get user time
-    const offsetMinutes = userUtcMinutes;
-
-    const hours = Math.floor(offsetMinutes / 60);
-    const minutes = offsetMinutes % 60;
-
-    return { hours, minutes };
-  }
 
   // Render message list view
   const renderMessageListView = () => {
