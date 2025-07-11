@@ -673,21 +673,9 @@ const cancelMeeting = async () => {
       fetchContent();
     }, [meetingId]);
 
-    if (loading) return <div className="p-4 text-center"><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading meeting data...</div>;
+if (loading) return <div className="p-4 text-center"><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading meeting data...</div>;
 if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
-if (isDeleted) return (
-  <div className="p-4 text-center">
-    <div className="alert alert-success d-inline-block">
-      <div className="d-flex align-items-center">
-        <FaCheckCircle className="me-2 text-success" />
-        <div>
-          <strong>Meeting deleted successfully!</strong>
-  
-        </div>
-      </div>
-    </div>
-  </div>
-);
+if (isDeleted) return <div className="p-4 text-center text-danger-fs2">Meeting deleted successfully!</div>;
 if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
   
     // Check if the user can edit the meeting
