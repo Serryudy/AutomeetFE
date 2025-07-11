@@ -280,7 +280,7 @@ const MessageComponent = ({ onClose }) => {
     } finally {
       setIsLoading(false);
     }
-   
+
   }, [currentUser, searchQuery]);
 
   // Add memoized search results
@@ -557,24 +557,24 @@ const MessageComponent = ({ onClose }) => {
 
     // Apply timezone offset if available
     if (timezoneOffset && typeof timezoneOffset.hours === 'number' && typeof timezoneOffset.minutes === 'number') {
-        h += timezoneOffset.hours;
-        m += timezoneOffset.minutes;
+      h += timezoneOffset.hours;
+      m += timezoneOffset.minutes;
 
-        // Handle minute overflow
-        if (m >= 60) {
-            h += Math.floor(m / 60);
-            m = m % 60;
-        } else if (m < 0) {
-            h -= Math.ceil(Math.abs(m) / 60);
-            m = ((m % 60) + 60) % 60;
-        }
+      // Handle minute overflow
+      if (m >= 60) {
+        h += Math.floor(m / 60);
+        m = m % 60;
+      } else if (m < 0) {
+        h -= Math.ceil(Math.abs(m) / 60);
+        m = ((m % 60) + 60) % 60;
+      }
 
-        // Handle hour overflow
-        if (h >= 24) {
-            h = h % 24;
-        } else if (h < 0) {
-            h = ((h % 24) + 24) % 24;
-        }
+      // Handle hour overflow
+      if (h >= 24) {
+        h = h % 24;
+      } else if (h < 0) {
+        h = ((h % 24) + 24) % 24;
+      }
     }
 
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -583,7 +583,7 @@ const MessageComponent = ({ onClose }) => {
     return `${displayHour}:${displayMinute} ${ampm}`;
   };
 
-  const formatMessageDate = (dateStr,timeStr) => {
+  const formatMessageDate = (dateStr, timeStr) => {
     if (!dateStr) return '';
     const today = new Date();
     const date = new Date(dateStr);
@@ -941,7 +941,9 @@ const MessageComponent = ({ onClose }) => {
                         className="chat-bubble"
                         style={{
                           maxWidth: '80%',
-                          width: 'fit-content'
+                          width: 'fit-content',
+                          minHeight: 'auto', // Allow natural height
+                          height: 'auto'     // Dynamic height based on content
                         }}
                       >
                         <div
@@ -954,6 +956,9 @@ const MessageComponent = ({ onClose }) => {
                             borderTopLeftRadius: '15px',
                             fontSize: sizes.fontSize.chat,
                             padding: '8px 15px',
+                            wordWrap: 'break-word',      // Handle long words
+                            overflowWrap: 'break-word',  // Modern browsers
+                            whiteSpace: 'pre-wrap'       // Preserve line breaks
                           }}
                         >
                           {msg.content}
@@ -961,7 +966,8 @@ const MessageComponent = ({ onClose }) => {
                             className="text-end"
                             style={{
                               fontSize: sizes.fontSize.time,
-                              opacity: 0.8
+                              opacity: 0.8,
+                              marginTop: '4px'  // Small spacing between message and time
                             }}
                           >
                             {formatTime(msg.sendtime)}
@@ -1036,7 +1042,7 @@ const MessageComponent = ({ onClose }) => {
       }
     };
 
-    
+
     fetchMessages();
 
     // Poll every 1 second
