@@ -1036,7 +1036,7 @@ const MessageComponent = ({ onClose }) => {
       }
     };
 
-    // Fetch immediately
+    
     fetchMessages();
 
     // Poll every 1 second
