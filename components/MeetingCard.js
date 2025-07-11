@@ -292,13 +292,14 @@ const MeetingCard = ({ meeting }) => {
           </div>
         </div>
         
-        <div className="ms-auto d-flex align-items-center justify-content-end w-100 mt-2">
-          <Link href={`/meetingdetails/${id}`}>
-            <button className="btn btn-primary d-flex align-items-center gap-1" style={{backgroundColor: "#3B3BD7", border: "none", fontSize: "12px"}}>
-              Edit <FaPencilAlt style={{fontSize: "14px"}} />
-            </button>
-          </Link>
-        </div>
+     <div className="ms-auto d-flex align-items-center justify-content-end w-100 mt-2">
+         <Link href={`/meetingdetails/${id}`} className="text-decoration-none">
+           <button className="btn btn-primary d-flex align-items-center gap-1" style={{ backgroundColor: "#3B3BD7", border: "none", fontSize: "12px" }}>
+            Edit <FaPencilAlt style={{ fontSize: "14px" }} />
+         </button>
+        </Link>
+     </div>
+
       </div>
       
       <style jsx>{`

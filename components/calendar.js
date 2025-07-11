@@ -28,7 +28,6 @@ const Calendar = ({ onDateSelect }) => {
         } else {
           const currentDateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const isSelected = selectedDate === currentDateStr;
-
           const isToday = 
             today.getDate() === day && 
             today.getMonth() === month && 
@@ -36,8 +35,7 @@ const Calendar = ({ onDateSelect }) => {
 
           const todayStyle = isToday ? {
             backgroundColor: '#9698d4',
-            color: '#ffffff',
-
+            color: '#333',
             fontWeight: 'bold'
           } : {};
 

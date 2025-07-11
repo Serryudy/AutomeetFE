@@ -252,3 +252,18 @@ td {
     overflow-y: auto;
   }
 }
+/* Direct meeting */
+
+.invalid-feedback {
+  display: block;
+  color: #dc3545;
+  margin-top: 0.25rem;
+}
+
+.is-invalid {
+  border-color: #dc3545;
+}
+
+html {
+  scroll-behavior: smooth;
+}

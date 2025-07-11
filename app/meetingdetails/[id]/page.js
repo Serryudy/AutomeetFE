@@ -663,6 +663,9 @@ const MeetingForm = () => {
     if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
     if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
   
+    // Check if the user can edit the meeting
+    const canEdit = userRole === 'creator' && meetingData.status !== 'confirmed';
+  
     return (
       <div className="container-fluid p-0">
         <div className="card shadow-sm bg-white rounded-3 p-3 p-md-4">
@@ -671,19 +674,24 @@ const MeetingForm = () => {
               <h2 className="fw-bold mb-0 fs-4 fs-md-3">{title || 'Meeting name'}</h2>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
-                <button 
-                  className="btn btn-secondary d-flex align-items-center px-3 py-2"
-                  onClick={() => setIsEditing(!isEditing)}
-                  disabled={userRole === 'participant'}
-                >
-                  <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
-                </button>
+                {canEdit ? (
+                  <button 
+                    className="btn btn-secondary d-flex align-items-center px-3 py-2"
+                    onClick={() => setIsEditing(!isEditing)}
+                  >
+                    <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
+                  </button>
+                ) : (
+                  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
+                )}
               </div>
             </div>
   
             <div className="mb-3 mb-md-4">
               <p className="mb-1 fw-bold">Status</p>
-              <span className="badge bg-primary px-3 py-2">Confirmed</span>
+              <span className={`badge ${meetingData.status === 'confirmed' ? 'bg-success' : 'bg-primary'} px-3 py-2`}>
+                {meetingData.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+              </span>
             </div>
             
             {meetingType && (
@@ -863,37 +871,77 @@ const MeetingForm = () => {
                   {/* Display time slots with null checks */}
                   {Array.isArray(timeSlots) && timeSlots.length > 0 && (
                     <div className="mt-3">
-                      <h6 className="mb-2">Added Time Slots:</h6>
-                      <div className="d-flex flex-wrap gap-2">
-                        {timeSlots.map((slot) => (
-                          <div 
-                            key={slot?.id || Math.random()} 
-                            className="d-flex align-items-center bg-light p-2 rounded"
-                          >
-                            <div>
-                              {slot?.startTime && (
-                                <>
-                                  <span className="fw-bold">
-                                    {new Date(slot.startTime).toLocaleDateString()}
-                                  </span>
-                                  <span className="mx-1">|</span>
-                                </>
-                              )}
-                              <span>{slot?.start || ''} - {slot?.end || ''}</span>
+                      <h6 className="mb-2">Time Slots:</h6>
+                      {meetingType === 'round_robin' ? (
+                        // Round Robin Display
+                        <div className="bg-light p-3 rounded">
+                          <div className="fw-bold mb-2">Round Robin Sessions</div>
+                          {timeSlots.map((slot, index) => (
+                            <div key={slot?.id || Math.random()} 
+                                 className="d-flex align-items-center mb-2 p-2 bg-white rounded">
+                              <div className="me-3">
+                                <span className="badge bg-primary">Session {index + 1}</span>
+                              </div>
+                              <div>
+                                <div className="fw-bold">
+                                  {new Date(slot.startTime).toLocaleDateString()}
+                                </div>
+                                <div>{slot?.start || ''} - {slot?.end || ''}</div>
+                                {roundRobinDuration && (
+                                  <small className="text-muted">
+                                    Duration: {roundRobinDuration} minutes per participant
+                                  </small>
+                                )}
+                              </div>
                             </div>
-                            {isEditing && (
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger ms-2"
-                                onClick={() => handleRemoveTimeSlot(slot?.id)}
-                                aria-label="Remove time slot"
-                              >
-                                <FaTimes />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : meetingType === 'group' ? (
+                        // Group Meeting Display
+                        <div className="bg-light p-3 rounded">
+                          <div className="fw-bold mb-2">Group Sessions</div>
+                          {timeSlots.map((slot) => (
+                            <div key={slot?.id || Math.random()} 
+                                 className="d-flex align-items-center mb-2 p-2 bg-white rounded">
+                              <div className="flex-grow-1">
+                                <div className="fw-bold">
+                                  {new Date(slot.startTime).toLocaleDateString()}
+                                </div>
+                                <div>Group Meeting: {slot?.start || ''} - {slot?.end || ''}</div>
+                                <div className="text-muted">
+                                  All participants will join at this time
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        // Regular Meeting Display
+                        <div className="d-flex flex-wrap gap-2">
+                          {timeSlots.map((slot) => (
+                            <div key={slot?.id || Math.random()} 
+                                 className="d-flex align-items-center bg-light p-2 rounded">
+                              <div>
+                                <span className="fw-bold">
+                                  {new Date(slot.startTime).toLocaleDateString()}
+                                </span>
+                                <span className="mx-1">|</span>
+                                <span>{slot?.start || ''} - {slot?.end || ''}</span>
+                              </div>
+                              {isEditing && canEdit && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger ms-2"
+                                  onClick={() => handleRemoveTimeSlot(slot?.id)}
+                                  aria-label="Remove time slot"
+                                >
+                                  <FaTimes />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
