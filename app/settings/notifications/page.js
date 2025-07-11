@@ -5,7 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import '@/styles/global.css';
 import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
-import { FaBars, FaTrashAlt, FaBell, FaArrowLeft } from 'react-icons/fa';
+import { FaBars, FaTrashAlt, FaBell, FaArrowLeft, FaArrowUp } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
 export default function NotificationPage() {
@@ -22,7 +22,25 @@ export default function NotificationPage() {
   const [meetingDetails, setMeetingDetails] = useState(null);
   const [meetingFetchError, setMeetingFetchError] = useState(null);
   const [currentView, setCurrentView] = useState('list');
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // Scroll to top functionality
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setShowScrollTop(scrollTop > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   useEffect(() => {
     fetchNotifications();
@@ -334,6 +352,28 @@ export default function NotificationPage() {
         ></div>
       )}
 
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          className="btn btn-primary position-fixed rounded-circle p-2 shadow-lg"
+          style={{
+            bottom: '2rem',
+            right: '2rem',
+            zIndex: 1000,
+            width: '45px',
+            height: '45px',
+            border: 'none',
+            transition: 'all 0.3s ease',
+            opacity: showScrollTop ? 1 : 0,
+            transform: showScrollTop ? 'scale(1)' : 'scale(0)'
+          }}
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+        >
+          <FaArrowUp size={15} />
+        </button>
+      )}
+
       {/* Main content */}
       <div 
         className="flex-grow-1 p-3 p-md-4"
@@ -465,6 +505,7 @@ export default function NotificationPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   All
+                  
                 </div>
                 <div 
                   className={`p-3 ${activeTab === 'unread' ? 'active fw-bold border-bottom border-5 border-primary' : 'border-0'} cursor-pointer`}
@@ -473,7 +514,7 @@ export default function NotificationPage() {
                 >
                   Unread
                   {getUnreadCount() > 0 && (
-                    <span className="badge bg-primary rounded-pill ms-1">{getUnreadCount()}</span>
+                    <span className="badge bg-primary rounded-pill ms-2">{getUnreadCount()}</span>
                   )}
                 </div>
                 <div 
