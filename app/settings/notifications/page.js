@@ -465,6 +465,7 @@ export default function NotificationPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   All
+                  
                 </div>
                 <div 
                   className={`p-3 ${activeTab === 'unread' ? 'active fw-bold border-bottom border-5 border-primary' : 'border-0'} cursor-pointer`}
@@ -473,7 +474,7 @@ export default function NotificationPage() {
                 >
                   Unread
                   {getUnreadCount() > 0 && (
-                    <span className="badge bg-primary rounded-pill ms-1">{getUnreadCount()}</span>
+                    <span className="badge bg-primary rounded-pill ms-2">{getUnreadCount()}</span>
                   )}
                 </div>
                 <div 
