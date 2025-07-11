@@ -419,7 +419,7 @@ const MessageComponent = ({ onClose }) => {
         chat: isNarrow ? '0.4rem' : isSmall ? '0.5rem' : '0.75rem'
       },
       buttonSize: isNarrow ? '40px' : isSmall ? '40px' : '46px',
-      buttonSize1: isNarrow ? '41px' : isSmall ? '41px' : '47px',
+      buttonSize1: isNarrow ? '40px' : isSmall ? '40px' : '46px',
       sendButtonSize: isNarrow ? '36px' : isSmall ? '40px' : '50px'
     };
   };
@@ -660,7 +660,7 @@ const MessageComponent = ({ onClose }) => {
                   ref={searchInputRef}
                   type="text"
                   className="form-control border-0 shadow-none ps-4"
-                  placeholder="Search for people or messages..."
+                  placeholder="Search people in your contacts ..."
                   value={searchQuery}
                   onChange={handleSearchInput}
                   style={{ fontSize: sizes.fontSize.message }}
@@ -834,12 +834,12 @@ const MessageComponent = ({ onClose }) => {
             style={{
               width: sizes.buttonSize,
               height: sizes.buttonSize,
-              backgroundColor: "#007bff",
+              backgroundColor: "#0076f5",
               color: "#ffffff",
             }}
             onClick={handleNewMessage}
-            onMouseEnter={(e) => (e.target.style.width = sizes.buttonSize1, e.target.style.height = sizes.buttonSize1)}
-            onMouseLeave={(e) => (e.target.style.width = sizes.buttonSize, e.target.style.height = sizes.buttonSize)}
+            onMouseEnter={(e) => (e.target.style.width = sizes.buttonSize1, e.target.style.height = sizes.buttonSize1, e.target.style.backgroundColor = "#004fa3")}
+            onMouseLeave={(e) => (e.target.style.width = sizes.buttonSize, e.target.style.height = sizes.buttonSize, e.target.style.backgroundColor = "#0076f5")}
             aria-label="New message"
           >
             <FaPlus size={windowWidth < 576 ? 16 : 20} />
