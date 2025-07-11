@@ -4,7 +4,6 @@ import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperP
 import { useProfile } from '@/hooks/useProfile';
 
 
-// Add this helper function after the imports
 const getOtherParticipant = (participants, currentUser) => {
   return participants.find(p => p !== currentUser) || participants[0];
 };
@@ -31,6 +30,7 @@ const MessageComponent = ({ onClose }) => {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [hasUserTyped, setHasUserTyped] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  const [timezoneOffset, setTimezoneOffset] = useState(null);
 
   // Handle window resize
   useEffect(() => {
@@ -87,6 +87,7 @@ const MessageComponent = ({ onClose }) => {
       // After getting user profile, fetch rooms and contacts
       fetchRoomsAndContacts(profile.username);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   // WebSocket connection
@@ -151,87 +152,136 @@ const MessageComponent = ({ onClose }) => {
 
   // Update the fetchRoomsAndContacts function
   const fetchRoomsAndContacts = useCallback(async (currentUsername = currentUser) => {
-  if (!currentUsername) return;
+    if (!currentUsername) return;
 
-  try {
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    // Fetch chat rooms
-    const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
-      credentials: 'include'
-    });
-    const roomsData = await roomsResponse.json();
+      // Fetch chat rooms
+      const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
+        credentials: 'include'
+      });
+      const roomsData = await roomsResponse.json();
 
-    if (roomsData.success) {
-      // For each room, fetch the latest message
-      const updatedRooms = await Promise.all(
-        roomsData.data.map(async room => {
-          // Fetch latest message for this room
-          const msgRes = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages?limit=1`, {
-            credentials: 'include'
-          });
-          const msgData = await msgRes.json();
-          let latestMessage = "";
-          let latestMessageDate = "";
-          let latestMessageTime = "";
-          let latestMessageDateTime = null;
-          if (msgData.success && msgData.data.length > 0) {
-            const msg = msgData.data[0];
-            latestMessage = msg.content;
-            // Try to get date and time from senddate/sendtime or fallback to createdAt
-            if (msg.senddate && msg.sendtime) {
-              latestMessageDate = msg.senddate;
-              latestMessageTime = msg.sendtime;
-              latestMessageDateTime = new Date(`${msg.senddate}T${msg.sendtime}`);
-            } else if (msg.createdAt) {
-              const dt = new Date(msg.createdAt);
-              latestMessageDate = dt.toLocaleDateString();
-              latestMessageTime = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-              latestMessageDateTime = dt;
+      if (roomsData.success) {
+        // For each room, fetch the latest message
+        const updatedRooms = await Promise.all(
+          roomsData.data.map(async room => {
+            const otherParticipant = getOtherParticipant(room.participants, currentUsername);
+
+            try {
+              // Fetch profile
+              const profileResponse = await fetch(`http://localhost:8080/api/users/${otherParticipant}`, {
+                credentials: 'include'
+              });
+              const profileData = await profileResponse.json();
+
+              // Fetch latest message
+              const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages?limit=1`, {
+                credentials: 'include'
+              });
+              const messagesData = await messagesResponse.json();
+
+              let latestMessage = "";
+              let latestMessageDate = "";
+              let latestMessageTime = "";
+              let latestMessageDateTime = null;
+
+              if (messagesData.success && messagesData.data.length > 0) {
+                const lastMsg = messagesData.data[0];
+                latestMessage = lastMsg.content;
+                latestMessageDate = lastMsg.senddate;
+                latestMessageTime = lastMsg.sendtime;
+
+                return {
+                  ...room,
+                  displayName: profileData.name || otherParticipant,
+                  profile_pic: profileData.profile_pic || "/profile.png",
+                  latestMessage,
+                  latestMessageDate,
+                  latestMessageTime,
+                  latestMessageDateTime
+                };
+              }
+            } catch (err) {
+              console.error(`Error fetching details for ${otherParticipant}:`, err);
+              return {
+                ...room,
+                displayName: otherParticipant,
+                profile_pic: "/profile.png",
+                latestMessage: "",
+                latestMessageDate: "",
+                latestMessageTime: "",
+                latestMessageDateTime: null
+              };
             }
+          })
+        );
+
+        // Sort newest first
+        updatedRooms.sort((a, b) => {
+          if (a.latestMessageDateTime && b.latestMessageDateTime) {
+            return b.latestMessageDateTime - a.latestMessageDateTime;
           }
-          return {
-            ...room,
-            displayName: getOtherParticipant(room.participants, currentUsername),
-            latestMessage,
-            latestMessageDate,
-            latestMessageTime,
-            latestMessageDateTime, // for sorting
-          };
+          // If only one has a date, that one comes first
+          if (a.latestMessageDateTime) return -1;
+          if (b.latestMessageDateTime) return 1;
+          return 0;
+        });
+
+        setChatRooms(updatedRooms);
+
+        if (searchQuery.trim() === '') {
+          setSearchResults(updatedRooms);
+        }
+      }
+
+      // Fetch all contacts at once
+      const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
+        credentials: 'include'
+      });
+      const contactsData = await contactsResponse.json();
+
+      // Fetch profile for each contact and merge
+      const contactsWithProfiles = await Promise.all(
+        contactsData.map(async (contact) => {
+          try {
+            const profileResponse = await fetch(`http://localhost:8080/api/users/${contact.username}`, {
+              credentials: 'include'
+            });
+            if (profileResponse.ok) {
+              const profileData = await profileResponse.json();
+              return {
+                ...contact,
+                name: profileData.name || contact.username,
+                profile_pic: profileData.profile_pic || "/profile.png"
+              };
+            }
+            return {
+              ...contact,
+              name: contact.username,
+              profile_pic: "/profile.png"
+            };
+          } catch (err) {
+            console.error(`Error fetching profile for ${contact.username}:`, err);
+            return {
+              ...contact,
+              name: contact.username,
+              profile_pic: "/profile.png"
+            };
+          }
         })
       );
 
-      // Sort newest first
-      updatedRooms.sort((a, b) => {
-        if (a.latestMessageDateTime && b.latestMessageDateTime) {
-          return b.latestMessageDateTime - a.latestMessageDateTime;
-        }
-        // If only one has a date, that one comes first
-        if (a.latestMessageDateTime) return -1;
-        if (b.latestMessageDateTime) return 1;
-        return 0;
-      });
+      setContacts(contactsWithProfiles);
 
-      setChatRooms(updatedRooms);
-
-      if (searchQuery.trim() === '') {
-        setSearchResults(updatedRooms);
-      }
+    } catch (error) {
+      console.error('Error fetching rooms or contacts:', error);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Fetch all contacts at once
-    const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
-      credentials: 'include'
-    });
-    const contactsData = await contactsResponse.json();
-    setContacts(contactsData);
-
-  } catch (error) {
-    console.error('Error fetching rooms or contacts:', error);
-  } finally {
-    setIsLoading(false);
-  }
-}, [currentUser, searchQuery]);
+   
+  }, [currentUser, searchQuery]);
 
   // Add memoized search results
   const memoizedSearchResults = useMemo(() => {
@@ -490,16 +540,50 @@ const MessageComponent = ({ onClose }) => {
     performSearch();
   }, [debouncedQuery, chatRooms, contacts]);
 
+  // timezone offset effect
+  useEffect(() => {
+    if (profile && profile.username) {
+      getUserTimezoneOffset(profile.username).then(result => {
+        setTimezoneOffset(result);
+      });
+    }
+  }, [profile]);
+
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
     let [hour, minute] = timeStr.split(':');
     let h = parseInt(hour, 10);
+    let m = parseInt(minute, 10);
+
+    // Apply timezone offset if available
+    if (timezoneOffset && typeof timezoneOffset.hours === 'number' && typeof timezoneOffset.minutes === 'number') {
+        h += timezoneOffset.hours;
+        m += timezoneOffset.minutes;
+
+        // Handle minute overflow
+        if (m >= 60) {
+            h += Math.floor(m / 60);
+            m = m % 60;
+        } else if (m < 0) {
+            h -= Math.ceil(Math.abs(m) / 60);
+            m = ((m % 60) + 60) % 60;
+        }
+
+        // Handle hour overflow
+        if (h >= 24) {
+            h = h % 24;
+        } else if (h < 0) {
+            h = ((h % 24) + 24) % 24;
+        }
+    }
+
     const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${h}:${minute} ${ampm}`;
+    const displayHour = h % 12 || 12;
+    const displayMinute = m.toString().padStart(2, '0');
+    return `${displayHour}:${displayMinute} ${ampm}`;
   };
 
-  const formatMessageDate = (dateStr) => {
+  const formatMessageDate = (dateStr,timeStr) => {
     if (!dateStr) return '';
     const today = new Date();
     const date = new Date(dateStr);
@@ -508,10 +592,56 @@ const MessageComponent = ({ onClose }) => {
     date.setHours(0, 0, 0, 0);
 
     const diff = (today - date) / (1000 * 60 * 60 * 24);
-    if (diff === 0) return 'Today';
-    if (diff === 1) return 'Yesterday';
-    return dateStr;
+    const formattedTime = formatTime(timeStr);
+    if (diff === 0) return `Today ${formattedTime}`;
+    if (diff === 1) return `Yesterday ${formattedTime}`;
+    return `${dateStr} ${formattedTime}`;
   };
+
+  // fetch logged-in user details
+  const getUserTimezoneOffset = async (username) => {
+    // Automatically get username from localStorage
+    if (!username) {
+      throw new Error('No logged-in user found');
+    }
+
+    try {
+      // Fetch user profile to get timezone
+      const response = await fetch(`http://localhost:8080/api/users/${username}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile');
+      }
+
+      const userData = await response.json();
+      const userTimeZone = userData.time_zone ? userData.time_zone : 'UTC';
+
+      // Calculate timezone offset
+      const now = new Date();
+
+      // Get local time in UTC minutes
+      const localUtcMinutes = now.getTimezoneOffset() * -1;
+
+      // Get user time in UTC minutes
+      const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimeZone }));
+      const userUtcMinutes = userDate.getHours() * 60 + userDate.getMinutes() - (now.getHours() * 60 + now.getMinutes()) + localUtcMinutes;
+
+      // Calculate the offset to add to local time to get user time
+      const offsetMinutes = userUtcMinutes;
+
+      const hours = Math.floor(offsetMinutes / 60);
+      const minutes = offsetMinutes % 60;
+
+      return { hours, minutes };
+
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+  };
+
+
 
   // Render message list view
   const renderMessageListView = () => {
@@ -627,8 +757,8 @@ const MessageComponent = ({ onClose }) => {
               >
                 <div className="position-relative me-2 flex-shrink-0">
                   <img
-                    src={item.profileimg || "/profile.png"}
-                    alt={item.username || item.roomName || "User"}
+                    src={item.profile_pic && item.profile_pic !== "" ? item.profile_pic : "/profile.png"}
+                    alt={item.name && item.name !== "" ? item.name : item.username}
                     className="rounded-circle bg-light"
                     style={{
                       width: sizes.avatarSize,
@@ -637,8 +767,9 @@ const MessageComponent = ({ onClose }) => {
                       marginRight: '5px',
                       border: `2px solid ${isContact(item) ? '#28a745' : '#007bff'}`,
                     }}
-                    onError={(e) => { e.target.src = "/avatars/placeholder.jpg" }}
+                    onError={(e) => { e.target.src = "/profile.png"; }}
                   />
+
                   {isContact(item) && (
                     <span className="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle"
                       style={{ width: '12px', height: '12px', border: '2px solid white' }}>
@@ -678,7 +809,7 @@ const MessageComponent = ({ onClose }) => {
                         </div>
                       )}
                     </div>
-                    <div className="message-time text-muted " style={{ fontSize: sizes.fontSize.time, minWidth: '50px', textAlign: 'right' }}>
+                    <div className="message-time text-muted" style={{ fontSize: sizes.fontSize.time, minWidth: '50px', textAlign: 'right' }}>
                       {formatTime(item.latestMessageTime || item.time || "")}
                     </div>
                   </div>
@@ -738,15 +869,15 @@ const MessageComponent = ({ onClose }) => {
           </button>
           <div className="position-relative me-3 flex-shrink-0">
             <img
-              src={selectedMessage.avatar || "/profile.png"}
-              alt={selectedMessage.roomName || "Chat Room"}
+              src={selectedMessage.profile_pic || "/profile.png"}
+              alt={selectedMessage.displayName || selectedMessage.roomName || "Chat Room"}
               className="rounded-circle bg-light"
               style={{
                 width: sizes.avatarSize,
                 height: sizes.avatarSize,
                 objectFit: "cover",
               }}
-              onError={(e) => { e.target.src = "/avatars/placeholder.jpg" }}
+              onError={(e) => { e.target.src = "/profile.png" }}
             />
             {selectedMessage.isTeam && (
               <span className="position-absolute bottom-0 end-0 p-1 bg-primary rounded-circle"
@@ -755,11 +886,8 @@ const MessageComponent = ({ onClose }) => {
             )}
           </div>
           <div className="chat-user-info flex-grow-1 overflow-hidden">
-            <div className="fw-bold text-truncate" style={{ fontSize: sizes.fontSize.name }}>
-              {selectedMessage.roomName || selectedMessage.participants?.join(', ')}
-            </div>
-            <div className="text-muted text-truncate" style={{ fontSize: sizes.fontSize.time }}>
-              {selectedMessage.participants?.length} participants
+            <div className="fw-bold text-truncate" style={{ fontSize: "1.2rem" }}>
+              {selectedMessage.displayName || selectedMessage.roomName || selectedMessage.participants?.join(', ')}
             </div>
           </div>
         </div>
@@ -817,15 +945,14 @@ const MessageComponent = ({ onClose }) => {
                         }}
                       >
                         <div
-                          className={`shadow-sm ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`}
+                          className={`${isCurrentUser ? 'bg-primary text-white' : 'text-dark'}`}
                           style={{
+                            backgroundColor: isCurrentUser ? '' : '#ebebeb',
                             borderBottomRightRadius: isCurrentUser ? '0px' : '15px',
                             borderBottomLeftRadius: isCurrentUser ? '15px' : '0px',
                             borderTopRightRadius: '15px',
                             borderTopLeftRadius: '15px',
                             fontSize: sizes.fontSize.chat,
-                            wordBreak: 'break-word',
-                            overflowWrap: 'break-word',
                             padding: '8px 15px',
                           }}
                         >
@@ -890,13 +1017,41 @@ const MessageComponent = ({ onClose }) => {
     );
   };
 
-  // Render method
+  // Polling effect for fetching messages
+  useEffect(() => {
+    // Only poll when chat view is open and a room is selected
+    if (!showChatView || !selectedMessage) return;
+
+    const fetchMessages = async () => {
+      try {
+        const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${selectedMessage.id}/messages`, {
+          credentials: 'include'
+        });
+        const messagesData = await messagesResponse.json();
+        if (messagesData.success) {
+          setMessages(messagesData.data.reverse());
+        }
+      } catch (error) {
+        console.error('Error fetching room messages:', error);
+      }
+    };
+
+    
+    fetchMessages();
+
+    // Poll every 1 second
+    const intervalId = setInterval(fetchMessages, 1000);
+
+    // Cleanup on unmount or when chat view closes
+    return () => clearInterval(intervalId);
+  }, [showChatView, selectedMessage]);
+
   return (
     <div
       ref={containerRef}
       className="position-relative bg-white font-inter shadow-sm d-flex flex-column"
       style={{
-        height: '90vh', // Adjust as needed
+        height: '90vh',
         borderRadius: "15px",
         width: "100%",
         overflow: "hidden",
@@ -909,3 +1064,5 @@ const MessageComponent = ({ onClose }) => {
 };
 
 export default MessageComponent;
+
+

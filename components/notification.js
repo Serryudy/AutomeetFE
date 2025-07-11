@@ -13,7 +13,7 @@ const NotificationsComponent = () => {
     fetchNotifications();
   }, []);
 
-  // Function to fetch notifications from the API
+  //fetch notifications
   const fetchNotifications = async () => {
     try {
       setIsLoading(true);
