@@ -1017,6 +1017,34 @@ const MessageComponent = ({ onClose }) => {
     );
   };
 
+  // Polling effect for fetching messages
+  useEffect(() => {
+    // Only poll when chat view is open and a room is selected
+    if (!showChatView || !selectedMessage) return;
+
+    const fetchMessages = async () => {
+      try {
+        const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${selectedMessage.id}/messages`, {
+          credentials: 'include'
+        });
+        const messagesData = await messagesResponse.json();
+        if (messagesData.success) {
+          setMessages(messagesData.data.reverse());
+        }
+      } catch (error) {
+        console.error('Error fetching room messages:', error);
+      }
+    };
+
+    // Fetch immediately
+    fetchMessages();
+
+    // Poll every 1 second
+    const intervalId = setInterval(fetchMessages, 1000);
+
+    // Cleanup on unmount or when chat view closes
+    return () => clearInterval(intervalId);
+  }, [showChatView, selectedMessage]);
 
   return (
     <div
