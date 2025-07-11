@@ -47,6 +47,8 @@ const MeetingForm = () => {
     const [dateError, setDateError] = useState('');
     const [userProfiles, setUserProfiles] = useState({});
     const [uploadedContent, setUploadedContent] = useState([]);
+    const [isCancelling, setIsCancelling] = useState(false);///////
+    const [isDeleted, setIsDeleted] = useState(false);
 
     useEffect(() => {
       console.log("Params object:", params);
@@ -394,40 +396,52 @@ const MeetingForm = () => {
     };
 
     // cancel meeting functionality
-    const cancelMeeting = async () => {
-      // Confirm the cancellation
-      const isConfirmed = window.confirm(`Are you sure you want to cancel the meeting "${title}"? This action cannot be undone.`);
-      
-      if (!isConfirmed) return;
-      
-      try {
-        // Call the deletion API endpoint
-        const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // This ensures cookies are sent with the request
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error canceling meeting: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('Meeting canceled successfully:', result);
-        
-        // Show success message
-        alert('Meeting has been canceled successfully');
-        
-        // Redirect to the meetings list page
-        window.location.href = '/meeting';
-        
-      } catch (err) {
-        console.error('Error canceling meeting:', err);
-        alert(`Failed to cancel meeting: ${err.message}`);
-      }
-    };
+
+const cancelMeeting = async () => {
+  // Disable the button immediately
+  setIsCancelling(true);
+  
+  // Confirm the cancellation
+  const isConfirmed = window.confirm(`Are you sure you want to cancel the meeting "${title}"? This action cannot be undone.`);
+  
+  if (!isConfirmed) {
+    // Re-enable the button if user cancels
+    setIsCancelling(false);
+    return;
+  }
+  
+  try {
+    // Call the deletion API endpoint
+    const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', // This ensures cookies are sent with the request
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error canceling meeting: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Meeting canceled successfully:', result);
+    
+    // Set the deleted state to true to show success message
+    setIsDeleted(true);
+    
+    // Redirect to meetings page after 5 seconds
+    setTimeout(() => {
+      window.location.href = '/meeting';
+    }, 5000);
+    
+  } catch (err) {
+    console.error('Error canceling meeting:', err);
+    alert(`Failed to cancel meeting: ${err.message}`);
+    // Re-enable the button if there's an error
+    setIsCancelling(false);
+  }
+};
     
     // Add another function to handle participant access changes
     const handleParticipantAccessChange = (participantId, checked) => {
@@ -659,9 +673,22 @@ const MeetingForm = () => {
       fetchContent();
     }, [meetingId]);
 
-    if (loading) return <div className="p-4 text-center">Loading meeting data...</div>;
-    if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
-    if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
+    if (loading) return <div className="p-4 text-center"><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading meeting data...</div>;
+if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
+if (isDeleted) return (
+  <div className="p-4 text-center">
+    <div className="alert alert-success d-inline-block">
+      <div className="d-flex align-items-center">
+        <FaCheckCircle className="me-2 text-success" />
+        <div>
+          <strong>Meeting deleted successfully!</strong>
+  
+        </div>
+      </div>
+    </div>
+  </div>
+);
+if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
   
     // Check if the user can edit the meeting
     const canEdit = userRole === 'creator' && meetingData.status !== 'confirmed';
@@ -674,16 +701,17 @@ const MeetingForm = () => {
               <h2 className="fw-bold mb-0 fs-4 fs-md-3">{title || 'Meeting name'}</h2>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
-                {canEdit ? (
-                  <button 
-                    className="btn btn-secondary d-flex align-items-center px-3 py-2"
-                    onClick={() => setIsEditing(!isEditing)}
-                  >
-                    <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
-                  </button>
-                ) : (
-                  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
-                )}
+  {canEdit ? (
+  <button 
+    className="btn btn-secondary d-flex align-items-center px-3 py-2"
+    onClick={() => setIsEditing(!isEditing)}
+    disabled={isCancelling}
+  >
+    <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
+  </button>
+) : (
+  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
+)}
               </div>
             </div>
   
@@ -1125,25 +1153,62 @@ const MeetingForm = () => {
               </div>
             </div>
   
-            <div className="d-flex flex-wrap gap-2 mt-4">
-              {isEditing ? (
-                <>
-                  <button className="btn btn-success me-2" onClick={handleSaveChanges}>Save Changes</button>
-                  <button className="btn btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  {/* Show Cancel Meeting button only if user is the creator */}
-                  {userRole === 'creator' && (
-                    <button className="btn btn-danger me-2" onClick={cancelMeeting}>
-                      Cancel Meeting
-                    </button>
-                  )}
-                  <Link href={`/content/${meetingId}`}><button className="btn btn-primary me-2">Upload</button></Link>
-                  <Link href={`/notes/${meetingId}`}><button className="btn btn-primary">Take notes</button></Link>
-                </>
-              )}
-            </div>
+  <div className="d-flex flex-wrap gap-2 mt-4">
+  {isEditing ? (
+    <>
+      <button 
+        className="btn btn-success me-2" 
+        onClick={handleSaveChanges}
+        disabled={isCancelling}
+      >
+        Save Changes
+      </button>
+      <button 
+        className="btn btn-secondary" 
+        onClick={() => setIsEditing(false)}
+        disabled={isCancelling}
+      >
+        Cancel
+      </button>
+    </>
+  ) : (
+    <>
+                  {/* Show Cancel Meeting */}
+      {userRole === 'creator' && (
+        <button 
+          className="btn btn-danger me-2" 
+          onClick={cancelMeeting}
+          disabled={isCancelling}
+        >
+          {isCancelling ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Processing
+            </>
+          ) : (
+            'Cancel Meeting'
+          )}
+        </button>
+      )}
+      <Link href={`/content/${meetingId}`}>
+        <button 
+          className="btn btn-primary me-2"
+          disabled={isCancelling}
+        >
+          Upload
+        </button>
+      </Link>
+      <Link href={`/notes/${meetingId}`}>
+        <button 
+          className="btn btn-primary"
+          disabled={isCancelling}
+        >
+          Take notes
+        </button>
+      </Link>
+    </>
+  )}
+</div>
           </div>
         </div>
       </div>
