@@ -48,6 +48,7 @@ const MeetingForm = () => {
     const [userProfiles, setUserProfiles] = useState({});
     const [uploadedContent, setUploadedContent] = useState([]);
     const [isCancelling, setIsCancelling] = useState(false);///////
+    const [isDeleted, setIsDeleted] = useState(false);
 
     useEffect(() => {
       console.log("Params object:", params);
@@ -426,26 +427,10 @@ const cancelMeeting = async () => {
     const result = await response.json();
     console.log('Meeting canceled successfully:', result);
     
-    // Show success message (not full screen, just text)
-    const successMessage = document.createElement('div');
-    successMessage.innerHTML = 'Meeting deleted successfully';
-    successMessage.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #d4edda;
-      color: #155724;
-      padding: 15px 20px;
-      border-radius: 5px;
-      border: 1px solid #c3e6cb;
-      z-index: 9999;
-      font-family: Arial, sans-serif;
-      font-size: 16px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    `;
-    document.body.appendChild(successMessage);
+    // Set the deleted state to true to show success message
+    setIsDeleted(true);
     
-    // Redirect to meetings page after 3 seconds
+    // Redirect to meetings page after 5 seconds
     setTimeout(() => {
       window.location.href = '/meeting';
     }, 5000);
@@ -688,9 +673,22 @@ const cancelMeeting = async () => {
       fetchContent();
     }, [meetingId]);
 
-    if (loading) return <div className="p-4 text-center">Loading meeting data...</div>;
-    if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
-    if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
+    if (loading) return <div className="p-4 text-center"><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading meeting data...</div>;
+if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
+if (isDeleted) return (
+  <div className="p-4 text-center">
+    <div className="alert alert-success d-inline-block">
+      <div className="d-flex align-items-center">
+        <FaCheckCircle className="me-2 text-success" />
+        <div>
+          <strong>Meeting deleted successfully!</strong>
+  
+        </div>
+      </div>
+    </div>
+  </div>
+);
+if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
   
     // Check if the user can edit the meeting
     const canEdit = userRole === 'creator' && meetingData.status !== 'confirmed';
