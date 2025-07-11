@@ -193,22 +193,6 @@ const MessageComponent = ({ onClose }) => {
                 latestMessageDate = lastMsg.senddate;
                 latestMessageTime = lastMsg.sendtime;
 
-                // Combine date and time into a Date object
-                let latestMessageDateTime = new Date(`${lastMsg.senddate}T${lastMsg.sendtime}`);
-                // If timezoneOffset is available, add it
-                if (timezoneOffset && typeof timezoneOffset.hours === 'number' && typeof timezoneOffset.minutes === 'number') {
-                  latestMessageDateTime.setHours(latestMessageDateTime.getHours() + timezoneOffset.hours);
-                  alert(`Timezone offset applied: ${timezoneOffset.hours} hours, ${timezoneOffset.minutes} minutes`);
-                  latestMessageDateTime.setMinutes(latestMessageDateTime.getMinutes() + timezoneOffset.minutes);
-                }
-
-                // If you want to update the date and time strings after offset
-                const offsetDate = latestMessageDateTime.toISOString().slice(0, 10); // YYYY-MM-DD
-                const offsetTime = latestMessageDateTime.toTimeString().slice(0, 5); // HH:MM
-
-                latestMessageDate = offsetDate;
-                latestMessageTime = offsetTime;
-
                 return {
                   ...room,
                   displayName: profileData.name || otherParticipant,
@@ -296,7 +280,7 @@ const MessageComponent = ({ onClose }) => {
     } finally {
       setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [currentUser, searchQuery]);
 
   // Add memoized search results
@@ -569,12 +553,37 @@ const MessageComponent = ({ onClose }) => {
     if (!timeStr) return '';
     let [hour, minute] = timeStr.split(':');
     let h = parseInt(hour, 10);
+    let m = parseInt(minute, 10);
+
+    // Apply timezone offset if available
+    if (timezoneOffset && typeof timezoneOffset.hours === 'number' && typeof timezoneOffset.minutes === 'number') {
+        h += timezoneOffset.hours;
+        m += timezoneOffset.minutes;
+
+        // Handle minute overflow
+        if (m >= 60) {
+            h += Math.floor(m / 60);
+            m = m % 60;
+        } else if (m < 0) {
+            h -= Math.ceil(Math.abs(m) / 60);
+            m = ((m % 60) + 60) % 60;
+        }
+
+        // Handle hour overflow
+        if (h >= 24) {
+            h = h % 24;
+        } else if (h < 0) {
+            h = ((h % 24) + 24) % 24;
+        }
+    }
+
     const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${h}:${minute} ${ampm}`;
+    const displayHour = h % 12 || 12;
+    const displayMinute = m.toString().padStart(2, '0');
+    return `${displayHour}:${displayMinute} ${ampm}`;
   };
 
-  const formatMessageDate = (dateStr) => {
+  const formatMessageDate = (dateStr,timeStr) => {
     if (!dateStr) return '';
     const today = new Date();
     const date = new Date(dateStr);
@@ -583,9 +592,10 @@ const MessageComponent = ({ onClose }) => {
     date.setHours(0, 0, 0, 0);
 
     const diff = (today - date) / (1000 * 60 * 60 * 24);
-    if (diff === 0) return 'Today';
-    if (diff === 1) return 'Yesterday';
-    return dateStr;
+    const formattedTime = formatTime(timeStr);
+    if (diff === 0) return `Today ${formattedTime}`;
+    if (diff === 1) return `Yesterday ${formattedTime}`;
+    return `${dateStr} ${formattedTime}`;
   };
 
   // fetch logged-in user details
@@ -1007,6 +1017,34 @@ const MessageComponent = ({ onClose }) => {
     );
   };
 
+  // Polling effect for fetching messages
+  useEffect(() => {
+    // Only poll when chat view is open and a room is selected
+    if (!showChatView || !selectedMessage) return;
+
+    const fetchMessages = async () => {
+      try {
+        const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${selectedMessage.id}/messages`, {
+          credentials: 'include'
+        });
+        const messagesData = await messagesResponse.json();
+        if (messagesData.success) {
+          setMessages(messagesData.data.reverse());
+        }
+      } catch (error) {
+        console.error('Error fetching room messages:', error);
+      }
+    };
+
+    
+    fetchMessages();
+
+    // Poll every 1 second
+    const intervalId = setInterval(fetchMessages, 1000);
+
+    // Cleanup on unmount or when chat view closes
+    return () => clearInterval(intervalId);
+  }, [showChatView, selectedMessage]);
 
   return (
     <div
