@@ -395,7 +395,7 @@ const MeetingForm = () => {
     };
 
     // cancel meeting functionality
-    const cancelMeeting = async () => {
+  const cancelMeeting = async () => {
   // Disable the button immediately
   setIsCancelling(true);
   
@@ -425,7 +425,7 @@ const MeetingForm = () => {
     const result = await response.json();
     console.log('Meeting canceled successfully:', result);
     
-    // Clear the entire page content and show success message
+    // Clear the entire page content and show loading message
     document.body.innerHTML = `
       <div style="
         display: flex;
@@ -435,11 +435,10 @@ const MeetingForm = () => {
         background-color: white;
         font-family: Arial, sans-serif;
         text-align: center;
-        color: #28a745;
-        font-size: 24px;
-        font-weight: bold;
+        color: #6c757d;
+        font-size: 18px;
       ">
-        Meeting deleted successfully!
+        Loading meeting data...
       </div>
     `;
     
@@ -701,16 +700,17 @@ const MeetingForm = () => {
               <h2 className="fw-bold mb-0 fs-4 fs-md-3">{title || 'Meeting name'}</h2>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
-                {canEdit ? (
-                  <button 
-                    className="btn btn-secondary d-flex align-items-center px-3 py-2"
-                    onClick={() => setIsEditing(!isEditing)}
-                  >
-                    <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
-                  </button>
-                ) : (
-                  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
-                )}
+                    {canEdit ? (
+                      <button 
+                          className="btn btn-secondary d-flex align-items-center px-3 py-2"
+                          onClick={() => setIsEditing(!isEditing)}
+                          disabled={isCancelling}
+                       >
+                     <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
+                      </button>
+                              ) : (
+                        <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
+                    )}  
               </div>
             </div>
   
@@ -1160,16 +1160,16 @@ const MeetingForm = () => {
                 </>
               ) : (
                 <>
-                  {/* Show Cancel Meeting button only if user is the creator */}
- {userRole === 'creator' && (
-  <button 
-    className="btn btn-danger me-2" 
-    onClick={cancelMeeting}
-    disabled={isCancelling}
-  >
-    {isCancelling ? 'Processing...' : 'Cancel Meeting'}
-  </button>
-)}
+                  {/* Show Cancel Meeting */}
+                  {userRole === 'creator' && (
+                  <button 
+                   className="btn btn-danger me-2" 
+                   onClick={cancelMeeting}
+                  disabled={isCancelling}
+                >
+                 {isCancelling ? 'Processing...' : 'Cancel Meeting'}
+                </button>
+                )}
                   <Link href={`/content/${meetingId}`}><button className="btn btn-primary me-2">Upload</button></Link>
                   <Link href={`/notes/${meetingId}`}><button className="btn btn-primary">Take notes</button></Link>
                 </>
