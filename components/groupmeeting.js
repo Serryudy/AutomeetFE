@@ -33,6 +33,7 @@ const GroupMeetingForm = () => {
   const [participantError, setParticipantError] = useState('');
   const [dateError, setDateError] = useState('');
   const [timeError, setTimeError] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false); // New state for button disable
 
   // Refs for detecting clicks outside the dropdown
   const startTimeRef = useRef(null);
@@ -83,6 +84,9 @@ const GroupMeetingForm = () => {
   }, []);
 
   const handleCreateGroupMeeting = async () => {
+ // Prevnt multiple submissionse
+    if (isSubmitted) return;
+
     if (!timeSlots.length || participants.length === 0) {
       setError('Please add at least one time slot and participant');
       return;
@@ -94,6 +98,7 @@ const GroupMeetingForm = () => {
     }
 
     setIsLoading(true);
+     setIsSubmitted(true); // Disable button immediately
     setError('');
 
     try {
@@ -140,6 +145,7 @@ const GroupMeetingForm = () => {
     } catch (error) {
       console.error('Error creating group meeting:', error);
       setError(error.response?.data?.message || 'Failed to create group meeting. Please try again.');
+      setIsSubmitted(false); // Re-enable button on error
     } finally {
       setIsLoading(false);
     }
@@ -203,6 +209,11 @@ const GroupMeetingForm = () => {
 
   const handleBack = () => {
     if (currentStep > 1) {
+            // Clear error messages when going back
+      setParticipantError('');
+      setTitleError('');
+      setTimeError('');
+      setIsSubmitted(false); // Re-enable button when going back
       setCurrentStep(currentStep - 1);
     }
   };
@@ -653,11 +664,13 @@ const GroupMeetingForm = () => {
                       setShowContactDropdown(true);
                     }}
                     onFocus={() => setShowContactDropdown(true)}
+                    disabled={isLoading || isSubmitted}
                   />
                   <button
                     type="button"
                     className={`btn btn-outline-secondary ${participantError ? 'btn-outline-danger' : ''}`}
                     onClick={() => setShowContactDropdown(!showContactDropdown)}
+                    disabled={isLoading || isSubmitted}
                   >
                     <FaChevronDown />
                   </button>
@@ -669,7 +682,8 @@ const GroupMeetingForm = () => {
                   </div>
                 )}
                 
-                {showContactDropdown && filteredContacts.length > 0 && (
+                
+                {showContactDropdown && filteredContacts.length > 0 && !isLoading && !isSubmitted &&(
                   <div 
                     className="position-absolute w-100 bg-white shadow rounded mt-1"
                     style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
@@ -739,6 +753,7 @@ const GroupMeetingForm = () => {
                       type="button" 
                       className="btn btn-outline-danger"
                       onClick={() => handleRemoveParticipant(participant.id)}
+                      disabled={isLoading || isSubmitted}
                     >
                       Remove
                     </button>
@@ -760,6 +775,7 @@ const GroupMeetingForm = () => {
           />
         )}
 
+           {/* Step Navigator */}
         {currentStep !== 3 && (
           <FormStepNavigator 
             currentStep={currentStep} 
@@ -768,6 +784,7 @@ const GroupMeetingForm = () => {
             onBack={handleBack}
             isLoading={isLoading}
             nextLabel={currentStep === 2 ? "Create Meeting" : "Next"}
+            isDisabled={currentStep === 2 && isSubmitted} // Pass disabled state to FormStepNavigator
           />
         )}
       </form>

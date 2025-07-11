@@ -36,7 +36,8 @@ const RoundRobinForm = () => {
   const [currentUserHosts, setCurrentUserHosts] = useState([]);
   const [titleError, setTitleError] = useState('');
   const [participantError, setParticipantError] = useState('');
-  const [hostError, setHostError] = useState(''); // New error state for hosts
+  const [hostError, setHostError] = useState(''); 
+   const [isSubmitted, setIsSubmitted] = useState(false); // New state for button disable
 
   // Refs
   const startTimeRef = useRef(null);
@@ -227,6 +228,15 @@ const RoundRobinForm = () => {
     }
   };
 
+    const handleRemoveParticipant = (id) => {
+    const updatedParticipants = participants.filter(participant => participant.id !== id);
+    setParticipants(updatedParticipants);
+    // Set error if all participants are removed
+    if (updatedParticipants.length === 0) {
+      setParticipantError('Please add at least one participant');
+    }
+  };
+
   const filteredContacts = contacts.filter(contact => 
     (contact.username?.toLowerCase().includes(searchContact.toLowerCase()) ||
     (contact.name?.toLowerCase().includes(searchContact.toLowerCase())))
@@ -274,12 +284,14 @@ const RoundRobinForm = () => {
 
   // Create round robin meeting
   const handleCreateRoundRobin = async () => {
+     if (isSubmitted) return;
     if (!timeSlots.length || !hosts.length) {
       setError('Please add at least one time slot and host');
       return;
     }
   
     setIsLoading(true);
+    setIsSubmitted(true); // Disable button immediately
     setError('');
   
     try {  
@@ -325,8 +337,11 @@ const RoundRobinForm = () => {
   
       setCurrentStep(3);
     } catch (error) {
+
       console.error('Error creating round robin:', error);
-      
+
+      setIsSubmitted(false); // Re-enable buton on error try
+
       if (error.response) {
         setError(error.response.data?.message || 'Failed to create round robin. Please check your input.');
       } else if (error.request) {
@@ -345,6 +360,17 @@ const RoundRobinForm = () => {
     // Add actual redirect logic here
   };
 
+    const handleBack = () => {
+    if (currentStep > 1) {
+      // Clear error messages when going back
+      setParticipantError('');
+      setHostError
+      setTitleError('');
+      setTimeError('');
+      setIsSubmitted(false); // Re-enable button when going back
+      setCurrentStep(currentStep - 1);
+    }
+  };
   // Update the handleNext function to include validations
   const handleNext = () => {
     if (currentStep === 1) {
@@ -598,39 +624,46 @@ const RoundRobinForm = () => {
             </div>
           </div>
         )}
-
+          {/* Step 2: Add Participants */}
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <div className="mb-4 host-section">
               <h4 className="form-label fw-medium mb-3">Add Hosts</h4>
               
               <div className="mb-3 position-relative" ref={hostDropdownRef}>
-                <div className={`input-group ${hostError ? 'is-invalid' : ''}`}>
+                <div className={`input-group ${hostError  && hosts.length ===0 ? 'is-invalid' : ''}`}>
                   <input
                     type="text"
-                    className={`form-control ${hostError ? 'is-invalid' : ''}`}
+                    className={`form-control ${hostError && hosts.length === 0 ? 'is-invalid' : ''}`}
                     placeholder="Search hosts"
                     value={searchHost}
                     onChange={(e) => {
                       setSearchHost(e.target.value);
                       setShowHostDropdown(true);
+
+                      // Remove error as soon as a host is added
+                        if (hosts.length > 0) setHostError('');
                     }}
                     onFocus={() => setShowHostDropdown(true)}
+                    disabled={isLoading || isSubmitted}
                   />
                     <button
                       type="button"
-                      className={`btn btn-outline-secondary ${hostError ? 'btn-outline-danger' : ''}`}
+                      className={`btn btn-outline-secondary ${hostError && participants.length === 0 ? 'btn-outline-danger' : ''}`}
                       onClick={() => setShowHostDropdown(!showHostDropdown)}
+                      disabled={isLoading || isSubmitted}
                     >
                       <FaChevronDown />
                     </button>
                 </div>
-                {hostError && (
+
+                {hostError && hosts.length === 0 &&(
                   <div className="invalid-feedback d-block">
                     {hostError}
                   </div>
                 )}
-                {showHostDropdown && (
+                
+                {showHostDropdown && !isLoading && !isSubmitted && (
                   <div className="position-absolute w-100 bg-white shadow rounded mt-1" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
                     {filteredHosts.length > 0 ? (
                       filteredHosts.map(host => (
@@ -686,6 +719,7 @@ const RoundRobinForm = () => {
                           type="button" 
                           className="btn btn-outline-danger btn-sm"
                           onClick={() => handleRemoveHost(host.uniqueKey)}
+                          disabled={isLoading || isSubmitted}
                         >
                           Remove
                         </button>
@@ -697,7 +731,7 @@ const RoundRobinForm = () => {
                 )}
               </div>
 
-  <div className="mb-4">
+           <div className="mb-4">
                 <h4 className="form-label fw-medium mb-3">Add participants</h4>
                 
                 <div className="mb-3 position-relative" ref={contactDropdownRef}>
@@ -714,25 +748,28 @@ const RoundRobinForm = () => {
                         if (participants.length > 0) setParticipantError('');
                       }}
                       onFocus={() => setShowContactDropdown(true)}
+                      disabled={isLoading || isSubmitted}
+                      
                     />
                     <button
                       type="button"
                       className={`btn btn-outline-secondary ${participantError && participants.length === 0 ? 'btn-outline-danger' : ''}`}
                       onClick={() => setShowContactDropdown(!showContactDropdown)}
+                      disabled={isLoading || isSubmitted}
                     >
                       <FaChevronDown />
                     </button>
                   </div>
                   
-                  {/* Only show error if no participants */}
+               {/* Only show error if no participants */}
                   {participantError && participants.length === 0 && (
                     <div className="invalid-feedback d-block">
                       {participantError}
                     </div>
-                  )}
+                  )}   
   
                   {/* Move dropdown inside the container */}
-                  {showContactDropdown && (
+                  {showContactDropdown && !isLoading && !isSubmitted && (
                     <div 
                       className="position-absolute bg-white shadow rounded mt-1 w-100"
                       style={{ 
@@ -800,6 +837,7 @@ const RoundRobinForm = () => {
                         type="button" 
                         className="btn btn-outline-danger"
                         onClick={() => handleRemoveParticipant(participant.id)}
+                        disabled={isLoading || isSubmitted}
                       >
                         Remove
                       </button>
@@ -822,7 +860,7 @@ const RoundRobinForm = () => {
           />
         )}
 
-        {currentStep !== 3 && (
+        {/* {currentStep !== 3 && (
           <FormStepNavigator 
             currentStep={currentStep} 
             totalSteps={3} 
@@ -835,7 +873,20 @@ const RoundRobinForm = () => {
             }
             nextLabel={currentStep === 2 ? "Create Round Robin" : "Next"}
           />
-        )}
+        )} */}
+
+        {/* Step Navigator */}
+                {currentStep !== 3 && (
+                  <FormStepNavigator 
+                    currentStep={currentStep} 
+                    totalSteps={3} 
+                    onNext={handleNext}
+                    onBack={handleBack}
+                    isLoading={isLoading}
+                    nextLabel={currentStep === 2 ? "Create Meeting" : "Next"}
+                    isDisabled={currentStep === 2 && isSubmitted} // Pass disabled state to FormStepNavigator
+                  />
+                )}
       </form>
     </div>
   );

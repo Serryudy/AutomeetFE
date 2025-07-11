@@ -28,8 +28,9 @@ const DirectScheduleForm = () => {
   const [repeat, setRepeat] = useState('none');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [titleError, setTitleError] = useState(''); // New state for title error
-  const [participantError, setParticipantError] = useState(''); // New state for participant error
+  const [titleError, setTitleError] = useState('');
+  const [participantError, setParticipantError] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false); // New state for button disable
 
   // Refs for detecting clicks outside the dropdown
   const startTimeRef = useRef(null);
@@ -98,6 +99,9 @@ const DirectScheduleForm = () => {
 
   // Handle creating a meeting
   const handleCreateMeeting = async () => {
+    // Prevent multiple submissions
+    if (isSubmitted) return;
+    
     // Validate required fields
     if (!selectedDate || !startTime || !endTime || participants.length === 0) {
       setError('Please fill in all required fields');
@@ -105,6 +109,7 @@ const DirectScheduleForm = () => {
     }
 
     setIsLoading(true);
+    setIsSubmitted(true); // Disable button immediately
     setError('');
 
     try {
@@ -150,8 +155,9 @@ const DirectScheduleForm = () => {
       // Move to success step
       setCurrentStep(3);
     } catch (error) {
-      console.error('Error creating meeting:', error);
+     console.error('Error creating meeting:', error);
       setError('Failed to create meeting. Please try again.');
+      setIsSubmitted(false); // Re-enable buton on error tsetIsSubmitted(false); // Re-enable buton on error t
     } finally {
       setIsLoading(false);
     }
@@ -295,6 +301,7 @@ const DirectScheduleForm = () => {
       setParticipantError('');
       setTitleError('');
       setTimeError('');
+      setIsSubmitted(false); // Re-enable button when going back
       setCurrentStep(currentStep - 1);
     }
   };
@@ -579,11 +586,13 @@ const DirectScheduleForm = () => {
                       setShowContactDropdown(true);
                     }}
                     onFocus={() => setShowContactDropdown(true)}
+                    disabled={isLoading || isSubmitted}
                   />
                   <button
                     type="button"
                     className={`btn btn-outline-secondary ${participantError ? 'btn-outline-danger' : ''}`}
                     onClick={() => setShowContactDropdown(!showContactDropdown)}
+                    disabled={isLoading || isSubmitted}
                   >
                     <FaChevronDown />
                   </button>
@@ -597,7 +606,7 @@ const DirectScheduleForm = () => {
                 )}
 
                 {/* Move dropdown inside the container */}
-                {showContactDropdown && (
+                {showContactDropdown && !isLoading && !isSubmitted && (
                   <div 
                     className="position-absolute bg-white shadow rounded mt-1 w-100"
                     style={{ 
@@ -665,6 +674,7 @@ const DirectScheduleForm = () => {
                       type="button" 
                       className="btn btn-outline-danger"
                       onClick={() => handleRemoveParticipant(participant.id)}
+                      disabled={isLoading || isSubmitted}
                     >
                       Remove
                     </button>
@@ -693,8 +703,10 @@ const DirectScheduleForm = () => {
             onBack={handleBack}
             isLoading={isLoading}
             nextLabel={currentStep === 2 ? "Create Meeting" : "Next"}
+            isDisabled={currentStep === 2 && isSubmitted} // Pass disabled state to FormStepNavigator
           />
         )}
+        
       </form>
     </div>
   );
