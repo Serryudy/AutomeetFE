@@ -26,6 +26,7 @@ export default function NotificationPage() {
 
   useEffect(() => {
     fetchNotifications();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Function to fetch notifications from the API
@@ -72,11 +73,8 @@ export default function NotificationPage() {
           footer: notification.footer || ''
         }
       }))
-      // Option 1: Simple reverse (if API returns in chronological order)
+      // Simple reverse (if API returns in chronological order)
       .reverse();
-      
-      // Option 2: Sort by creation date (more reliable)
-      // .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       setNotifications(formattedNotifications);
     } catch (err) {
@@ -196,38 +194,39 @@ export default function NotificationPage() {
 
   // Handle notification click to fetch meeting details
   const handleNotificationClick = async (id) => {
-    try {
-      markAsRead(id);
-      setSelectedNotificationId(id);
-      setMeetingFetchError(null); // Reset error message
-      
-      const notification = notifications.find(n => n.id === id);
-      if (!notification) return;
+  try {
+    await markAsRead(id);
+    
+    setSelectedNotificationId(id);
+    setMeetingFetchError(null);
+    
+    const notification = notifications.find(n => n.id === id);
+    if (!notification) return;
 
-      const meetingId = notification.details.actionUrl.split('/').pop();
-      
-      const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
-        credentials: 'include'
-      });
+    const meetingId = notification.details.actionUrl.split('/').pop();
+    
+    const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
+      credentials: 'include'
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          setMeetingFetchError('This meeting is no longer available.');
-        } else {
-          setMeetingFetchError('Unable to load meeting details at this time.');
-        }
-        setMeetingDetails(null);
-        return;
+    if (!response.ok) {
+      if (response.status === 404) {
+        setMeetingFetchError('This meeting is no longer available.');
+      } else {
+        setMeetingFetchError('Unable to load meeting details at this time.');
       }
-
-      setMeetingDetails(data);
-    } catch (error) {
-      setMeetingFetchError('Unable to load meeting details at this time.');
       setMeetingDetails(null);
+      return;
     }
-  };
+
+    setMeetingDetails(data);
+  } catch (error) {
+    setMeetingFetchError('Unable to load meeting details at this time.');
+    setMeetingDetails(null);
+  }
+};
 
   const handleBackToList = () => {
     setSelectedNotificationId(null);
@@ -466,9 +465,6 @@ export default function NotificationPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   All
-                  {getUnreadCount() > 0 && (
-                    <span className="badge bg-primary rounded-pill ms-2">{getUnreadCount()}</span>
-                  )}
                 </div>
                 <div 
                   className={`p-3 ${activeTab === 'unread' ? 'active fw-bold border-bottom border-5 border-primary' : 'border-0'} cursor-pointer`}
@@ -476,6 +472,9 @@ export default function NotificationPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   Unread
+                  {getUnreadCount() > 0 && (
+                    <span className="badge bg-primary rounded-pill ms-1">{getUnreadCount()}</span>
+                  )}
                 </div>
                 <div 
                   className={`p-3 ${activeTab === 'read' ? 'active fw-bold border-bottom border-5 border-primary' : 'border-0'} cursor-pointer`}
