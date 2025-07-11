@@ -395,7 +395,8 @@ const MeetingForm = () => {
     };
 
     // cancel meeting functionality
-  const cancelMeeting = async () => {
+
+const cancelMeeting = async () => {
   // Disable the button immediately
   setIsCancelling(true);
   
@@ -425,27 +426,29 @@ const MeetingForm = () => {
     const result = await response.json();
     console.log('Meeting canceled successfully:', result);
     
-    // Clear the entire page content and show loading message
-    document.body.innerHTML = `
-      <div style="
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        background-color: white;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        color: #6c757d;
-        font-size: 18px;
-      ">
-        Loading meeting data...
-      </div>
+    // Show success message (not full screen, just text)
+    const successMessage = document.createElement('div');
+    successMessage.innerHTML = 'Meeting deleted successfully';
+    successMessage.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #d4edda;
+      color: #155724;
+      padding: 15px 20px;
+      border-radius: 5px;
+      border: 1px solid #c3e6cb;
+      z-index: 9999;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     `;
+    document.body.appendChild(successMessage);
     
     // Redirect to meetings page after 3 seconds
     setTimeout(() => {
       window.location.href = '/meeting';
-    }, 3000);
+    }, 5000);
     
   } catch (err) {
     console.error('Error canceling meeting:', err);
@@ -700,17 +703,17 @@ const MeetingForm = () => {
               <h2 className="fw-bold mb-0 fs-4 fs-md-3">{title || 'Meeting name'}</h2>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
-                    {canEdit ? (
-                      <button 
-                          className="btn btn-secondary d-flex align-items-center px-3 py-2"
-                          onClick={() => setIsEditing(!isEditing)}
-                          disabled={isCancelling}
-                       >
-                     <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
-                      </button>
-                              ) : (
-                        <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
-                    )}  
+  {canEdit ? (
+  <button 
+    className="btn btn-secondary d-flex align-items-center px-3 py-2"
+    onClick={() => setIsEditing(!isEditing)}
+    disabled={isCancelling}
+  >
+    <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
+  </button>
+) : (
+  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
+)}
               </div>
             </div>
   
@@ -1152,29 +1155,62 @@ const MeetingForm = () => {
               </div>
             </div>
   
-            <div className="d-flex flex-wrap gap-2 mt-4">
-              {isEditing ? (
-                <>
-                  <button className="btn btn-success me-2" onClick={handleSaveChanges}>Save Changes</button>
-                  <button className="btn btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
-                </>
-              ) : (
-                <>
+  <div className="d-flex flex-wrap gap-2 mt-4">
+  {isEditing ? (
+    <>
+      <button 
+        className="btn btn-success me-2" 
+        onClick={handleSaveChanges}
+        disabled={isCancelling}
+      >
+        Save Changes
+      </button>
+      <button 
+        className="btn btn-secondary" 
+        onClick={() => setIsEditing(false)}
+        disabled={isCancelling}
+      >
+        Cancel
+      </button>
+    </>
+  ) : (
+    <>
                   {/* Show Cancel Meeting */}
-                  {userRole === 'creator' && (
-                  <button 
-                   className="btn btn-danger me-2" 
-                   onClick={cancelMeeting}
-                  disabled={isCancelling}
-                >
-                 {isCancelling ? 'Processing...' : 'Cancel Meeting'}
-                </button>
-                )}
-                  <Link href={`/content/${meetingId}`}><button className="btn btn-primary me-2">Upload</button></Link>
-                  <Link href={`/notes/${meetingId}`}><button className="btn btn-primary">Take notes</button></Link>
-                </>
-              )}
-            </div>
+      {userRole === 'creator' && (
+        <button 
+          className="btn btn-danger me-2" 
+          onClick={cancelMeeting}
+          disabled={isCancelling}
+        >
+          {isCancelling ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Processing
+            </>
+          ) : (
+            'Cancel Meeting'
+          )}
+        </button>
+      )}
+      <Link href={`/content/${meetingId}`}>
+        <button 
+          className="btn btn-primary me-2"
+          disabled={isCancelling}
+        >
+          Upload
+        </button>
+      </Link>
+      <Link href={`/notes/${meetingId}`}>
+        <button 
+          className="btn btn-primary"
+          disabled={isCancelling}
+        >
+          Take notes
+        </button>
+      </Link>
+    </>
+  )}
+</div>
           </div>
         </div>
       </div>
