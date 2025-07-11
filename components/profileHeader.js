@@ -287,7 +287,7 @@ const ProfileHeader = () => {
       {/* Real-time Chat Icon */}
       <div className="position-relative" ref={chatRef}>
         <button className="btn btn-link p-2" onClick={toggleChat}>
-          <HiChatAlt2 size={24} color="#292D32" />
+          <HiChatAlt2 size={26} color="#292D32" />
         </button>
 
         {/* Chat Popup/Component - Now with smooth sliding animation */}
