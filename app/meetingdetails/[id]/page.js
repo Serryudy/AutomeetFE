@@ -47,6 +47,7 @@ const MeetingForm = () => {
     const [dateError, setDateError] = useState('');
     const [userProfiles, setUserProfiles] = useState({});
     const [uploadedContent, setUploadedContent] = useState([]);
+    const [isCancelling, setIsCancelling] = useState(false);///////
 
     useEffect(() => {
       console.log("Params object:", params);
@@ -395,39 +396,65 @@ const MeetingForm = () => {
 
     // cancel meeting functionality
     const cancelMeeting = async () => {
-      // Confirm the cancellation
-      const isConfirmed = window.confirm(`Are you sure you want to cancel the meeting "${title}"? This action cannot be undone.`);
-      
-      if (!isConfirmed) return;
-      
-      try {
-        // Call the deletion API endpoint
-        const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // This ensures cookies are sent with the request
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error canceling meeting: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('Meeting canceled successfully:', result);
-        
-        // Show success message
-        alert('Meeting has been canceled successfully');
-        
-        // Redirect to the meetings list page
-        window.location.href = '/meeting';
-        
-      } catch (err) {
-        console.error('Error canceling meeting:', err);
-        alert(`Failed to cancel meeting: ${err.message}`);
-      }
-    };
+  // Disable the button immediately
+  setIsCancelling(true);
+  
+  // Confirm the cancellation
+  const isConfirmed = window.confirm(`Are you sure you want to cancel the meeting "${title}"? This action cannot be undone.`);
+  
+  if (!isConfirmed) {
+    // Re-enable the button if user cancels
+    setIsCancelling(false);
+    return;
+  }
+  
+  try {
+    // Call the deletion API endpoint
+    const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', // This ensures cookies are sent with the request
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error canceling meeting: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Meeting canceled successfully:', result);
+    
+    // Clear the entire page content and show success message
+    document.body.innerHTML = `
+      <div style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: white;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        color: #28a745;
+        font-size: 24px;
+        font-weight: bold;
+      ">
+        Meeting deleted successfully!
+      </div>
+    `;
+    
+    // Redirect to meetings page after 3 seconds
+    setTimeout(() => {
+      window.location.href = '/meeting';
+    }, 3000);
+    
+  } catch (err) {
+    console.error('Error canceling meeting:', err);
+    alert(`Failed to cancel meeting: ${err.message}`);
+    // Re-enable the button if there's an error
+    setIsCancelling(false);
+  }
+};
     
     // Add another function to handle participant access changes
     const handleParticipantAccessChange = (participantId, checked) => {
@@ -1134,11 +1161,15 @@ const MeetingForm = () => {
               ) : (
                 <>
                   {/* Show Cancel Meeting button only if user is the creator */}
-                  {userRole === 'creator' && (
-                    <button className="btn btn-danger me-2" onClick={cancelMeeting}>
-                      Cancel Meeting
-                    </button>
-                  )}
+ {userRole === 'creator' && (
+  <button 
+    className="btn btn-danger me-2" 
+    onClick={cancelMeeting}
+    disabled={isCancelling}
+  >
+    {isCancelling ? 'Processing...' : 'Cancel Meeting'}
+  </button>
+)}
                   <Link href={`/content/${meetingId}`}><button className="btn btn-primary me-2">Upload</button></Link>
                   <Link href={`/notes/${meetingId}`}><button className="btn btn-primary">Take notes</button></Link>
                 </>
