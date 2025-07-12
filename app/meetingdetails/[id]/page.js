@@ -49,6 +49,13 @@ const MeetingForm = () => {
     const [uploadedContent, setUploadedContent] = useState([]);
     const [isCancelling, setIsCancelling] = useState(false);///////
     const [isDeleted, setIsDeleted] = useState(false);
+    //new
+    const [isSaving, setIsSaving] = useState(false);
+const [allContacts, setAllContacts] = useState([]);
+const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+const [showRepeatDropdown, setShowRepeatDropdown] = useState(false);
+const [showDurationDropdown, setShowDurationDropdown] = useState(false);
+
 
     useEffect(() => {
       console.log("Params object:", params);
@@ -209,168 +216,226 @@ const MeetingForm = () => {
     }, []);
 
     // to update the form
-    const handleSaveChanges = async () => {
-      try {
-        // Prepare the update payload based on form data
-        const updatePayload = {
-          title,
-          description,
-          location,
-          repeat
-        };
+const handleSaveChanges = async () => {
+  try {
+    setIsSaving(true);
     
-        // Format time slots if there are any
-        if (timeSlots.length > 0) {
-          // Transform time slots to the format expected by the API
-          const formattedTimeSlots = timeSlots.map(slot => {
-            return {
-              startTime: slot.startTime,
-              endTime: slot.endTime
-            };
-          });
-          
-          updatePayload.timeSlots = formattedTimeSlots;
-        }
-        
-        // Add participants to add if any
-        if (participantsToAdd.length > 0) {
-          updatePayload.addParticipants = participantsToAdd;
-        }
-        
-        // Determine which participants to remove by comparing current list with original
-        if (meetingData && meetingData.participants) {
-          const originalUsernames = meetingData.participants.map(p => p.username);
-          const currentUsernames = participants.map(p => p.name);
-          
-          const usernamesRemoved = originalUsernames.filter(
-            username => !currentUsernames.includes(username)
-          );
-          
-          if (usernamesRemoved.length > 0) {
-            updatePayload.removeParticipants = usernamesRemoved;
-          }
-        }
-        
-        // Make the API call to update the meeting
-        const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updatePayload),
-          credentials: 'include',
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error updating meeting: ${response.status}`);
-        }
-        
-        const updatedMeeting = await response.json();
-        console.log('Meeting updated successfully:', updatedMeeting);
-        
-        // Update the local state with the response
-        setMeetingData(updatedMeeting);
-        
-        // Update other related states if needed
-        if (updatedMeeting.participants) {
-          const formattedParticipants = updatedMeeting.participants.map((participant, index) => ({
-            id: index + 1,
-            name: participant.username,
-            group: `Access: ${participant.access}`,
-            access: participant.access
-          }));
-          setParticipants(formattedParticipants);
-          
-          // Update user profiles for new participants
-          updatedMeeting.participants.forEach(participant => {
-            if (!userProfiles[participant.username]) {
-              fetchUserProfile(participant.username);
-            }
-          });
-        }
-        
-        if (updatedMeeting.hosts) {
-          const formattedHosts = updatedMeeting.hosts.map((host, index) => ({
-            id: index + 1,
-            name: host.username,
-            group: 'Hosts',
-            access: host.access
-          }));
-          setHosts(formattedHosts);
-        }
-        
-        // Reset participant management states
-        setParticipantsToAdd([]);
-        
-        // Clear time slots or update with the response if available
-        if (updatedMeeting.timeSlots) {
-          // Format the time slots from the response
-          const formattedTimeSlots = updatedMeeting.timeSlots.map((slot, index) => {
-            // Convert ISO strings to readable format
-            const startDate = new Date(slot.startTime);
-            const endDate = new Date(slot.endTime);
-            
-            // Format to 12 hour time
-            const formatTime = (date) => {
-              let hours = date.getHours();
-              const minutes = date.getMinutes().toString().padStart(2, '0');
-              const ampm = hours >= 12 ? 'PM' : 'AM';
-              hours = hours % 12;
-              hours = hours ? hours : 12; // the hour '0' should be '12'
-              return `${hours}:${minutes} ${ampm}`;
-            };
-            
-            return {
-              id: index + 1,
-              start: formatTime(startDate),
-              end: formatTime(endDate),
-              startTime: slot.startTime,
-              endTime: endDate
-            };
-          });
-          
-          setTimeSlots(formattedTimeSlots);
-        }
-        
-        // Exit edit mode
-        setIsEditing(false);
-        
-        // Show success notification
-        alert('Meeting updated successfully!');
-        
-      } catch (err) {
-        console.error('Error updating meeting:', err);
-        alert(`Failed to update meeting: ${err.message}`);
-      }
+    // Prepare the update payload based on form data
+    const updatePayload = {
+      title,
+      description,
+      location,
+      repeat
     };
 
-    //search contacts
-    const handleSearchContacts = async (query) => {
-      setSearchContact(query);
+    // Add duration for group and round_robin meetings
+    if ((meetingType === 'group' || meetingType === 'round_robin') && roundRobinDuration) {
+      updatePayload.duration = roundRobinDuration;
+    }
+
+    // Format time slots if there are any
+    if (timeSlots.length > 0) {
+      const formattedTimeSlots = timeSlots.map(slot => {
+        return {
+          startTime: slot.startTime,
+          endTime: slot.endTime
+        };
+      });
       
-      if (query.length < 2) {
-        setSearchResults([]);
-        return;
+      updatePayload.timeSlots = formattedTimeSlots;
+    }
+    
+    // Add participants to add if any
+    if (participantsToAdd.length > 0) {
+      updatePayload.addParticipants = participantsToAdd;
+    }
+    
+    // Determine which participants to remove by comparing current list with original
+    if (meetingData && meetingData.participants) {
+      const originalUsernames = meetingData.participants.map(p => p.username);
+      const currentUsernames = participants.map(p => p.name);
+      
+      const usernamesRemoved = originalUsernames.filter(
+        username => !currentUsernames.includes(username)
+      );
+      
+      if (usernamesRemoved.length > 0) {
+        updatePayload.removeParticipants = usernamesRemoved;
       }
+    }
+    
+    // Make the API call to update the meeting
+    const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updatePayload),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error updating meeting: ${response.status}`);
+    }
+    
+    const updatedMeeting = await response.json();
+    console.log('Meeting updated successfully:', updatedMeeting);
+    
+    // Update the local state with the response
+    setMeetingData(updatedMeeting);
+    
+    // Update other related states if needed
+    if (updatedMeeting.participants) {
+      const formattedParticipants = updatedMeeting.participants.map((participant, index) => ({
+        id: index + 1,
+        name: participant.username,
+        group: `Access: ${participant.access}`,
+        access: participant.access
+      }));
+      setParticipants(formattedParticipants);
       
+      // Update user profiles for new participants
+      updatedMeeting.participants.forEach(participant => {
+        if (!userProfiles[participant.username]) {
+          fetchUserProfile(participant.username);
+        }
+      });
+    }
+    
+    if (updatedMeeting.hosts) {
+      const formattedHosts = updatedMeeting.hosts.map((host, index) => ({
+        id: index + 1,
+        name: host.username,
+        group: 'Hosts',
+        access: host.access
+      }));
+      setHosts(formattedHosts);
+    }
+    
+    // Reset participant management states
+    setParticipantsToAdd([]);
+    
+    // Clear time slots or update with the response if available
+    if (updatedMeeting.timeSlots) {
+      const formattedTimeSlots = updatedMeeting.timeSlots.map((slot, index) => {
+        const startDate = new Date(slot.startTime);
+        const endDate = new Date(slot.endTime);
+        
+        const formatTime = (date) => {
+          let hours = date.getHours();
+          const minutes = date.getMinutes().toString().padStart(2, '0');
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12;
+          hours = hours ? hours : 12;
+          return `${hours}:${minutes} ${ampm}`;
+        };
+        
+        return {
+          id: index + 1,
+          start: formatTime(startDate),
+          end: formatTime(endDate),
+          startTime: slot.startTime,
+          endTime: slot.endTime
+        };
+      });
+      
+      setTimeSlots(formattedTimeSlots);
+    }
+    
+    // Exit edit mode
+    setIsEditing(false);
+    
+    // Show success notification
+    alert('Successfully changed!');
+    
+    // Refresh page after 3 seconds
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+    
+  } catch (err) {
+    console.error('Error updating meeting:', err);
+    alert(`Failed to update meeting: ${err.message}`);
+  } finally {
+    setIsSaving(false);
+  }
+};
+
+    const locationOptions = [
+  'Conference Room',
+  'Virtual Meeting',
+  'Office',
+  'Other'
+];
+
+const repeatOptions = [
+  'Does not repeat',
+  'Daily',
+  'Weekly',
+  'Monthly',
+  'Annually',
+  'Every weekday (Mon-Fri)',
+  'Custom'
+];
+const durationOptions = [
+  '30 minutes',
+  '45 minutes',
+  '1 hour',
+  '1.5 hours',
+  '2 hours'
+];
+
+//Fetch all contacts when editing starts
+useEffect(() => {
+  const fetchAllContacts = async () => {
+    if (isEditing) {
       try {
-        // Replace with your actual API endpoint
         const response = await fetch(`http://localhost:8080/api/contacts`, {
           credentials: 'include',
         });
         
-        if (!response.ok) {
-          throw new Error(`Error searching contacts: ${response.status}`);
+        if (response.ok) {
+          const data = await response.json();
+          setAllContacts(data);
         }
-        
-        const data = await response.json();
-        setSearchResults(data);
       } catch (err) {
-        console.error('Error searching contacts:', err);
-        setSearchResults([]);
+        console.error('Error fetching contacts:', err);
       }
-    };
+    }
+  };
+  
+  fetchAllContacts();
+}, [isEditing]);
 
+    //search contacts
+   const handleSearchContacts = async (query) => {
+  setSearchContact(query);
+  
+  if (query.length === 0) {
+    setSearchResults(allContacts);
+    return;
+  }
+  
+  if (query.length < 2) {
+    setSearchResults([]);
+    return;
+  }
+  
+  // Filter from all contacts
+  const filtered = allContacts.filter(contact => 
+    contact.username.toLowerCase().includes(query.toLowerCase()) ||
+    (contact.email && contact.email.toLowerCase().includes(query.toLowerCase()))
+  );
+  
+  setSearchResults(filtered);
+};
+
+//Check if participant is already added
+
+const isParticipantAdded = (username) => {
+  return participants.some(p => p.name === username) || 
+         hosts.some(h => h.name === username);
+};
     //add participants
     const addParticipant = (contact) => {
       const newParticipant = {
@@ -466,6 +531,7 @@ const cancelMeeting = async () => {
       return "/profile.png"; // Default image
     };
     
+
     // Refs for detecting clicks outside the dropdown
     const startTimeRef = useRef(null);
     const endTimeRef = useRef(null);
@@ -966,52 +1032,83 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
             <div className="mb-3 mb-md-4">
                 <label htmlFor="participants" className="form-label">Participants</label>
                 
-                {isEditing && (
-                  <div className="mb-3 position-relative">
-                    <div className="position-relative">
-                      <div className="input-group">
-                        <span className="input-group-text bg-white">
-                          <FaSearch />
-                        </span>
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Search by contact"
-                          value={searchContact}
-                          onChange={(e) => handleSearchContacts(e.target.value)}
-                        />
-                        <span className="input-group-text bg-white">
-                          <FaChevronDown />
-                        </span>
-                      </div>
-                      
-                      {/* Search Results Dropdown */}
-                      {searchResults.length > 0 && (
-                        <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{zIndex: 1000, maxHeight: '200px', overflowY: 'auto'}}>
-                          {searchResults.map(contact => (
-                            <div 
-                              key={contact.username} 
-                              className="p-2 border-bottom d-flex align-items-center hover-bg-light" 
-                              style={{cursor: 'pointer'}}
-                              onClick={() => addParticipant(contact)}
-                            >
-                              <img 
-                                src={userProfiles[contact.username]?.profile_pic || "/profile.png"} 
-                                alt={contact.username} 
-                                className="rounded-circle me-2"
-                                style={{width: '30px', height: '30px', objectFit: 'cover'}}
-                              />
-                              <div>
-                                <div className="fw-bold">{contact.username}</div>
-                                {contact.email && <small className="text-muted">{contact.email}</small>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                //  Update the participants search section in JSX
+{isEditing && (
+  <div className="mb-3 position-relative">
+    <div className="position-relative">
+      <div className="input-group">
+        <span className="input-group-text bg-white">
+          <FaSearch />
+        </span>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search by contact"
+          value={searchContact}
+          onChange={(e) => handleSearchContacts(e.target.value)}
+          onFocus={() => setSearchResults(allContacts)}
+          disabled={isSaving}
+        />
+        <button 
+          className="btn btn-outline-secondary" 
+          type="button"
+          onClick={() => setSearchResults(searchResults.length > 0 ? [] : allContacts)}
+          disabled={isSaving}
+        >
+          <FaChevronDown />
+        </button>
+      </div>
+      
+      {/* Search Results Dropdown */}
+      {searchResults.length > 0 && (
+        <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{zIndex: 1000, maxHeight: '200px', overflowY: 'auto'}}>
+          {searchResults.map(contact => (
+            <div 
+              key={contact.username} 
+              className="p-2 border-bottom d-flex align-items-center justify-content-between hover-bg-light"
+            >
+              <div className="d-flex align-items-center">
+                <img 
+                  src={userProfiles[contact.username]?.profile_pic || "/profile.png"} 
+                  alt={contact.username} 
+                  className="rounded-circle me-2"
+                  style={{width: '30px', height: '30px', objectFit: 'cover'}}
+                />
+                <div>
+                  <div className="fw-bold">{contact.username}</div>
+                  {contact.email && <small className="text-muted">{contact.email}</small>}
+                </div>
+              </div>
+              {isParticipantAdded(contact.username) ? (
+                <button 
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={() => {
+                    // Remove participant logic
+                    const participantToRemove = participants.find(p => p.name === contact.username);
+                    if (participantToRemove) {
+                      removeParticipant(participantToRemove.id);
+                    }
+                  }}
+                  disabled={isSaving}
+                >
+                  Remove
+                </button>
+              ) : (
+                <button 
+                  className="btn btn-sm btn-primary"
+                  onClick={() => addParticipant(contact)}
+                  disabled={isSaving}
+                >
+                  Add
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
                 {/* Display hosts section */}
                 {hosts.length > 0 && (
@@ -1103,43 +1200,144 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               ></textarea>
             </div>
   
-            <div className="mb-3 mb-md-4">
-              <label htmlFor="location" className="form-label">Location</label>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  readOnly={!isEditing}
-                  placeholder="Choose a place for the meeting"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
-                {isEditing && (
-                  <button className="btn btn-outline-secondary" type="button">
-                    <FaChevronDown />
-                  </button>
-                )}
-              </div>
-            </div>
+  {/* Location Input */}
+<div className="mb-3 mb-md-4">
+  <label htmlFor="location" className="form-label">Location</label>
+  <div className="input-group position-relative">
+    <input
+      type="text"
+      className="form-control"
+      readOnly={!isEditing}
+      placeholder="Choose a place for the meeting"
+      value={location}
+      onChange={(e) => setLocation(e.target.value)}
+      disabled={isSaving}
+    />
+    {isEditing && (
+      <button 
+        className="btn btn-outline-secondary" 
+        type="button"
+        onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+        disabled={isSaving}
+      >
+        <FaChevronDown />
+      </button>
+    )}
+    
+    {/* Location Dropdown */}
+    {showLocationDropdown && isEditing && (
+      <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
+        {locationOptions.map(option => (
+          <div 
+            key={option}
+            className="p-2 border-bottom hover-bg-light"
+            style={{cursor: 'pointer'}}
+            onClick={() => {
+              setLocation(option);
+              setShowLocationDropdown(false);
+            }}
+          >
+            {option}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
   
-            <div className="mb-4">
-              <label htmlFor="repeat" className="form-label">Repeat</label>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  readOnly={!isEditing}
-                  placeholder="Does not repeat"
-                  value={repeat}
-                  onChange={(e) => setRepeat(e.target.value)}
-                />
-                {isEditing && (
-                  <button className="btn btn-outline-secondary" type="button">
-                    <FaChevronDown />
-                  </button>
-                )}
-              </div>
+   {/*Repeat input section*/}
+
+<div className="mb-4">
+  <label htmlFor="repeat" className="form-label">Repeat</label>
+  <div className="input-group position-relative">
+    <input
+      type="text"
+      className="form-control"
+      readOnly={!isEditing}
+      placeholder="Does not repeat"
+      value={repeat}
+      onChange={(e) => setRepeat(e.target.value)}
+      disabled={isSaving}
+    />
+    {isEditing && (
+      <button 
+        className="btn btn-outline-secondary" 
+        type="button"
+        onClick={() => setShowRepeatDropdown(!showRepeatDropdown)}
+        disabled={isSaving}
+      >
+        <FaChevronDown />
+      </button>
+    )}
+    
+    {/* Repeat Dropdown */}
+    {showRepeatDropdown && isEditing && (
+      <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
+        {repeatOptions.map(option => (
+          <div 
+            key={option}
+            className="p-2 border-bottom hover-bg-light"
+            style={{cursor: 'pointer'}}
+            onClick={() => {
+              setRepeat(option);
+              setShowRepeatDropdown(false);
+            }}
+          >
+            {option}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
+
+
+{/*Add Duration section for group and round_robin meetings*/}
+{(meetingType === 'group' || meetingType === 'round_robin') && (
+  <div className="mb-4">
+    <label htmlFor="duration" className="form-label">Duration</label>
+    <div className="input-group position-relative">
+      <input
+        type="text"
+        className="form-control"
+        readOnly={!isEditing}
+        placeholder="Select duration"
+        value={roundRobinDuration}
+        onChange={(e) => setRoundRobinDuration(e.target.value)}
+        disabled={isSaving}
+      />
+      {isEditing && (
+        <button 
+          className="btn btn-outline-secondary" 
+          type="button"
+          onClick={() => setShowDurationDropdown(!showDurationDropdown)}
+          disabled={isSaving}
+        >
+          <FaChevronDown />
+        </button>
+      )}
+      
+      {/* Duration Dropdown */}
+      {showDurationDropdown && isEditing && (
+        <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
+          {durationOptions.map(option => (
+            <div 
+              key={option}
+              className="p-2 border-bottom hover-bg-light"
+              style={{cursor: 'pointer'}}
+              onClick={() => {
+                setRoundRobinDuration(option);
+                setShowDurationDropdown(false);
+              }}
+            >
+              {option}
             </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
   
   <div className="d-flex flex-wrap gap-2 mt-4">
   {isEditing ? (
@@ -1147,26 +1345,32 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
       <button 
         className="btn btn-success me-2" 
         onClick={handleSaveChanges}
-        disabled={isCancelling}
+        disabled={isSaving}
       >
-        Save Changes
+        {isSaving ? (
+          <>
+            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Changing...
+          </>
+        ) : (
+          'Save Changes'
+        )}
       </button>
       <button 
         className="btn btn-secondary" 
         onClick={() => setIsEditing(false)}
-        disabled={isCancelling}
+        disabled={isSaving}
       >
         Cancel
       </button>
     </>
   ) : (
     <>
-                  {/* Show Cancel Meeting */}
       {userRole === 'creator' && (
         <button 
           className="btn btn-danger me-2" 
           onClick={cancelMeeting}
-          disabled={isCancelling}
+          disabled={isCancelling || isSaving}
         >
           {isCancelling ? (
             <>
@@ -1181,7 +1385,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
       <Link href={`/content/${meetingId}`}>
         <button 
           className="btn btn-primary me-2"
-          disabled={isCancelling}
+          disabled={isCancelling || isSaving}
         >
           Upload
         </button>
@@ -1189,7 +1393,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
       <Link href={`/notes/${meetingId}`}>
         <button 
           className="btn btn-primary"
-          disabled={isCancelling}
+          disabled={isCancelling || isSaving}
         >
           Take notes
         </button>
