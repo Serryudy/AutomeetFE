@@ -431,10 +431,6 @@ export default function NotificationPage() {
                       <span className="fw-bold">{meetingDetails.title}</span>
                     </div>
                     <div className="mb-3">
-                      <span className="fw-medium">Organizer: </span>
-                      <span className="fw-bold">{meetingDetails.createdBy}</span>
-                    </div>
-                    <div className="mb-3">
                       <span className="fw-medium">Date & Time: </span>
                       <span className="fw-bold">
                         {meetingDetails.directTimeSlot ? (
