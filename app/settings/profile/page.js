@@ -42,6 +42,9 @@ export default function Content() {
     profileImageUrl: '' // Will store Cloudinary URL
   });
 
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   // Initialize selected country with a default value
   useEffect(() => {
     const defaultCountry = countries.allCountries.find(c => c.iso2 === 'LK');
@@ -269,10 +272,87 @@ export default function Content() {
     }
   };
 
+  // Delete confirmation modal component
+  const DeleteConfirmationModal = ({ onClose, onConfirm, isDeleting }) => {
+    return (
+      <div 
+        className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+        style={{ 
+          backgroundColor: 'rgba(0,0,0,0.5)', 
+          zIndex: 1050,
+          backdropFilter: 'blur(4px)'
+        }}
+        onClick={onClose}
+      >
+        <div 
+          className="bg-white rounded-4 p-4 shadow-lg"
+          style={{ maxWidth: '400px', width: '90%' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <h3 className="h5 mb-3 fw-bold text-center">Delete Account</h3>
+          <p className="text-muted mb-4 text-center">
+            Are you sure you want to delete your account? This action cannot be undone.
+          </p>
+          <div className="d-flex justify-content-center gap-3">
+            <button 
+              className="btn btn-outline-secondary px-4 py-2 rounded-pill"
+              onClick={onClose}
+              disabled={isDeleting}
+            >
+              Cancel
+            </button>
+            <button 
+              className="btn btn-danger px-4 py-2 rounded-pill"
+              onClick={onConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Deleting...
+                </>
+              ) : 'Delete Account'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handleDeleteAccount = () => {
-    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-      console.log('Account deletion requested');
-      // Implement account deletion logic here
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/users/delete', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Clear all storage
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Clear any refresh token intervals
+        if (window.refreshTokenInterval) {
+          clearInterval(window.refreshTokenInterval);
+        }
+        
+        // Redirect to login page
+        window.location.href = '/login';
+      } else {
+        throw new Error('Failed to delete account');
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setSaveError('Failed to delete account. Please try again.');
+    } finally {
+      setShowDeleteModal(false);
     }
   };
 
@@ -596,6 +676,15 @@ export default function Content() {
           </form>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <DeleteConfirmationModal
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleConfirmDelete}
+          isDeleting={isSaving}
+        />
+      )}
     </div>
   );
 }

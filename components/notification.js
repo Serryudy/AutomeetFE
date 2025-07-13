@@ -125,7 +125,7 @@ const NotificationsComponent = () => {
   };
 
   const navigateToMeeting = (meetingId, notificationType) => {
-    if (notificationType === 'availability_request') {
+    if (notificationType === 'availability_request' || notificationType === 'availability_update') {
       window.location.href = `/availability/${meetingId}`;
     } else {
       window.location.href = `/meetingdetails/${meetingId}`;

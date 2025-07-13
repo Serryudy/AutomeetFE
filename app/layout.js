@@ -19,7 +19,7 @@ export const metadata = {
   icons: {
     icon: [
       { url: '/meta.png', type: 'image/png' },  // Adjust filename to match your image
-      { url: '/favicon.ico' }
+      // { url: '/favicon.ico' }
     ],
     apple: [
       { url: '/meta.png', type: 'image/png' }  

@@ -6,13 +6,13 @@ import '@/styles/global.css';
 import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import { FaBars } from 'react-icons/fa';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 
 const TranscriptForm = () => {
   const params = useParams();
+  const router = useRouter();
   const meetingId = params.meetingId;
-  const [standardQuestions, setStandardQuestions] = useState([]);
   const [formData, setFormData] = useState({
     purpose: '',
     agenda: '',
@@ -24,29 +24,24 @@ const TranscriptForm = () => {
     timeUnit: 'Minutes',
     decisions: '',
     unresolvedIssues: '',
-    satisfaction: ''
+    satisfaction: '',
+    speakingTime: '',
+    participantEngagement: '',
+    chatEngagement: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Fetch standard questions
-  useEffect(() => {
-    const fetchStandardQuestions = async () => {
-      try {
-        const response = await fetch('http://localhost:8081/api/standard/questions', {
-          credentials: 'include'
-        });
-        const data = await response.json();
-        setStandardQuestions(data.questions);
-      } catch (err) {
-        console.error('Failed to fetch standard questions', err);
-        setError('Failed to load standard questions');
-      }
-    };
-
-    fetchStandardQuestions();
-  }, []);
+  // Add validation state
+  const [validation, setValidation] = useState({
+    participants: '',
+    fullyCovered: '',
+    onTime: '',
+    speakingTime: '',
+    participantEngagement: '',
+    chatEngagement: ''
+  });
 
   // Fetch existing transcript if it exists
   useEffect(() => {
@@ -54,7 +49,7 @@ const TranscriptForm = () => {
       if (!meetingId) return;
 
       try {
-        const response = await fetch(`http://localhost:8081/api/transcripts/${meetingId}`, {
+        const response = await fetch(`http://localhost:8080/api/analytics/transcripts/${meetingId}`, {
           credentials: 'include'
         });
         
@@ -82,6 +77,9 @@ const TranscriptForm = () => {
               case 7: qaMap.decisions = qa.answer; break;
               case 8: qaMap.unresolvedIssues = qa.answer; break;
               case 9: qaMap.satisfaction = qa.answer; break;
+              case 10: qaMap.speakingTime = qa.answer; break;
+              case 11: qaMap.participantEngagement = qa.answer; break;
+              case 12: qaMap.chatEngagement = qa.answer; break;
             }
           });
           setFormData(prevData => ({ ...prevData, ...qaMap }));
@@ -91,44 +89,136 @@ const TranscriptForm = () => {
       }
     };
 
-    if (standardQuestions.length > 0) {
-      fetchTranscript();
-    }
-  }, [meetingId, standardQuestions]);
+    fetchTranscript();
+  }, [meetingId]);
 
+  // Generate Report handler - navigates to report page
+  const handleGenerateReport = () => {
+    router.push(`/report/${meetingId}`);
+  };
+
+  // Update handleChange to include validation
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Clear validation error when user starts typing
+    setValidation(prev => ({
+      ...prev,
+      [name]: ''
+    }));
+
+    // Validate yes/no answers
+    if (name === 'fullyCovered' || name === 'onTime') {
+      const normalizedValue = value.toLowerCase().trim();
+      if (normalizedValue !== '' && normalizedValue !== 'yes' && normalizedValue !== 'no') {
+        setValidation(prev => ({
+          ...prev,
+          [name]: 'Please enter Yes or No'
+        }));
+      }
+    }
+
+    // Validate participants (numbers only)
+    if (name === 'participants') {
+      if (!/^\d*$/.test(value)) {
+        setValidation(prev => ({
+          ...prev,
+          participants: 'Please enter numbers only'
+        }));
+        return;
+      }
+    }
+
+    // Validate percentages
+    if (['speakingTime', 'participantEngagement', 'chatEngagement'].includes(name)) {
+      if (value !== '' && (!/^\d{1,3}$/.test(value) || Number(value) < 0 || Number(value) > 100)) {
+        setValidation(prev => ({
+          ...prev,
+          [name]: 'Please enter a percentage between 0 and 100'
+        }));
+      }
+    }
+
     setFormData(prevState => ({
       ...prevState,
       [name]: value
     }));
   };
 
+  // Static questions array (no longer fetched from API)
+  const questions = [
+    "What was the purpose of the meeting?",
+    "What was the primary agenda of the meeting?",
+    "Around How many participants actually contributed?",
+    "Was the agenda fully covered?",
+    "If not, what topics were left out and why?",
+    "Was the meeting conducted within the scheduled time?",
+    "If not, by how much time did it exceed or finish early?",
+    "What were the key decisions made?",
+    "Were there any unresolved issues?",
+    "Did participants express satisfaction or dissatisfaction with the meeting's outcomes?",
+    "speaking time",
+    "participant engagement",
+    "chat engagement"
+  ];
+
+  // Update handleSubmit to check all fields
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate all required fields
+    const newValidation = {
+      participants: '',
+      fullyCovered: '',
+      onTime: '',
+      speakingTime: '',
+      participantEngagement: '',
+      chatEngagement: ''
+    };
+
+    // Validate required fields
+    if (!formData.purpose) newValidation.purpose = 'Required';
+    if (!formData.agenda) newValidation.agenda = 'Required';
+    if (!formData.participants || !/^\d+$/.test(formData.participants)) newValidation.participants = 'Please enter a valid number';
+    if (!formData.fullyCovered || !['yes','no'].includes(formData.fullyCovered.toLowerCase().trim())) newValidation.fullyCovered = 'Please enter Yes or No';
+    if (!formData.onTime || !['yes','no'].includes(formData.onTime.toLowerCase().trim())) newValidation.onTime = 'Please enter Yes or No';
+    if (!formData.decisions) newValidation.decisions = 'Required';
+    if (!formData.speakingTime || isNaN(formData.speakingTime) || Number(formData.speakingTime) < 0 || Number(formData.speakingTime) > 100) newValidation.speakingTime = 'Please enter a percentage between 0 and 100';
+    if (!formData.participantEngagement || isNaN(formData.participantEngagement) || Number(formData.participantEngagement) < 0 || Number(formData.participantEngagement) > 100) newValidation.participantEngagement = 'Please enter a percentage between 0 and 100';
+    if (!formData.chatEngagement || isNaN(formData.chatEngagement) || Number(formData.chatEngagement) < 0 || Number(formData.chatEngagement) > 100) newValidation.chatEngagement = 'Please enter a percentage between 0 and 100';
+
+    // Check if there are any validation errors
+    if (Object.values(newValidation).some(error => error !== '')) {
+      setValidation(newValidation);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setSuccess(false);
 
     try {
-      // Transform form data into question-answer pairs
+      // Transform form data into question-answer pairs using static questions
       const questionAnswers = [
-        { question: standardQuestions[0], answer: formData.purpose },
-        { question: standardQuestions[1], answer: formData.agenda },
-        { question: standardQuestions[2], answer: formData.participants },
-        { question: standardQuestions[3], answer: formData.fullyCovered },
-        { question: standardQuestions[4], answer: formData.missedTopics },
-        { question: standardQuestions[5], answer: formData.onTime },
+        { question: questions[0], answer: formData.purpose },
+        { question: questions[1], answer: formData.agenda },
+        { question: questions[2], answer: formData.participants },
+        { question: questions[3], answer: formData.fullyCovered },
+        { question: questions[4], answer: formData.missedTopics },
+        { question: questions[5], answer: formData.onTime },
         { 
-          question: standardQuestions[6], 
+          question: questions[6], 
           answer: `${formData.timeDeviation} ${formData.timeUnit}`
         },
-        { question: standardQuestions[7], answer: formData.decisions },
-        { question: standardQuestions[8], answer: formData.unresolvedIssues },
-        { question: standardQuestions[9], answer: formData.satisfaction }
+        { question: questions[7], answer: formData.decisions },
+        { question: questions[8], answer: formData.unresolvedIssues },
+        { question: questions[9], answer: formData.satisfaction },
+        { question: questions[10], answer: formData.speakingTime },
+        { question: questions[11], answer: formData.participantEngagement },
+        { question: questions[12], answer: formData.chatEngagement }
       ];
 
-      const response = await fetch('http://localhost:8081/api/transcripts', {
+      const response = await fetch('http://localhost:8080/api/analytics/transcripts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,33 +240,6 @@ const TranscriptForm = () => {
       setError('Failed to submit transcript. Please try again.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Generate report
-  const handleGenerateReport = async () => {
-    try {
-      const response = await fetch(`http://localhost:8081/api/transcripts/${meetingId}/generatereport`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate report');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `meeting_transcript_report.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Failed to generate report', err);
-      setError('Failed to generate report. Please try again.');
     }
   };
 
@@ -242,6 +305,11 @@ const TranscriptForm = () => {
             onChange={handleChange}
             required
           />
+          {validation.participants && (
+            <div className="text-danger small mt-1">
+              {validation.participants}
+            </div>
+          )}
         </div>
         
         <div className="mb-4">
@@ -254,6 +322,11 @@ const TranscriptForm = () => {
             onChange={handleChange}
             required
           />
+          {validation.fullyCovered && (
+            <div className="text-danger small mt-1">
+              {validation.fullyCovered}
+            </div>
+          )}
         </div>
         
         <div className="mb-4">
@@ -278,6 +351,11 @@ const TranscriptForm = () => {
             onChange={handleChange}
             required
           />
+          {validation.onTime && (
+            <div className="text-danger small mt-1">
+              {validation.onTime}
+            </div>
+          )}
         </div>
         
         <div className="mb-4">
@@ -340,12 +418,67 @@ const TranscriptForm = () => {
             onChange={handleChange}
           ></textarea>
         </div>
+
+        <div className="mb-4">
+          <label className="form-label fw-medium mb-2">What percentage of the meeting was spent on speaking time?</label>
+          <input
+            type="number"
+            className="form-control p-3"
+            name="speakingTime"
+            value={formData.speakingTime}
+            onChange={handleChange}
+            min={0}
+            max={100}
+            required
+          />
+          {validation.speakingTime && (
+            <div className="text-danger small mt-1">
+              {validation.speakingTime}
+            </div>
+          )}
+        </div>
+        <div className="mb-4">
+          <label className="form-label fw-medium mb-2">What was the participant engagement percentage?</label>
+          <input
+            type="number"
+            className="form-control p-3"
+            name="participantEngagement"
+            value={formData.participantEngagement}
+            onChange={handleChange}
+            min={0}
+            max={100}
+            required
+          />
+          {validation.participantEngagement && (
+            <div className="text-danger small mt-1">
+              {validation.participantEngagement}
+            </div>
+          )}
+        </div>
+        <div className="mb-4">
+          <label className="form-label fw-medium mb-2">What was the chat engagement percentage?</label>
+          <input
+            type="number"
+            className="form-control p-3"
+            name="chatEngagement"
+            value={formData.chatEngagement}
+            onChange={handleChange}
+            min={0}
+            max={100}
+            required
+          />
+          {validation.chatEngagement && (
+            <div className="text-danger small mt-1">
+              {validation.chatEngagement}
+            </div>
+          )}
+        </div>
         
         <div className="d-flex justify-content-end">
           <button 
             type="submit" 
             className="btn btn-primary px-4"
-            disabled={isLoading || standardQuestions.length === 0}
+            disabled={isLoading}
           >
             {isLoading ? 'Saving...' : 'Save Transcript'}
           </button>

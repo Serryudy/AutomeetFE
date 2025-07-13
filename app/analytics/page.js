@@ -62,7 +62,6 @@ export default function MeetingInsights() {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState('meeting'); // Default to meeting tab
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   
   useEffect(() => {
@@ -82,12 +81,17 @@ export default function MeetingInsights() {
     setIsSidebarCollapsed(collapsed);
   };
 
-  // Handler for meeting selection from search
+  // Handle meeting selection from search
   const handleSelectMeeting = (meeting) => {
     setSelectedMeeting(meeting);
     console.log('Selected meeting:', meeting);
   };
 
+  // Add filter handler
+  const handleFilter = (filters) => {
+    // You can implement filtering logic here if needed
+    console.log('Filters applied:', filters);
+  };
 
   return (
     <div className="d-flex page-background font-inter" style={{ minHeight: '100vh' }}>  
@@ -155,54 +159,29 @@ export default function MeetingInsights() {
           </p>
         </div>
 
-        {/* SearchBar Component - Only show when Meeting tab is active */}
-        {activeTab === 'meeting' && (
-          <SearchBar 
-            onSelectMeeting={handleSelectMeeting}
-            onFilter={handleFilter}
-            placeholder="Search for meetings to analyze"
-            context="analytics"
-          />
-        )}
+        {/* SearchBar Component */}
+        <SearchBar 
+          onSelectMeeting={handleSelectMeeting}
+          onFilter={handleFilter}
+          placeholder="Search for meetings to analyze"
+          context="analytics"
+        />
 
-        {/* Tabs and rest of the content */}
+        {/* Meeting Analytics Content */}
         <div className='container bg-white p-4 rounded-4 shadow'>
-          {/* Existing tabs and tab content */}
-          <div className="mb-4">
-            <div className="d-flex">
-              <button 
-                className={`btn ${activeTab === 'meeting' ? 'btn-primary' : 'btn-secondary'} rounded-pill px-4 py-2 me-2`}
-                onClick={() => setActiveTab('meeting')}
-              >
-                Meeting
-              </button>
-              <button 
-                className={`btn ${activeTab === 'your' ? 'btn-primary' : 'btn-secondary'} rounded-pill px-4 py-2`}
-                onClick={() => setActiveTab('your')}
-              >
-                Your
-              </button>
-            </div>
-          </div>
-          
-          {/* Conditional rendering based on active tab */}
-          {activeTab === 'meeting' ? (
-            <MeetingTab 
-              selectedMeeting={selectedMeeting} 
-            />
-          ) : (
-            <YourTab />
-          )}
+          <MeetingTab 
+            selectedMeeting={selectedMeeting} 
+          />
         </div>
       </div>
     </div>
   );
 }
 
-// Add this function at the top level
+// Fetch meeting analytics function
 const fetchMeetingAnalytics = async (meetingId) => {
   try {
-    const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}/analytics`, {
+    const response = await fetch(`http://localhost:8080/api/analytics/meetings/${meetingId}/analytics`, {
       credentials: 'include'
     });
     
@@ -217,25 +196,7 @@ const fetchMeetingAnalytics = async (meetingId) => {
   }
 };
 
-// Add this function at the top level
-const fetchUserAnalytics = async () => {
-  try {
-    const response = await fetch('http://localhost:8080/api/users/analytics', {
-      credentials: 'include'
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch user analytics');
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching user analytics:', error);
-    throw error;
-  }
-};
-
-// MeetingTab component modifications
+// MeetingTab component
 function MeetingTab({ selectedMeeting }) {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -417,11 +378,11 @@ function MeetingTab({ selectedMeeting }) {
     }
   };
 
-  // Chart data for engagement metrics
+  // Chart data for engagement metrics - now using API data
   const engagementDataPrepared = {
-    speakingTime: 92,
-    participantEngagement: 68,
-    chatEngagement: 10
+    speakingTime: engagementData.speakingTime || 0,
+    participantEngagement: engagementData.participantEngagement || 0,
+    chatEngagement: engagementData.chatEngagement || 0
   };
 
   return (
@@ -430,12 +391,18 @@ function MeetingTab({ selectedMeeting }) {
       <div className="row mb-4 g-3">
         {/* Rescheduling Frequency */}
         <div className="col-12 col-md-4">
-          <div className="card shadow-sm rounded-4 h-100">
+          <div className={`card shadow-sm rounded-4 h-100 ${analyticsData?.reschedulingFrequency === "not enough data" ? "bg-dark text-white" : ""}`}>
             <div className="card-body p-3 p-md-4">
               <h5 className="fw-bold mb-3">Rescheduling Frequency</h5>
               <div className="text-muted small mb-2">— CONTINUITY</div>
               <div style={{ height: '200px' }}>
-                <Line data={rescheduleChartData} options={rescheduleChartOptions} />
+                {analyticsData?.reschedulingFrequency === "not enough data" ? (
+                  <div className="d-flex align-items-center justify-content-center h-100">
+                    <span className="fw-bold">Not enough data</span>
+                  </div>
+                ) : (
+                  <Line data={rescheduleChartData} options={rescheduleChartOptions} />
+                )}
               </div>
             </div>
           </div>
@@ -443,12 +410,18 @@ function MeetingTab({ selectedMeeting }) {
       
         {/* Scheduling Accuracy */}
         <div className="col-12 col-md-4">
-          <div className="card shadow-sm rounded-4 h-100">
+          <div className={`card shadow-sm rounded-4 h-100 ${analyticsData?.schedulingAccuracy === "not enough data" ? "bg-dark text-white" : ""}`}>
             <div className="card-body p-3 p-md-4">
               <h5 className="fw-bold mb-3">Scheduling Accuracy</h5>
               <div className="text-muted mb-2">Expectation redundancy</div>
               <div style={{ height: '200px' }}>
-                <Bar data={schedulingChartData} options={schedulingChartOptions} />
+                {analyticsData?.schedulingAccuracy === "not enough data" ? (
+                  <div className="d-flex align-items-center justify-content-center h-100">
+                    <span className="fw-bold">Not enough data</span>
+                  </div>
+                ) : (
+                  <Bar data={schedulingChartData} options={schedulingChartOptions} />
+                )}
               </div>
               <div className="mt-3">
                 <h6 className="fw-bold">Second most suitable slot</h6>
@@ -460,30 +433,38 @@ function MeetingTab({ selectedMeeting }) {
       
         {/* Engagement Analytics */}
         <div className="col-12 col-md-4">
-          <div className="card shadow-sm rounded-4 h-100">
+          <div className={`card shadow-sm rounded-4 h-100 ${analyticsData?.engagement === "not enough data" ? "bg-dark text-white" : ""}`}>
             <div className="card-body p-3 p-md-4">
               <h5 className="fw-bold mb-3">Engagement Analytics</h5>
       
-              <EngagementMetric 
-                title="Speaking Time Distribution"
-                subtitle="percent is given to the Host"
-                value={engagementDataPrepared.speakingTime}
-                color="#00D8FF"
-              />
-              
-              <EngagementMetric 
-                title="Participant engagement"
-                subtitle="Shows an average percentage of engagement"
-                value={engagementDataPrepared.participantEngagement}
-                color="#FF9F40"
-              />
-              
-              <EngagementMetric 
-                title="Chat engagement"
-                subtitle="Chats conducted on the topic of this meeting"
-                value={engagementDataPrepared.chatEngagement}
-                color="#FF5EAA"
-              />
+              {analyticsData?.engagement === "not enough data" ? (
+                <div className="d-flex align-items-center justify-content-center h-100">
+                  <span className="fw-bold">Not enough data</span>
+                </div>
+              ) : (
+                <>
+                  <EngagementMetric 
+                    title="Speaking Time Distribution"
+                    subtitle="percent is given to the Host"
+                    value={engagementDataPrepared.speakingTime}
+                    color="#00D8FF"
+                  />
+                  
+                  <EngagementMetric 
+                    title="Participant engagement"
+                    subtitle="Shows an average percentage of engagement"
+                    value={engagementDataPrepared.participantEngagement}
+                    color="#FF9F40"
+                  />
+                  
+                  <EngagementMetric 
+                    title="Chat engagement"
+                    subtitle="Chats conducted on the topic of this meeting"
+                    value={engagementDataPrepared.chatEngagement}
+                    color="#FF5EAA"
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -599,321 +580,6 @@ function EngagementMetric({ title, subtitle, value, color }) {
         <div className="fw-bold">{title}</div>
         <div className="text-muted small">{subtitle}</div>
       </div>
-    </div>
-  );
-}
-
-// YourTab Component
-function YourTab() {
-  const [analyticsData, setAnalyticsData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const loadAnalytics = async () => {
-      try {
-        setIsLoading(true);
-        const data = await fetchUserAnalytics();
-        setAnalyticsData(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadAnalytics();
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="text-center p-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="alert alert-danger" role="alert">
-        Failed to load analytics: {error}
-      </div>
-    );
-  }
-
-  // Update availability data with API response
-  const availabilityData = {
-    labels: ['Available', 'Unavailable', 'Tendency'],
-    datasets: [{
-      data: [
-        analyticsData?.availability?.available || 0,
-        analyticsData?.availability?.unavailable || 0,
-        analyticsData?.availability?.tendency || 0
-      ],
-      backgroundColor: ['#4361EE', '#FF8FA3', '#FEB95F'],
-      borderWidth: 0,
-      cutout: '60%',
-    }]
-  };
-
-  // Update meeting frequency data
-  const meetingSpanData = {
-    labels: analyticsData?.meetingFrequency.map(item => item.day.substring(0, 3).toUpperCase()) || [],
-    datasets: [{
-      label: 'Meeting Frequency',
-      data: analyticsData?.meetingFrequency.map(item => item.count) || [],
-      borderColor: '#36A2EB',
-      backgroundColor: 'rgba(54, 162, 235, 0.1)',
-      tension: 0.4,
-      fill: true,
-      pointRadius: 4,
-      pointBackgroundColor: '#36A2EB',
-      pointBorderColor: '#FFFFFF',
-      pointBorderWidth: 2,
-      pointHoverRadius: 6
-    }]
-  };
-
-  // Chart options for meeting span
-  const meetingSpanOptions = {
-    ...commonChartOptions,
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: '#f0f0f0'
-        },
-        ticks: {
-          font: { size: 10 },
-          callback: function(value) {
-            if (value >= 1000) {
-              return value / 1000 + 'k';
-            }
-            return value;
-          }
-        }
-      },
-      x: {
-        grid: { display: false },
-        ticks: { font: { size: 10 } }
-      }
-    },
-    plugins: {
-      ...commonChartOptions.plugins,
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleFont: { size: 14 },
-        bodyFont: { size: 12 },
-        displayColors: false
-      }
-    }
-  };
-
-  // Options for doughnut chart
-  const availabilityOptions = {
-    ...commonChartOptions,
-    cutout: '60%',
-    plugins: {
-      ...commonChartOptions.plugins,
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            return `${context.label}: ${context.raw}%`;
-          }
-        }
-      }
-    }
-  };
-
-  // Participation data for radar chart (could be used as an alternative visualization)
-  const participationData = {
-    labels: ['Engagement', 'Punctuality', 'Contribution', 'Preparation', 'Follow-up'],
-    datasets: [{
-      data: [34, 30, 28, 32, 29],
-      backgroundColor: 'rgba(67, 97, 238, 0.2)',
-      borderColor: '#4361EE',
-      pointBackgroundColor: '#4361EE',
-      pointBorderColor: '#fff',
-      pointHoverBackgroundColor: '#fff',
-      pointHoverBorderColor: '#4361EE'
-    }]
-  };
-
-  return (
-    <>
-      <div className="row g-4 mb-4">
-        {/* Availability Card */}
-        <div className="col-12 col-md-4">
-          <div className="card border-0 shadow-sm rounded-4">
-            <div className="card-body p-4">
-              <h5 className="fw-bold text-center mb-4">Availability</h5>
-              
-              <div className="d-flex justify-content-center mb-4" style={{ height: '180px' }}>
-                <Doughnut data={availabilityData} options={availabilityOptions} />
-              </div>
-              
-              <div className="row text-center">
-                {availabilityData.labels.map((label, index) => (
-                  <div key={label} className="d-flex align-items-center mb-2 w-100 justify-content-between">
-                    <div className="d-flex align-items-center mb-2">
-                      <div 
-                        className="rounded-circle me-2" 
-                        style={{ 
-                          width: '10px', 
-                          height: '10px', 
-                          backgroundColor: availabilityData.datasets[0].backgroundColor[index] 
-                        }}
-                      ></div>
-                      <div className="text-start">{label}</div>
-                    </div>
-                    <div className="fw-bold">{availabilityData.datasets[0].data[index].toFixed(1)}%</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Participation Card */}
-        <div className="col-12 col-md-4">
-          <div className="card border-0 shadow-sm rounded-4">
-            <div className="card-body p-4">
-              <h5 className="fw-bold text-center mb-4">Participation</h5>
-              
-              <div className="d-flex justify-content-center align-items-center mb-4" style={{ height: '180px' }}>
-                <GaugeChart 
-                  value={analyticsData?.participation?.participationRate || 0} 
-                  maxValue={100} 
-                  label="Participation Rate" 
-                />
-              </div>
-              
-              <div className="text-center">
-                <button className="btn btn-light btn-sm rounded-pill px-4">Details</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Meeting Frequency Card */}
-        <div className="col-12 col-md-4">
-          <div className="card border-0 shadow-sm rounded-4">
-            <div className="card-body p-4">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="fw-bold mb-0">Meeting Frequency</h5>
-                <div className="text-muted small">— WEEKLY</div>
-              </div>
-              
-              <div style={{ height: '220px' }}>
-                <Line data={meetingSpanData} options={meetingSpanOptions} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* User Reviews Section */}
-      <h3 className="fw-bold mb-4">User reviews</h3>
-      
-      <div className="row g-4">
-        {/* User 1 Review */}
-        <div className="col-12">
-          <div className="d-flex mb-4 w-75">
-            <div className="flex-shrink-0 me-3">
-              <img src="/profile.png" alt="User 1" className="rounded-circle" style={{ width: '60px', height: '60px' }} />
-            </div>
-            <div className="flex-grow-1">
-              <div className="d-flex justify-content-between mb-2">
-                <h5 className="fw-bold mb-0">User 1</h5>
-                <div className="text-muted small">12/01/24</div>
-              </div>
-              <p>
-                Sarah was an excellent collaborator during our recent project meeting.
-                She came well-prepared, contributed thoughtful insights, and kept the
-                discussion focused and productive. Her ability to summarize complex
-                ideas clearly was particularly impressive. Looking forward to working
-                with her again!
-              </p>
-            </div>
-          </div>
-          
-          {/* User 2 Review */}
-          <div className="d-flex mb-4 w-75">
-            <div className="flex-shrink-0 me-3">
-                <img src="/profile.png" alt="User 1" className="rounded-circle" style={{ width: '60px', height: '60px' }} />
-            </div>
-            <div className="flex-grow-1">
-              <div className="d-flex justify-content-between mb-2">
-                <h5 className="fw-bold mb-0">User 2</h5>
-                <div className="text-muted small">12/01/24</div>
-              </div>
-              <p>
-                Sarah was an excellent collaborator during our recent project meeting.
-                She came well-prepared, contributed thoughtful insights, and kept the
-                discussion focused and productive. Her ability to summarize complex
-                ideas clearly was particularly impressive. Looking forward to working
-                with her again!
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// Custom GaugeChart component
-const GaugeChart = ({ value, maxValue = 50, label = "" }) => {
-  // Calculate the percentage (0-100)
-  const percentage = Math.min(100, Math.max(0, (value / maxValue) * 100));
-  
-  // Data for the doughnut chart
-  const data = {
-    datasets: [
-      {
-        data: [percentage, 100 - percentage], // Value and remaining space
-        backgroundColor: ['#4361EE', '#EFEFEF'],
-        borderWidth: 0,
-        circumference: 270, // 270 degree arc (not complete circle, leaves bottom open)
-        rotation: 225, // Rotated to start from bottom-left
-        weight: 0.5, // Make the gauge thicker
-      },
-    ],
-  };
-
-  // Chart options
-  const options = {
-    cutout: '70%', // How large the hole in the middle is
-    plugins: {
-      legend: {
-        display: false, // Hide the legend
-      },
-      tooltip: {
-        enabled: false, // Disable tooltips
-      },
-    },
-    maintainAspectRatio: false,
-    responsive: true,
-  };
-
-  return (
-    <div className="relative w-48 h-48">
-      <div className="w-full h-full">
-        <Doughnut data={data} options={options} />
-      </div>
-      
-      {/* Center with user icon */}
-      
-      
-      {/* Score display */}
-      {label && (
-        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-center">
-          <h2 className="font-bold text-xl mb-0">{value}</h2>
-          <div className="text-gray-500 text-sm">{label}</div>
-        </div>
-      )}
     </div>
   );
 }

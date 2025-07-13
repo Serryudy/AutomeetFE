@@ -35,7 +35,7 @@ const FormStepNavigator = ({
         {currentStep > 1 && (
           <button 
             type="button" 
-            className="btn btn-secondary"
+            className="btn btn-secondary border-none"
             onClick={onBack}
             disabled={isLoading}
           >
@@ -376,6 +376,7 @@ const DirectScheduleForm = () => {
             <div className="mb-4 fs-6">
               <label className="form-label fw-medium">Title</label>
               <input
+                required
                 type="text"
                 className="form-control form-control-lg"
                 placeholder="Meeting title"
