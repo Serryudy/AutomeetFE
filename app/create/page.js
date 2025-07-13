@@ -99,6 +99,7 @@ export default function Create() {
         {/* Create Event Section */}
         <div className='w-100'>
           <CreateEvent />
+         
 
         </div>
       </div>

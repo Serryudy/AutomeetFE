@@ -1,9 +1,11 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { FaUsers, FaCalendarAlt, FaCheckCircle, FaSearch, FaChevronDown } from 'react-icons/fa';
+import {  FaCalendarAlt,FaUsers } from 'react-icons/fa';
 import { RiMovie2Line } from 'react-icons/ri';
-import Calendar from './calendar';
+import DirectScheduleForm from './Directmeeting';
+
 import 'react-datepicker/dist/react-datepicker.css';
+<<<<<<< HEAD
 import Link from 'next/link';
 import axios from 'axios';
 
@@ -2105,6 +2107,10 @@ const RoundRobinForm = () => {
     </div>
   );
 };
+=======
+import GroupMeetingForm from './groupmeeting';
+import RoundRobinForm from './Roundrobinmeeting';
+>>>>>>> 5efe7826afc5900220a0c7e67c7c92e62956ec3b
 
 // Complete CreateEvent component
 const CreateEvent = () => {
@@ -2124,7 +2130,7 @@ const CreateEvent = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const meetingTypes = [
+    const meetingTypes = [
     {
       id: 'direct',
       title: 'Direct scheduling',
@@ -2147,6 +2153,10 @@ const CreateEvent = () => {
       color: '#2D31A6'
     }
   ];
+    
+  
+ 
+
 
   const renderForm = () => {
     switch (selectedType) {
@@ -2254,3 +2264,4 @@ const CreateEvent = () => {
 };
 
 export default CreateEvent;
+

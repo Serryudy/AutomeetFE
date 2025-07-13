@@ -13,13 +13,13 @@ const NotificationsComponent = () => {
     fetchNotifications();
   }, []);
 
-  // Function to fetch notifications from the API
+  //fetch notifications - limited to 20 most recent
   const fetchNotifications = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:8080/api/notifications', {
+      const response = await fetch('http://localhost:8080/api/notifications?limit=20', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -49,7 +49,10 @@ const NotificationsComponent = () => {
         new Date(b.createdAt) - new Date(a.createdAt)
       );
 
-      setNotifications(formattedNotifications);
+      // Additional client-side limit as a safeguard
+      const limitedNotifications = formattedNotifications.slice(0, 20);
+
+      setNotifications(limitedNotifications);
       setIsLoading(false);
     } catch (err) {
       console.error('Error fetching notifications:', err);

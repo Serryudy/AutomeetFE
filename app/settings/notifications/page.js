@@ -5,7 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import '@/styles/global.css';
 import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
-import { FaBars, FaTrashAlt, FaBell, FaArrowLeft } from 'react-icons/fa';
+import { FaBars, FaTrashAlt, FaBell, FaArrowLeft, FaArrowUp } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
 export default function NotificationPage() {
@@ -19,14 +19,32 @@ export default function NotificationPage() {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoadingState] = useState(true);
   const [error, setError] = useState(null);
-  // Add new state for meeting details
   const [meetingDetails, setMeetingDetails] = useState(null);
-  // Add new state for error message
   const [meetingFetchError, setMeetingFetchError] = useState(null);
+  const [currentView, setCurrentView] = useState('list');
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
-  // Fetch notifications when component mounts
+  // Scroll to top functionality
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setShowScrollTop(scrollTop > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
   useEffect(() => {
     fetchNotifications();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Function to fetch notifications from the API
@@ -73,11 +91,8 @@ export default function NotificationPage() {
           footer: notification.footer || ''
         }
       }))
-      // Option 1: Simple reverse (if API returns in chronological order)
+      // Simple reverse (if API returns in chronological order)
       .reverse();
-      
-      // Option 2: Sort by creation date (more reliable)
-      // .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       setNotifications(formattedNotifications);
     } catch (err) {
@@ -195,45 +210,47 @@ export default function NotificationPage() {
     setIsSidebarCollapsed(collapsed);
   };
 
+  // Handle notification click to fetch meeting details
   const handleNotificationClick = async (id) => {
-    try {
-      markAsRead(id);
-      setSelectedNotificationId(id);
-      setMeetingFetchError(null); // Reset error message
-      
-      const notification = notifications.find(n => n.id === id);
-      if (!notification) return;
+  try {
+    await markAsRead(id);
+    
+    setSelectedNotificationId(id);
+    setMeetingFetchError(null);
+    
+    const notification = notifications.find(n => n.id === id);
+    if (!notification) return;
 
-      const meetingId = notification.details.actionUrl.split('/').pop();
-      
-      const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
-        credentials: 'include'
-      });
+    const meetingId = notification.details.actionUrl.split('/').pop();
+    
+    const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
+      credentials: 'include'
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          setMeetingFetchError('This meeting is no longer available.');
-        } else {
-          setMeetingFetchError('Unable to load meeting details at this time.');
-        }
-        setMeetingDetails(null);
-        return;
+    if (!response.ok) {
+      if (response.status === 404) {
+        setMeetingFetchError('This meeting is no longer available.');
+      } else {
+        setMeetingFetchError('Unable to load meeting details at this time.');
       }
-
-      setMeetingDetails(data);
-    } catch (error) {
-      setMeetingFetchError('Unable to load meeting details at this time.');
       setMeetingDetails(null);
+      return;
     }
-  };
+
+    setMeetingDetails(data);
+  } catch (error) {
+    setMeetingFetchError('Unable to load meeting details at this time.');
+    setMeetingDetails(null);
+  }
+};
 
   const handleBackToList = () => {
     setSelectedNotificationId(null);
   };
 
-  // Update the filteredNotifications function
+  // Update the filtered Notifications related page
   const filteredNotifications = () => {
     if (isLoading) return {};
     if (error) return {};
@@ -252,6 +269,7 @@ export default function NotificationPage() {
     }, {});
   };
 
+  //get unread count
   const getUnreadCount = () => {
     return notifications.filter(notification => !notification.read).length;
   };
@@ -334,6 +352,28 @@ export default function NotificationPage() {
         ></div>
       )}
 
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          className="btn btn-primary position-fixed rounded-circle p-2 shadow-lg"
+          style={{
+            bottom: '2rem',
+            right: '2rem',
+            zIndex: 1000,
+            width: '45px',
+            height: '45px',
+            border: 'none',
+            transition: 'all 0.3s ease',
+            opacity: showScrollTop ? 1 : 0,
+            transform: showScrollTop ? 'scale(1)' : 'scale(0)'
+          }}
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+        >
+          <FaArrowUp size={15} />
+        </button>
+      )}
+
       {/* Main content */}
       <div 
         className="flex-grow-1 p-3 p-md-4"
@@ -362,7 +402,6 @@ export default function NotificationPage() {
             </div>
             
             <div className="card border-0 bg-light rounded-4 shadow-sm">
-              {/* Header with sender and timestamp */}
               <div className="card-header bg-transparent border-bottom py-3 px-4">
                 <div className="d-flex justify-content-between align-items-center">
                   <div className="d-flex align-items-center">
@@ -370,20 +409,17 @@ export default function NotificationPage() {
                     <span className="fw-bold ms-2">{getSelectedNotification().from}</span>
                   </div>
                   <div className="text-muted">
-                    {getSelectedNotification().date}, {getSelectedNotification().time}
+                    {getSelectedNotification().date.split(',')[0]}, {getSelectedNotification().time}
                   </div>
                 </div>
               </div>
               
               {/* Main content */}
               <div className="card-body p-4 p-md-5">
-                {/* Title */}
+
                 <h2 className="text-center fw-bold mb-4">{getSelectedNotification().title}</h2>
-                
-                {/* Main message */}
                 <p className="mx-5 px-5 mb-5">{getSelectedNotification().message}</p>
-                
-                {/* Meeting details section */}
+
                 {meetingFetchError ? (
                   <div className="alert alert-info m-5 px-5 text-center">
                     <p className="mb-0">{meetingFetchError}</p>
@@ -393,10 +429,6 @@ export default function NotificationPage() {
                     <div className="mb-3">
                       <span className="fw-medium">Meeting Title: </span>
                       <span className="fw-bold">{meetingDetails.title}</span>
-                    </div>
-                    <div className="mb-3">
-                      <span className="fw-medium">Organizer: </span>
-                      <span className="fw-bold">{meetingDetails.createdBy}</span>
                     </div>
                     <div className="mb-3">
                       <span className="fw-medium">Date & Time: </span>
@@ -425,10 +457,6 @@ export default function NotificationPage() {
                       <span className="fw-bold">{meetingDetails.location || 'Not specified'}</span>
                     </div>
                     <div className="mb-3">
-                      <span className="fw-medium">Platform: </span>
-                      <span className="fw-bold text-capitalize">{meetingDetails.platform}</span>
-                    </div>
-                    <div className="mb-3">
                       <span className="fw-medium">Status: </span>
                       <span className="fw-bold text-capitalize">{meetingDetails.status}</span>
                     </div>
@@ -438,21 +466,10 @@ export default function NotificationPage() {
                         <span className="fw-bold">{meetingDetails.description}</span>
                       </div>
                     )}
-                    <div className="mb-3">
-                      <span className="fw-medium">Participants: </span>
-                      <div className="mt-2">
-                        {meetingDetails.participants.map((participant, index) => (
-                          <div key={index} className="d-flex align-items-center gap-2 mb-1">
-                            <span>{participant.username}</span>
-                            <span className="badge bg-secondary text-capitalize">{participant.access}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    
                   </div>
                 )}
-                
-                {/* Action button */}
+
                 <div className="m-5 mb-4 px-5">
                   <button 
                     className="btn btn-primary px-4 py-2"
@@ -484,9 +501,7 @@ export default function NotificationPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   All
-                  {getUnreadCount() > 0 && (
-                    <span className="badge bg-primary rounded-pill ms-2">{getUnreadCount()}</span>
-                  )}
+                  
                 </div>
                 <div 
                   className={`p-3 ${activeTab === 'unread' ? 'active fw-bold border-bottom border-5 border-primary' : 'border-0'} cursor-pointer`}
@@ -494,6 +509,9 @@ export default function NotificationPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   Unread
+                  {getUnreadCount() > 0 && (
+                    <span className="badge bg-primary rounded-pill ms-2">{getUnreadCount()}</span>
+                  )}
                 </div>
                 <div 
                   className={`p-3 ${activeTab === 'read' ? 'active fw-bold border-bottom border-5 border-primary' : 'border-0'} cursor-pointer`}
@@ -515,7 +533,6 @@ export default function NotificationPage() {
                 ) : (
                   Object.entries(filteredNotifications()).map(([date, items]) => (
                     <div key={date} className="mb-4">
-                      
                       {items.map(notification => (
                         <div 
                           key={notification.id} 
