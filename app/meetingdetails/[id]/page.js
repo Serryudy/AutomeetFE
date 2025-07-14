@@ -17,6 +17,7 @@ const MeetingForm = () => {
     const meetingId = params?.id;
     
     const [title, setTitle] = useState('');
+    const [originalTitle, setOriginalTitle] = useState(''); // Store original title
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState('');
     const [repeat, setRepeat] = useState('Does not repeat');
@@ -47,15 +48,17 @@ const MeetingForm = () => {
     const [dateError, setDateError] = useState('');
     const [userProfiles, setUserProfiles] = useState({});
     const [uploadedContent, setUploadedContent] = useState([]);
-    const [isCancelling, setIsCancelling] = useState(false);///////
+    const [isCancelling, setIsCancelling] = useState(false);
     const [isDeleted, setIsDeleted] = useState(false);
-    //new
     const [isSaving, setIsSaving] = useState(false);
-const [allContacts, setAllContacts] = useState([]);
-const [showLocationDropdown, setShowLocationDropdown] = useState(false);
-const [showRepeatDropdown, setShowRepeatDropdown] = useState(false);
-const [showDurationDropdown, setShowDurationDropdown] = useState(false);
-
+    const [allContacts, setAllContacts] = useState([]);
+    const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+    const [showRepeatDropdown, setShowRepeatDropdown] = useState(false);
+    const [showDurationDropdown, setShowDurationDropdown] = useState(false);
+    const [participantError, setParticipantError] = useState('');
+    const [phoneError, setPhoneError] = useState('');
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showSaveModal, setShowSaveModal] = useState(false);
 
     useEffect(() => {
       console.log("Params object:", params);
@@ -87,10 +90,12 @@ const [showDurationDropdown, setShowDurationDropdown] = useState(false);
               
               const data = await response.json();
               console.log('Meeting data received:', data); // Add logging to debug
+              console.log('Full API response structure:', JSON.stringify(data, null, 2)); // Detailed log
               setMeetingData(data);
               
               // Update state with fetched data
               setTitle(data.title || '');
+              setOriginalTitle(data.title || ''); // Store original title
               setDescription(data.description || '');
               setLocation(data.location || '');
               setRepeat(data.repeat || 'Does not repeat');
@@ -98,12 +103,73 @@ const [showDurationDropdown, setShowDurationDropdown] = useState(false);
               setRoundRobinDuration(data.roundRobinDuration || '');
               setUserRole(data.role || '');
               
-              // Format and set time slots if they exist in userAvailability
-              if (data.userAvailability && data.userAvailability.timeSlots) {
-                  const formattedTimeSlots = data.userAvailability.timeSlots.map((slot, index) => {
-                      // Convert ISO strings to Date objects
-                      const startDate = new Date(slot.startTime);
-                      const endDate = new Date(slot.endTime);
+              // Format and set time slots - handle different meeting types
+              let timeSlotData = null;
+              
+              console.log('Meeting Type:', data.meetingType); // Debug meeting type
+              console.log('Checking for time slots based on meeting type...'); // Debug log
+              
+              // Handle different meeting types with different data structures
+              if (data.meetingType === 'direct' && data.directTimeSlot) {
+                  console.log('Found directTimeSlot for direct meeting:', data.directTimeSlot);
+                  // Convert single directTimeSlot object to array format
+                  timeSlotData = [data.directTimeSlot];
+              } else if ((data.meetingType === 'group' || data.meetingType === 'round_robin') && data.userAvailability && data.userAvailability.timeSlots) {
+                  console.log('Found timeSlots in userAvailability for group/round_robin meeting:', data.userAvailability.timeSlots);
+                  timeSlotData = data.userAvailability.timeSlots;
+              } else {
+                  // Fallback: check other possible locations
+                  if (data.timeSlots) {
+                      console.log('Found timeSlots in root:', data.timeSlots);
+                      timeSlotData = data.timeSlots;
+                  } else if (data.scheduledTimes) {
+                      console.log('Found scheduledTimes:', data.scheduledTimes);
+                      timeSlotData = data.scheduledTimes;
+                  } else if (data.availability) {
+                      console.log('Found availability:', data.availability);
+                      timeSlotData = data.availability;
+                  } else if (data.meeting_times) {
+                      console.log('Found meeting_times:', data.meeting_times);
+                      timeSlotData = data.meeting_times;
+                  } else if (data.schedule) {
+                      console.log('Found schedule:', data.schedule);
+                      timeSlotData = data.schedule;
+                  }
+              }
+              
+              console.log('Final timeSlotData:', timeSlotData); // Debug log
+              
+              if (timeSlotData && Array.isArray(timeSlotData) && timeSlotData.length > 0) {
+                  const formattedTimeSlots = timeSlotData.map((slot, index) => {
+                      console.log('Processing slot:', slot); // Debug each slot
+                      
+                      // Handle different possible date formats
+                      let startDate, endDate;
+                      
+                      if (slot.startTime && slot.endTime) {
+                          startDate = new Date(slot.startTime);
+                          endDate = new Date(slot.endTime);
+                      } else if (slot.start_time && slot.end_time) {
+                          startDate = new Date(slot.start_time);
+                          endDate = new Date(slot.end_time);
+                      } else if (slot.date && slot.startTime && slot.endTime) {
+                          startDate = new Date(`${slot.date} ${slot.startTime}`);
+                          endDate = new Date(`${slot.date} ${slot.endTime}`);
+                      } else if (slot.date && slot.start && slot.end) {
+                          startDate = new Date(`${slot.date} ${slot.start}`);
+                          endDate = new Date(`${slot.date} ${slot.end}`);
+                      } else {
+                          console.warn('Invalid time slot format:', slot);
+                          return null;
+                      }
+                      
+                      // Validate dates
+                      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                          console.warn('Invalid date in time slot:', slot);
+                          return null;
+                      }
+                      
+                      console.log('Processed dates:', { startDate, endDate }); // Debug dates
                       
                       // Format to 12 hour time
                       const formatTime = (date) => {
@@ -116,20 +182,26 @@ const [showDurationDropdown, setShowDurationDropdown] = useState(false);
                       };
                       
                       return {
-                          id: index + 1,
+                          id: slot.id || index + 1,
                           start: formatTime(startDate),
                           end: formatTime(endDate),
-                          startTime: slot.startTime,
-                          endTime: slot.endTime,
+                          startTime: slot.startTime || slot.start_time || startDate.toISOString(),
+                          endTime: slot.endTime || slot.end_time || endDate.toISOString(),
                           date: startDate.toDateString() // Add the date string for display
                       };
-                  });
+                  }).filter(slot => slot !== null); // Remove invalid slots
+                  
+                  console.log('Formatted time slots:', formattedTimeSlots); // Debug log
                   
                   setTimeSlots(formattedTimeSlots);
                   // If there's at least one time slot, set the selected date to the first one
                   if (formattedTimeSlots.length > 0) {
                       setSelectedDate(new Date(formattedTimeSlots[0].startTime));
                   }
+              } else {
+                  console.log('No valid time slots found in meeting data'); // Debug log
+                  console.log('Available keys in data:', Object.keys(data)); // Show all available keys
+                  setTimeSlots([]);
               }
               
               // Transform participants data
@@ -138,7 +210,9 @@ const [showDurationDropdown, setShowDurationDropdown] = useState(false);
                       id: index + 1,
                       name: participant.username,
                       group: `Access: ${participant.access}`,
-                      access: participant.access
+                      access: participant.access,
+                      phone: participant.phone || '',
+                      email: participant.email || ''
                   }));
                   setParticipants(formattedParticipants);
                   
@@ -215,10 +289,123 @@ const [showDurationDropdown, setShowDurationDropdown] = useState(false);
       return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // to update the form
+// Function to detect what has changed
+const getChanges = () => {
+  const changes = [];
+  
+  if (meetingData) {
+    // Check title change
+    if (title !== (meetingData.title || '')) {
+      changes.push(`Title:  ${title}`);
+    }
+    
+    // Check description change
+    if (description !== (meetingData.description || '')) {
+      changes.push(`Description:  ${description}`);
+    }
+    
+    // Check location change
+    if (location !== (meetingData.location || '')) {
+      changes.push(`Location:  ${location}`);
+    }
+    
+    // Check repeat change
+    if (repeat !== (meetingData.repeat || 'Does not repeat')) {
+      changes.push(`Repeat: ${repeat}`);
+    }
+    
+    // Check duration change for group/round_robin
+    if ((meetingType === 'group' || meetingType === 'round_robin') && 
+        roundRobinDuration !== (meetingData.roundRobinDuration || '')) {
+      changes.push(`Duration:${roundRobinDuration}`);
+    }
+    
+    // Check participants changes
+    if (participantsToAdd.length > 0) {
+      changes.push(`Added participants: ${participantsToAdd.join(', ')}`);
+    }
+    
+    // Check for removed participants
+    if (meetingData.participants) {
+      const originalUsernames = meetingData.participants.map(p => p.username);
+      const currentUsernames = participants.map(p => p.name);
+      const removedParticipants = originalUsernames.filter(
+        username => !currentUsernames.includes(username)
+      );
+      
+      if (removedParticipants.length > 0) {
+        changes.push(`Removed participants: ${removedParticipants.join(', ')}`);
+      }
+    }
+    
+    // Check time slots changes for direct meetings
+    if (meetingType === 'direct') {
+      const hasOriginalTimeSlots = meetingData.directTimeSlot;
+      const hasCurrentTimeSlots = timeSlots.length > 0;
+      
+      if (!hasOriginalTimeSlots && hasCurrentTimeSlots) {
+        changes.push(`Added time slot: ${timeSlots[0].start} - ${timeSlots[0].end}`);
+      } else if (hasOriginalTimeSlots && !hasCurrentTimeSlots) {
+        changes.push(`Removed time slot`);
+      } else if (hasOriginalTimeSlots && hasCurrentTimeSlots) {
+        // Compare existing time slot
+        const originalStart = new Date(meetingData.directTimeSlot.startTime);
+        const originalEnd = new Date(meetingData.directTimeSlot.endTime);
+        const currentStart = new Date(timeSlots[0].startTime);
+        const currentEnd = new Date(timeSlots[0].endTime);
+        
+        if (originalStart.getTime() !== currentStart.getTime() || 
+            originalEnd.getTime() !== currentEnd.getTime()) {
+          changes.push(`Modified time slot: ${timeSlots[0].start} - ${timeSlots[0].end}`);
+        }
+      }
+    }
+  }
+  
+  return changes;
+};
+const validateForm = () => {
+  let isValid = true;
+  
+  // Check if title is provided
+  if (!title.trim()) {
+    showErrorMessage('Please enter a meeting title');
+    return false;
+  }
+  
+  // Check if at least one participant is added
+  if (participants.length === 0) {
+    setParticipantError('At least one participant must be added to the meeting');
+    return false;
+  }
+  
+  // Validate phone numbers for all participants
+  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+  for (let participant of participants) {
+    if (participant.phone && !phoneRegex.test(participant.phone.replace(/[\s\-\(\)]/g, ''))) {
+      setPhoneError(`Invalid phone number for ${participant.name}`);
+      return false;
+    }
+  }
+  
+  return true;
+};
+
+    // to update the form with validation
 const handleSaveChanges = async () => {
+  // Validate form first
+  if (!validateForm()) {
+    return;
+  }
+  
+  setShowSaveModal(true);
+};
+
+// Actual save function
+const performSaveChanges = async () => {
   try {
     setIsSaving(true);
+    setShowSaveModal(false);
     
     // Prepare the update payload based on form data
     const updatePayload = {
@@ -242,7 +429,12 @@ const handleSaveChanges = async () => {
         };
       });
       
-      updatePayload.timeSlots = formattedTimeSlots;
+      // For direct meetings, use directTimeSlot format
+      if (meetingType === 'direct') {
+        updatePayload.directTimeSlot = formattedTimeSlots[0]; // Only one slot for direct
+      } else {
+        updatePayload.timeSlots = formattedTimeSlots;
+      }
     }
     
     // Add participants to add if any
@@ -283,6 +475,9 @@ const handleSaveChanges = async () => {
     
     // Update the local state with the response
     setMeetingData(updatedMeeting);
+    
+    // Update original title after successful save
+    setOriginalTitle(updatedMeeting.title || title);
     
     // Update other related states if needed
     if (updatedMeeting.participants) {
@@ -346,7 +541,7 @@ const handleSaveChanges = async () => {
     setIsEditing(false);
     
     // Show success notification
-    alert('Successfully changed!');
+    showSuccessMessage('Meeting updated successfully!');
     
     // Refresh page after 3 seconds
     setTimeout(() => {
@@ -355,7 +550,7 @@ const handleSaveChanges = async () => {
     
   } catch (err) {
     console.error('Error updating meeting:', err);
-    alert(`Failed to update meeting: ${err.message}`);
+    showErrorMessage(`Failed to update meeting: ${err.message}`);
   } finally {
     setIsSaving(false);
   }
@@ -407,27 +602,48 @@ useEffect(() => {
   fetchAllContacts();
 }, [isEditing]);
 
-    //search contacts
+    //search contacts - Fixed to work properly
    const handleSearchContacts = async (query) => {
   setSearchContact(query);
   
   if (query.length === 0) {
-    setSearchResults(allContacts);
-    return;
-  }
-  
-  if (query.length < 2) {
     setSearchResults([]);
     return;
   }
   
-  // Filter from all contacts
-  const filtered = allContacts.filter(contact => 
-    contact.username.toLowerCase().includes(query.toLowerCase()) ||
-    (contact.email && contact.email.toLowerCase().includes(query.toLowerCase()))
-  );
+  if (query.length < 1) {
+    setSearchResults([]);
+    return;
+  }
   
-  setSearchResults(filtered);
+  try {
+    // Make API call to search contacts
+    const response = await fetch(`http://localhost:8080/api/contacts/search?q=${encodeURIComponent(query)}`, {
+      credentials: 'include',
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      setSearchResults(data);
+    } else {
+      // Fallback to filtering local contacts if API doesn't exist
+      const filtered = allContacts.filter(contact => 
+        contact.username.toLowerCase().includes(query.toLowerCase()) ||
+        (contact.email && contact.email.toLowerCase().includes(query.toLowerCase())) ||
+        (contact.phone && contact.phone.includes(query))
+      );
+      setSearchResults(filtered);
+    }
+  } catch (error) {
+    console.error('Error searching contacts:', error);
+    // Fallback to local filtering
+    const filtered = allContacts.filter(contact => 
+      contact.username.toLowerCase().includes(query.toLowerCase()) ||
+      (contact.email && contact.email.toLowerCase().includes(query.toLowerCase())) ||
+      (contact.phone && contact.phone.includes(query))
+    );
+    setSearchResults(filtered);
+  }
 };
 
 //Check if participant is already added
@@ -436,13 +652,22 @@ const isParticipantAdded = (username) => {
   return participants.some(p => p.name === username) || 
          hosts.some(h => h.name === username);
 };
-    //add participants
+    //add participants with validation
     const addParticipant = (contact) => {
+      // Phone validation
+      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+      if (contact.phone && !phoneRegex.test(contact.phone.replace(/[\s\-\(\)]/g, ''))) {
+        setPhoneError(`Invalid phone number for ${contact.username}`);
+        return;
+      }
+      
       const newParticipant = {
         id: Date.now(),
         name: contact.username,
         group: `Access: pending`,
-        access: "pending"
+        access: "pending",
+        phone: contact.phone || '',
+        email: contact.email || ''
       };
       
       const isDuplicate = participants.some(p => p.name === contact.username);
@@ -450,6 +675,10 @@ const isParticipantAdded = (username) => {
       if (!isDuplicate) {
         setParticipants([...participants, newParticipant]);
         setParticipantsToAdd([...participantsToAdd, contact.username]);
+        
+        // Clear any participant error since we now have participants
+        setParticipantError('');
+        setPhoneError('');
         
         // Also fetch the profile for the new participant
         fetchUserProfile(contact.username);
@@ -460,20 +689,17 @@ const isParticipantAdded = (username) => {
       setSearchResults([]);
     };
 
-    // cancel meeting functionality
+    // cancel meeting functionality with modal
 
-const cancelMeeting = async () => {
+const cancelMeeting = () => {
+  setShowDeleteModal(true);
+};
+
+// FIXED: Cancel meeting function with single popup message
+const performCancelMeeting = async () => {
   // Disable the button immediately
   setIsCancelling(true);
-  
-  // Confirm the cancellation
-  const isConfirmed = window.confirm(`Are you sure you want to cancel the meeting "${title}"? This action cannot be undone.`);
-  
-  if (!isConfirmed) {
-    // Re-enable the button if user cancels
-    setIsCancelling(false);
-    return;
-  }
+  setShowDeleteModal(false);
   
   try {
     // Call the deletion API endpoint
@@ -492,8 +718,11 @@ const cancelMeeting = async () => {
     const result = await response.json();
     console.log('Meeting canceled successfully:', result);
     
-    // Set the deleted state to true to show success message
-    setIsDeleted(true);
+    // Set the deleted state to true to show redirect message
+    
+    
+    // Show success popup message - ONLY THIS ONE
+    showSuccessMessage('Meeting deleted successfully!');
     
     // Redirect to meetings page after 5 seconds
     setTimeout(() => {
@@ -502,10 +731,48 @@ const cancelMeeting = async () => {
     
   } catch (err) {
     console.error('Error canceling meeting:', err);
-    alert(`Failed to cancel meeting: ${err.message}`);
+    showErrorMessage(`Failed to cancel meeting: ${err.message}`);
     // Re-enable the button if there's an error
     setIsCancelling(false);
   }
+};
+
+// Message functions
+const showSuccessMessage = (message) => {
+  // Create and show success popup
+  const popup = document.createElement('div');
+  popup.className = 'alert alert-success position-fixed';
+  popup.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+  popup.innerHTML = `
+     ${message}
+  `;
+  document.body.appendChild(popup);
+  
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    if (popup.parentElement) {
+      popup.remove();
+    }
+  }, 5000);
+};
+
+const showErrorMessage = (message) => {
+  // Create and show error popup
+  const popup = document.createElement('div');
+  popup.className = 'alert alert-danger position-fixed';
+  popup.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+  popup.innerHTML = `
+    <strong>Error!</strong> ${message}
+    <button type="button" class="btn-close float-end" onclick="this.parentElement.remove()"></button>
+  `;
+  document.body.appendChild(popup);
+  
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    if (popup.parentElement) {
+      popup.remove();
+    }
+  }, 5000);
 };
     
     // Add another function to handle participant access changes
@@ -647,16 +914,25 @@ const cancelMeeting = async () => {
       // Add null check before accessing timeSlots
       const currentTimeSlots = Array.isArray(timeSlots) ? timeSlots : [];
       
-      const isDuplicate = currentTimeSlots.some(
-        slot => slot?.start === newTimeSlot.start && slot?.end === newTimeSlot.end
-      );
+      // For direct meetings, replace the existing time slot instead of adding multiple
+      if (meetingType === 'direct') {
+        // Replace any existing time slot with the new one
+        setTimeSlots([newTimeSlot]);
+        console.log('Direct meeting: Replaced time slot with new one');
+      } else {
+        // For other meeting types, check for duplicates before adding
+        const isDuplicate = currentTimeSlots.some(
+          slot => slot?.start === newTimeSlot.start && slot?.end === newTimeSlot.end
+        );
 
-      if (isDuplicate) {
-        setTimeError('This time slot has already been added');
-        return;
+        if (isDuplicate) {
+          setTimeError('This time slot has already been added');
+          return;
+        }
+
+        setTimeSlots([...currentTimeSlots, newTimeSlot]);
+        console.log('Added new time slot to existing slots');
       }
-
-      setTimeSlots([...currentTimeSlots, newTimeSlot]);
     };
 
     const handleRemoveTimeSlot = (id) => {
@@ -741,18 +1017,18 @@ const cancelMeeting = async () => {
 
 if (loading) return <div className="p-4 text-center"><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading meeting data...</div>;
 if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
-if (isDeleted) return <div className="p-4 text-center text-danger-fs2">Meeting deleted successfully!</div>;
+if (isDeleted) return <div className="p-4 text-center text-success fs-2">Redirecting to meetings page...</div>;
 if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
   
-    // Check if the user can edit the meeting
-    const canEdit = userRole === 'creator' && meetingData.status !== 'confirmed';
+    // Check if the user can edit the meeting - Only creator can edit
+    const canEdit = userRole === 'creator';
   
     return (
       <div className="container-fluid p-0">
         <div className="card shadow-sm bg-white rounded-3 p-3 p-md-4">
           <div className="card-body p-0">
             <div className="d-flex justify-content-between align-items-center mb-3 mb-md-4 flex-wrap gap-2">
-              <h2 className="fw-bold mb-0 fs-4 fs-md-3">{title || 'Meeting name'}</h2>
+              <h2 className="fw-bold mb-0 fs-4 fs-md-3">{originalTitle || 'Meeting name'}</h2>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
   {canEdit ? (
@@ -791,157 +1067,167 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               <input
                 type="text"
                 className="form-control"
-                readOnly={!isEditing}
+                readOnly={!isEditing || participants.length === 0}
                 id="title"
-                value={title}
+                value={isEditing ? title : originalTitle}
                 onChange={(e) => setTitle(e.target.value)}
+                style={{
+                  backgroundColor: (!isEditing || participants.length === 0) ? '#f8f9fa' : 'white'
+                }}
               />
+              {participants.length === 0 && (
+                <small className="text-muted">
+                  <strong>Note:</strong> Title can only be edited after adding at least one participant.
+                </small>
+              )}
             </div>
   
-            <div className="mb-3 mb-md-4">
-              <label className="form-label">Date & Time Range</label>
-              <div className="p-2 bg-light rounded">
-                <div className="d-flex align-items-center gap-2 flex-wrap">
-                  {/* Date Picker */}
-                  <div
-                    className="d-flex align-items-center bg-white py-2 px-3 rounded calendar-toggle"
-                    style={{ 
-                      cursor: "pointer", 
-                      minWidth: isMobile ? "100%" : "190px",
-                      maxWidth: "250px",
-                      flex: "1 1 auto" 
-                    }}
-                    onClick={() => setShowCalendar(!showCalendar)}
-                  >
-                    <div className="text-center flex-grow-1 text-truncate">
-                      {selectedDate ? selectedDate.toDateString() : "Select Date"}
-                    </div>
-                    <div className="ms-2">
-                      <FaCalendarAlt />
-                    </div>
-                  </div>
-
-                  {/* Calendar Popup */}
-                  {showCalendar && (
+            {/* Only show Date & Time Range section when editing AND meeting type is 'direct' */}
+            {isEditing && meetingType === 'direct' && (
+              <div className="mb-3 mb-md-4">
+                <label className="form-label">Date & Time Range</label>
+                <div className="p-2 bg-light rounded">
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    {/* Date Picker */}
                     <div
-                      ref={calendarRef}
-                      className="position-absolute shadow rounded bg-white"
+                      className="d-flex align-items-center bg-white py-2 px-3 rounded calendar-toggle"
                       style={{ 
-                        top: isMobile ? "350px" : "350px", 
-                        left: isMobile ? "15px" : "30px", 
-                        zIndex: 10 
+                        cursor: "pointer", 
+                        minWidth: isMobile ? "100%" : "190px",
+                        maxWidth: "250px",
+                        flex: "1 1 auto" 
+                      }}
+                      onClick={() => setShowCalendar(!showCalendar)}
+                    >
+                      <div className="text-center flex-grow-1 text-truncate">
+                        {selectedDate ? selectedDate.toDateString() : "Select Date"}
+                      </div>
+                      <div className="ms-2">
+                        <FaCalendarAlt />
+                      </div>
+                    </div>
+
+                    {/* Calendar Popup */}
+                    {showCalendar && (
+                      <div
+                        ref={calendarRef}
+                        className="position-absolute shadow rounded bg-white"
+                        style={{ 
+                          top: isMobile ? "350px" : "350px", 
+                          left: isMobile ? "15px" : "30px", 
+                          zIndex: 10 
+                        }}
+                      >
+                        <Calendar onDateSelect={handleDateSelect} value={selectedDate} />
+                      </div>
+                    )}
+
+                    {/* Start Time Input */}
+                    <div 
+                      className="position-relative" 
+                      ref={startTimeRef} 
+                      style={{ 
+                        flex: "1 1 120px", 
+                        maxWidth: isMobile ? "100%" : "150px",
+                        width: isMobile ? "100%" : "auto"
                       }}
                     >
-                      <Calendar onDateSelect={handleDateSelect} value={selectedDate} />
-                    </div>
-                  )}
-
-                  {/* Start Time Input */}
-                  <div 
-                        className="position-relative" 
-                        ref={startTimeRef} 
-                        style={{ 
-                          flex: "1 1 120px", 
-                          maxWidth: isMobile ? "100%" : "150px",
-                          width: isMobile ? "100%" : "auto"
-                        }}
-                    >
-                        <input
+                      <input
                         type="text"
                         className="form-control bg-white py-2 px-3 rounded"
-                        readOnly={!isEditing}
+                        readOnly={false}
                         style={{ width: "100%", cursor: "pointer" }}
                         placeholder="HH:MM AM/PM"
                         value={startTime}
                         onChange={(e) => handleTimeChange(e.target.value, "start")}
                         onDoubleClick={() => handleDoubleClick("start")}
-                        />
-                        {showStartTime && (
+                      />
+                      {showStartTime && (
                         <div
-                            className="position-absolute bg-white shadow p-3 rounded mt-1"
-                            style={{ 
+                          className="position-absolute bg-white shadow p-3 rounded mt-1"
+                          style={{ 
                             top: "100%", 
                             left: "0", 
                             zIndex: 10, 
                             maxHeight: "150px", 
                             overflowY: "auto",
                             width: "100%" 
-                            }}
+                          }}
                         >
-                            {generateTimeOptions().map((time, index) => (
+                          {generateTimeOptions().map((time, index) => (
                             <div
-                                key={index}
-                                className="py-2 px-3 hover-bg-light"
-                                style={{ cursor: "pointer" }}
-                                onClick={() => handleTimeSelect(time, "start")}
+                              key={index}
+                              className="py-2 px-3 hover-bg-light"
+                              style={{ cursor: "pointer" }}
+                              onClick={() => handleTimeSelect(time, "start")}
                             >
-                                {time}
+                              {time}
                             </div>
-                            ))}
+                          ))}
                         </div>
-                        )}
+                      )}
                     </div>
 
                     {/* End Time Input */}
                     <div 
-                        className="position-relative" 
-                        ref={endTimeRef} 
-                        style={{ 
-                          flex: "1 1 120px", 
-                          maxWidth: isMobile ? "100%" : "150px",
-                          width: isMobile ? "100%" : "auto"
-                        }}
+                      className="position-relative" 
+                      ref={endTimeRef} 
+                      style={{ 
+                        flex: "1 1 120px", 
+                        maxWidth: isMobile ? "100%" : "150px",
+                        width: isMobile ? "100%" : "auto"
+                      }}
                     >
-                        <input
+                      <input
                         type="text"
                         className="form-control bg-white py-2 px-3 rounded"
-                        readOnly={!isEditing}
+                        readOnly={false}
                         style={{ width: "100%", cursor: "pointer" }}
                         placeholder="HH:MM AM/PM"
                         value={endTime}
                         onChange={(e) => handleTimeChange(e.target.value, "end")}
                         onDoubleClick={() => handleDoubleClick("end")}
-                        />
-                        {showEndTime && (
+                      />
+                      {showEndTime && (
                         <div
-                            className="position-absolute bg-white shadow p-3 rounded mt-1"
-                            style={{ 
+                          className="position-absolute bg-white shadow p-3 rounded mt-1"
+                          style={{ 
                             top: "100%", 
                             left: "0", 
                             zIndex: 10, 
                             maxHeight: "150px", 
                             overflowY: "auto",
                             width: "100%" 
-                            }}
+                          }}
                         >
-                            {generateTimeOptions().map((time, index) => (
+                          {generateTimeOptions().map((time, index) => (
                             <div
-                                key={index}
-                                className="py-2 px-3 hover-bg-light"
-                                style={{ cursor: "pointer" }}
-                                onClick={() => handleTimeSelect(time, "end")}
+                              key={index}
+                              className="py-2 px-3 hover-bg-light"
+                              style={{ cursor: "pointer" }}
+                              onClick={() => handleTimeSelect(time, "end")}
                             >
-                                {time}
+                              {time}
                             </div>
-                            ))}
+                          ))}
                         </div>
-                        )}
+                      )}
                     </div>
 
-                  {/* Add Button */}
-                  <button
-                    type="button"
-                    className="btn btn-primary d-flex align-items-center justify-content-center"
-                    style={{
-                    minWidth: "40px",
-                    height: "38px",
-                    flexShrink: 0,
-                    }}
-                    onClick={handleAddTimeSlot}
-                    disabled={!isEditing}
-                  >
-                    <FaCheckCircle />
-                  </button>
+                    {/* Add Button */}
+                    <button
+                      type="button"
+                      className="btn btn-primary d-flex align-items-center justify-content-center"
+                      style={{
+                        minWidth: "40px",
+                        height: "38px",
+                        flexShrink: 0,
+                      }}
+                      onClick={handleAddTimeSlot}
+                      disabled={false}
+                    >
+                      <FaCheckCircle />
+                    </button>
                   </div>
 
                   {/* Display date error if any */}
@@ -950,89 +1236,170 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                       {dateError}
                     </div>
                   )}
-                  {/* Display time slots with null checks */}
-                  {Array.isArray(timeSlots) && timeSlots.length > 0 && (
-                    <div className="mt-3">
-                      <h6 className="mb-2">Time Slots:</h6>
-                      {meetingType === 'round_robin' ? (
-                        // Round Robin Display
-                        <div className="bg-light p-3 rounded">
-                          <div className="fw-bold mb-2">Round Robin Sessions</div>
-                          {timeSlots.map((slot, index) => (
-                            <div key={slot?.id || Math.random()} 
-                                 className="d-flex align-items-center mb-2 p-2 bg-white rounded">
-                              <div className="me-3">
-                                <span className="badge bg-primary">Session {index + 1}</span>
-                              </div>
-                              <div>
-                                <div className="fw-bold">
-                                  {new Date(slot.startTime).toLocaleDateString()}
-                                </div>
-                                <div>{slot?.start || ''} - {slot?.end || ''}</div>
-                                {roundRobinDuration && (
-                                  <small className="text-muted">
-                                    Duration: {roundRobinDuration} minutes per participant
-                                  </small>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : meetingType === 'group' ? (
-                        // Group Meeting Display
-                        <div className="bg-light p-3 rounded">
-                          <div className="fw-bold mb-2">Group Sessions</div>
-                          {timeSlots.map((slot) => (
-                            <div key={slot?.id || Math.random()} 
-                                 className="d-flex align-items-center mb-2 p-2 bg-white rounded">
-                              <div className="flex-grow-1">
-                                <div className="fw-bold">
-                                  {new Date(slot.startTime).toLocaleDateString()}
-                                </div>
-                                <div>Group Meeting: {slot?.start || ''} - {slot?.end || ''}</div>
-                                <div className="text-muted">
-                                  All participants will join at this time
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        // Regular Meeting Display
-                        <div className="d-flex flex-wrap gap-2">
-                          {timeSlots.map((slot) => (
-                            <div key={slot?.id || Math.random()} 
-                                 className="d-flex align-items-center bg-light p-2 rounded">
-                              <div>
-                                <span className="fw-bold">
-                                  {new Date(slot.startTime).toLocaleDateString()}
-                                </span>
-                                <span className="mx-1">|</span>
-                                <span>{slot?.start || ''} - {slot?.end || ''}</span>
-                              </div>
-                              {isEditing && canEdit && (
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-outline-danger ms-2"
-                                  onClick={() => handleRemoveTimeSlot(slot?.id)}
-                                  aria-label="Remove time slot"
-                                >
-                                  <FaTimes />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+
+                  {/* Display time error if any */}
+                  {timeError && (
+                    <div className="text-danger mt-2 small">
+                      {timeError}
                     </div>
                   )}
                 </div>
               </div>
+            )}
+
+            {/* Show message for non-direct meetings when editing */}
+            {isEditing && meetingType !== 'direct' && (
+              <div className="mb-3 mb-md-4">
+                <label className="form-label">Date & Time Range</label>
+                <div className="alert alert-warning">
+                  <strong>Note:</strong> Time slots can only be modified for "direct" type meetings. 
+                  This meeting is of type "{meetingType.replace('_', ' ')}" and its schedule cannot be changed here.
+                </div>
+              </div>
+            )}
+
+            {/* Always show scheduled time information from database */}
+            {Array.isArray(timeSlots) && timeSlots.length > 0 && (
+              <div className="mb-3 mb-md-4">
+                <label className="form-label">Scheduled Time</label>
+                <div className="p-2 bg-light rounded">
+                  {meetingType === 'direct' ? (
+                    // Direct Meeting Display
+                    <div className="bg-light p-3 rounded">
+                      <div className="fw-bold mb-2">Direct Meeting</div>
+                      {timeSlots.map((slot) => (
+                        <div key={slot?.id || Math.random()} 
+                             className="d-flex align-items-center mb-2 p-2 bg-white rounded">
+                          <div className="flex-grow-1">
+                            <div className="fw-bold">
+                              {new Date(slot.startTime).toLocaleDateString()}
+                            </div>
+                            <div>Direct Meeting: {slot?.start || ''} - {slot?.end || ''}</div>
+                            <div className="text-muted">
+                              All participants will join at this time
+                            </div>
+                          </div>
+                          {isEditing && canEdit && meetingType === 'direct' && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger ms-2"
+                              onClick={() => handleRemoveTimeSlot(slot?.id)}
+                              aria-label="Remove time slot"
+                            >
+                              <FaTimes />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : meetingType === 'round_robin' ? (
+                    // Round Robin Display
+                    <div className="bg-light p-3 rounded">
+                      <div className="fw-bold mb-2">Round Robin Sessions</div>
+                      {timeSlots.map((slot, index) => (
+                        <div key={slot?.id || Math.random()} 
+                             className="d-flex align-items-center mb-2 p-2 bg-white rounded">
+                          <div className="me-3">
+                            <span className="badge bg-primary">Session {index + 1}</span>
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="fw-bold">
+                              {new Date(slot.startTime).toLocaleDateString()}
+                            </div>
+                            <div>{slot?.start || ''} - {slot?.end || ''}</div>
+                            {roundRobinDuration && (
+                              <small className="text-muted">
+                                Duration: {roundRobinDuration} minutes per participant
+                              </small>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : meetingType === 'group' ? (
+                    // Group Meeting Display
+                    <div className="bg-light p-3 rounded">
+                      <div className="fw-bold mb-2">Group Sessions</div>
+                      {timeSlots.map((slot) => (
+                        <div key={slot?.id || Math.random()} 
+                             className="d-flex align-items-center mb-2 p-2 bg-white rounded">
+                          <div className="flex-grow-1">
+                            <div className="fw-bold">
+                              {new Date(slot.startTime).toLocaleDateString()}
+                            </div>
+                            <div>Group Meeting: {slot?.start || ''} - {slot?.end || ''}</div>
+                            <div className="text-muted">
+                              All participants will join at this time
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Regular Meeting Display
+                    <div className="d-flex flex-wrap gap-2">
+                      {timeSlots.map((slot) => (
+                        <div key={slot?.id || Math.random()} 
+                             className="d-flex align-items-center bg-white p-2 rounded border">
+                          <div>
+                            <span className="fw-bold">
+                              {new Date(slot.startTime).toLocaleDateString()}
+                            </span>
+                            <span className="mx-1">|</span>
+                            <span>{slot?.start || ''} - {slot?.end || ''}</span>
+                          </div>
+                          {isEditing && canEdit && meetingType === 'direct' && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger ms-2"
+                              onClick={() => handleRemoveTimeSlot(slot?.id)}
+                              aria-label="Remove time slot"
+                            >
+                              <FaTimes />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Show different messages based on meeting type when no scheduled time exists */}
+            {(!Array.isArray(timeSlots) || timeSlots.length === 0) && !isEditing && (
+              <div className="mb-3 mb-md-4">
+                <label className="form-label">Scheduled Time</label>
+                {meetingType === 'group' || meetingType === 'round_robin' ? (
+                  <div className="alert alert-warning">
+                    <strong>Pending Schedule:</strong> This {meetingType.replace('_', ' ')} meeting is waiting for participants to submit their availability. 
+                    Once all participants provide their time preferences, the best meeting time will be automatically selected and displayed here.
+                  </div>
+                ) : (
+                  <div className="alert alert-info">
+                    No scheduled time available for this meeting.
+                  </div>
+                )}
+              </div>
+            )}
   
             <div className="mb-3 mb-md-4">
-                <label htmlFor="participants" className="form-label">Participants</label>
+                <label htmlFor="participants" className="form-label">Participants </label>
                 
-                //  Update the participants search section in JSX
+                {/* Show participant error */}
+                {participantError && (
+                  <div className="alert alert-danger mb-2">
+                    {participantError}
+                  </div>
+                )}
+                
+                {/* Show phone error */}
+                {phoneError && (
+                  <div className="alert alert-warning mb-2">
+                    {phoneError}
+                  </div>
+                )}
+              
 {isEditing && (
   <div className="mb-3 position-relative">
     <div className="position-relative">
@@ -1043,16 +1410,20 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
         <input
           type="text"
           className="form-control"
-          placeholder="Search by contact"
+          placeholder="Search by name, email, or phone"
           value={searchContact}
           onChange={(e) => handleSearchContacts(e.target.value)}
-          onFocus={() => setSearchResults(allContacts)}
+          onFocus={() => {
+            if (allContacts.length > 0) {
+              setSearchResults(allContacts.slice(0, 20)); // Show first 20 contacts
+            }
+          }}
           disabled={isSaving}
         />
         <button 
           className="btn btn-outline-secondary" 
           type="button"
-          onClick={() => setSearchResults(searchResults.length > 0 ? [] : allContacts)}
+          onClick={() => setSearchResults(searchResults.length > 0 ? [] : allContacts.slice(0, 20))}
           disabled={isSaving}
         >
           <FaChevronDown />
@@ -1066,23 +1437,26 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
             <div 
               key={contact.username} 
               className="p-2 border-bottom d-flex align-items-center justify-content-between hover-bg-light"
+              style={{cursor: 'pointer'}}
             >
-              <div className="d-flex align-items-center">
+              <div className="d-flex align-items-center flex-grow-1">
                 <img 
                   src={userProfiles[contact.username]?.profile_pic || "/profile.png"} 
                   alt={contact.username} 
                   className="rounded-circle me-2"
                   style={{width: '30px', height: '30px', objectFit: 'cover'}}
                 />
-                <div>
+                <div className="flex-grow-1">
                   <div className="fw-bold">{contact.username}</div>
-                  {contact.email && <small className="text-muted">{contact.email}</small>}
+                  {contact.email && <small className="text-muted d-block">{contact.email}</small>}
+                  {contact.phone && <small className="text-muted d-block">{contact.phone}</small>}
                 </div>
               </div>
               {isParticipantAdded(contact.username) ? (
                 <button 
                   className="btn btn-sm btn-outline-danger"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     // Remove participant logic
                     const participantToRemove = participants.find(p => p.name === contact.username);
                     if (participantToRemove) {
@@ -1096,7 +1470,10 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               ) : (
                 <button 
                   className="btn btn-sm btn-primary"
-                  onClick={() => addParticipant(contact)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addParticipant(contact);
+                  }}
                   disabled={isSaving}
                 >
                   Add
@@ -1104,6 +1481,12 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               )}
             </div>
           ))}
+          
+          {searchContact.length >= 1 && searchResults.length === 0 && (
+            <div className="p-3 text-center text-muted">
+              No contacts found matching "{searchContact}"
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1194,7 +1577,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 id="description"
                 rows="3"
                 placeholder="A short description for the meeting"
-                value={description}
+                value={isEditing ? description : (meetingData?.description || '')}
                 onChange={(e) => setDescription(e.target.value)}
                 readOnly={!isEditing}
               ></textarea>
@@ -1209,7 +1592,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
       className="form-control"
       readOnly={!isEditing}
       placeholder="Choose a place for the meeting"
-      value={location}
+      value={isEditing ? location : (meetingData?.location || '')}
       onChange={(e) => setLocation(e.target.value)}
       disabled={isSaving}
     />
@@ -1255,7 +1638,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
       className="form-control"
       readOnly={!isEditing}
       placeholder="Does not repeat"
-      value={repeat}
+      value={isEditing ? repeat : (meetingData?.repeat || 'Does not repeat')}
       onChange={(e) => setRepeat(e.target.value)}
       disabled={isSaving}
     />
@@ -1300,13 +1683,16 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
       <input
         type="text"
         className="form-control"
-        readOnly={!isEditing}
+        readOnly={!isEditing || (timeSlots && timeSlots.length > 0)} // Read-only if has scheduled time
         placeholder="Select duration"
-        value={roundRobinDuration}
+        value={isEditing ? roundRobinDuration : (meetingData?.roundRobinDuration || '')}
         onChange={(e) => setRoundRobinDuration(e.target.value)}
         disabled={isSaving}
+        style={{
+          backgroundColor: (!isEditing || (timeSlots && timeSlots.length > 0)) ? '#f8f9fa' : 'white'
+        }}
       />
-      {isEditing && (
+      {isEditing && (!timeSlots || timeSlots.length === 0) && (
         <button 
           className="btn btn-outline-secondary" 
           type="button"
@@ -1318,7 +1704,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
       )}
       
       {/* Duration Dropdown */}
-      {showDurationDropdown && isEditing && (
+      {showDurationDropdown && isEditing && (!timeSlots || timeSlots.length === 0) && (
         <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
           {durationOptions.map(option => (
             <div 
@@ -1336,6 +1722,13 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
         </div>
       )}
     </div>
+    
+    {/* Show information message when duration is locked */}
+    {isEditing && timeSlots && timeSlots.length > 0 && (
+      <small className="text-muted mt-1 d-block">
+        <strong>Note:</strong> Duration cannot be changed as this meeting already has scheduled availability from participants.
+      </small>
+    )}
   </div>
 )}
   
@@ -1350,7 +1743,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
         {isSaving ? (
           <>
             <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            Changing...
+            Saving...
           </>
         ) : (
           'Save Changes'
@@ -1358,7 +1751,33 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
       </button>
       <button 
         className="btn btn-secondary" 
-        onClick={() => setIsEditing(false)}
+        onClick={() => {
+          setIsEditing(false);
+          // Reset title to original when canceling edit
+          setTitle(originalTitle);
+          // Reset other fields to original values
+          setDescription(meetingData?.description || '');
+          setLocation(meetingData?.location || '');
+          setRepeat(meetingData?.repeat || 'Does not repeat');
+          setRoundRobinDuration(meetingData?.roundRobinDuration || '');
+          // Reset participants to original
+          if (meetingData?.participants) {
+            const formattedParticipants = meetingData.participants.map((participant, index) => ({
+              id: index + 1,
+              name: participant.username,
+              group: `Access: ${participant.access}`,
+              access: participant.access,
+              phone: participant.phone || '',
+              email: participant.email || ''
+            }));
+            setParticipants(formattedParticipants);
+          }
+          // Clear errors
+          setParticipantError('');
+          setPhoneError('');
+          setTimeError('');
+          setDateError('');
+        }}
         disabled={isSaving}
       >
         Cancel
@@ -1375,7 +1794,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
           {isCancelling ? (
             <>
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              Processing
+              Processing...
             </>
           ) : (
             'Cancel Meeting'
@@ -1401,6 +1820,99 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
     </>
   )}
 </div>
+
+{/* Save Confirmation Modal */}
+{showSaveModal && (
+  <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+    <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">Confirm Changes</h5>
+          <button 
+            type="button" 
+            className="btn-close" 
+            onClick={() => setShowSaveModal(false)}
+          ></button>
+        </div>
+        <div className="modal-body">
+          <p>Are you sure you want to save these changes to the meeting?</p>
+          {(() => {
+            const changes = getChanges();
+            if (changes.length > 0) {
+              return (
+                <div>
+                  <strong>Changes:</strong>
+                  <ul className="mb-0 mt-2">
+                    {changes.map((change, index) => (
+                      <li key={index}>{change}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            } else {
+              return <p className="text-muted">No changes detected.</p>;
+            }
+          })()}
+        </div>
+        <div className="modal-footer">
+          <button 
+            type="button" 
+            className="btn btn-secondary" 
+            onClick={() => setShowSaveModal(false)}
+          >
+            Cancel
+          </button>
+          <button 
+            type="button" 
+            className="btn btn-success" 
+            onClick={performSaveChanges}
+          >
+            Yes, Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Delete Confirmation Modal */}
+{showDeleteModal && (
+  <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+    <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">Cancel Meeting</h5>
+          <button 
+            type="button" 
+            className="btn-close" 
+            onClick={() => setShowDeleteModal(false)}
+          ></button>
+        </div>
+        <div className="modal-body">
+          <p>Are you sure you want to cancel the meeting <strong>"{originalTitle}"</strong>?</p>
+        </div>
+        <div className="modal-footer">
+          <button 
+            type="button" 
+            className="btn btn-secondary" 
+            onClick={() => setShowDeleteModal(false)}
+          >
+            No, Keep Meeting
+          </button>
+          <button 
+            type="button" 
+            className="btn btn-danger" 
+            onClick={performCancelMeeting}
+          >
+            Yes, Cancel Meeting
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Success/Error Messages will be shown by JavaScript functions */}
           </div>
         </div>
       </div>
