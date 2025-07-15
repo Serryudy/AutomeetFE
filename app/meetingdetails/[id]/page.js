@@ -317,7 +317,7 @@ const getChanges = () => {
     // Check duration change for group/round_robin
     if ((meetingType === 'group' || meetingType === 'round_robin') && 
         roundRobinDuration !== (meetingData.roundRobinDuration || '')) {
-      changes.push(`Duration:${roundRobinDuration}`);
+      changes.push(`Duration:  ${roundRobinDuration}`);
     }
     
     // Check participants changes
@@ -373,9 +373,9 @@ const validateForm = () => {
     return false;
   }
   
-  // Check if at least one participant is added
-  if (participants.length === 0) {
-    setParticipantError('At least one participant must be added to the meeting');
+  // Only require participants for direct meetings
+  if (meetingType === 'direct' && participants.length === 0) {
+    setParticipantError('At least one participant must be added to direct meetings');
     return false;
   }
   
@@ -704,7 +704,7 @@ const performCancelMeeting = async () => {
   try {
     // Call the deletion API endpoint
     const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
-      method: 'DELETE',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -719,7 +719,7 @@ const performCancelMeeting = async () => {
     console.log('Meeting canceled successfully:', result);
     
     // Set the deleted state to true to show redirect message
-    
+    setIsDeleted(true);
     
     // Show success popup message - ONLY THIS ONE
     showSuccessMessage('Meeting deleted successfully!');
@@ -744,7 +744,8 @@ const showSuccessMessage = (message) => {
   popup.className = 'alert alert-success position-fixed';
   popup.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
   popup.innerHTML = `
-     ${message}
+  ${message}
+    <button type="button" class="btn-close float-end" onclick="this.parentElement.remove()"></button>
   `;
   document.body.appendChild(popup);
   
@@ -1017,7 +1018,7 @@ const showErrorMessage = (message) => {
 
 if (loading) return <div className="p-4 text-center"><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading meeting data...</div>;
 if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
-if (isDeleted) return <div className="p-4 text-center text-success fs-2">Redirecting to meetings page...</div>;
+//if (isDeleted) return <div className="p-4 text-center text-success fs-2">Redirecting to meetings page...</div>;
 if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
   
     // Check if the user can edit the meeting - Only creator can edit
@@ -1031,24 +1032,33 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               <h2 className="fw-bold mb-0 fs-4 fs-md-3">{originalTitle || 'Meeting name'}</h2>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
-  {canEdit ? (
-  <button 
-    className="btn btn-secondary d-flex align-items-center px-3 py-2"
-    onClick={() => setIsEditing(!isEditing)}
-    disabled={isCancelling}
-  >
-    <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
-  </button>
-) : (
-  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
-)}
+                {canEdit ? (
+                  <button 
+                    className={`btn btn-secondary d-flex align-items-center px-3 py-2 ${meetingData.status === 'canceled' ? 'opacity-50' : ''}`}
+                    onClick={() => setIsEditing(!isEditing)}
+                    disabled={isCancelling || meetingData.status === 'canceled'}
+                    style={{
+                      cursor: meetingData.status === 'canceled' ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <FaEdit className="me-2" /> {meetingData.status === 'canceled' ? 'Edit' : (isEditing ? 'Cancel' : 'Edit')}
+                  </button>
+                ) : (
+                  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
+                )}
               </div>
             </div>
   
             <div className="mb-3 mb-md-4">
               <p className="mb-1 fw-bold">Status</p>
-              <span className={`badge ${meetingData.status === 'confirmed' ? 'bg-success' : 'bg-primary'} px-3 py-2`}>
-                {meetingData.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+              <span className={`badge ${
+                meetingData.status === 'confirmed' ? 'bg-success' : 
+                meetingData.status === 'canceled' ? 'bg-danger' : 
+                'bg-primary'
+              } px-3 py-2`}>
+                {meetingData.status === 'confirmed' ? 'Confirmed' : 
+                 meetingData.status === 'canceled' ? 'Canceled' : 
+                 'Pending'}
               </span>
             </div>
             
@@ -1063,27 +1073,27 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
             )}
   
             <div className="mb-3 mb-md-4">
-              <label htmlFor="title" className="form-label">Title</label>
-              <input
-                type="text"
-                className="form-control"
-                readOnly={!isEditing || participants.length === 0}
-                id="title"
-                value={isEditing ? title : originalTitle}
-                onChange={(e) => setTitle(e.target.value)}
-                style={{
-                  backgroundColor: (!isEditing || participants.length === 0) ? '#f8f9fa' : 'white'
-                }}
-              />
-              {participants.length === 0 && (
-                <small className="text-muted">
-                  <strong>Note:</strong> Title can only be edited after adding at least one participant.
-                </small>
-              )}
-            </div>
+  <label htmlFor="title" className="form-label">Title</label>
+  <input
+    type="text"
+    className="form-control"
+    readOnly={!isEditing || (meetingType === 'direct' && participants.length === 0) || meetingData.status === 'canceled'}
+    id="title"
+    value={isEditing ? title : originalTitle}
+    onChange={(e) => setTitle(e.target.value)}
+    style={{
+      backgroundColor: (!isEditing || (meetingType === 'direct' && participants.length === 0) || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+    }}
+  />
+  {meetingType === 'direct' && participants.length === 0 && meetingData.status !== 'canceled' && (
+    <small className="text-muted">
+      <strong>Note:</strong> Title can only be edited after adding at least one participant for direct meetings.
+    </small>
+  )}
+</div>
   
-            {/* Only show Date & Time Range section when editing AND meeting type is 'direct' */}
-            {isEditing && meetingType === 'direct' && (
+            {/* Only show Date & Time Range section when editing AND meeting type is 'direct' AND meeting not canceled */}
+            {isEditing && meetingType === 'direct' && meetingData.status !== 'canceled' && (
               <div className="mb-3 mb-md-4">
                 <label className="form-label">Date & Time Range</label>
                 <div className="p-2 bg-light rounded">
@@ -1248,12 +1258,12 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
             )}
 
             {/* Show message for non-direct meetings when editing */}
-            {isEditing && meetingType !== 'direct' && (
+            {isEditing && meetingType !== 'direct' && meetingData.status !== 'canceled' && (
               <div className="mb-3 mb-md-4">
                 <label className="form-label">Date & Time Range</label>
                 <div className="alert alert-warning">
-                  <strong>Note:</strong> Time slots can only be modified for "direct" type meetings. 
-                  This meeting is of type "{meetingType.replace('_', ' ')}" and its schedule cannot be changed here.
+                  <strong>Note:</strong> 
+                  This meeting is of type "{meetingType.replace('_', ' ')}" and its schedule can't be changed here.
                 </div>
               </div>
             )}
@@ -1279,7 +1289,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                               All participants will join at this time
                             </div>
                           </div>
-                          {isEditing && canEdit && meetingType === 'direct' && (
+                          {isEditing && canEdit && meetingType === 'direct' && meetingData.status !== 'canceled' && (
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-danger ms-2"
@@ -1348,7 +1358,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                             <span className="mx-1">|</span>
                             <span>{slot?.start || ''} - {slot?.end || ''}</span>
                           </div>
-                          {isEditing && canEdit && meetingType === 'direct' && (
+                          {isEditing && canEdit && meetingType === 'direct' && meetingData.status !== 'canceled' && (
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-danger ms-2"
@@ -1383,192 +1393,189 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               </div>
             )}
   
-            <div className="mb-3 mb-md-4">
-                <label htmlFor="participants" className="form-label">Participants </label>
-                
-                {/* Show participant error */}
-                {participantError && (
-                  <div className="alert alert-danger mb-2">
-                    {participantError}
-                  </div>
-                )}
-                
-                {/* Show phone error */}
-                {phoneError && (
-                  <div className="alert alert-warning mb-2">
-                    {phoneError}
-                  </div>
-                )}
-              
-{isEditing && (
-  <div className="mb-3 position-relative">
-    <div className="position-relative">
-      <div className="input-group">
-        <span className="input-group-text bg-white">
-          <FaSearch />
-        </span>
-        <input
-          type="text"
-          className="form-control"
-          placeholder="Search by name, email, or phone"
-          value={searchContact}
-          onChange={(e) => handleSearchContacts(e.target.value)}
-          onFocus={() => {
-            if (allContacts.length > 0) {
-              setSearchResults(allContacts.slice(0, 20)); // Show first 20 contacts
-            }
-          }}
-          disabled={isSaving}
-        />
-        <button 
-          className="btn btn-outline-secondary" 
-          type="button"
-          onClick={() => setSearchResults(searchResults.length > 0 ? [] : allContacts.slice(0, 20))}
-          disabled={isSaving}
-        >
-          <FaChevronDown />
-        </button>
+ <div className="mb-3 mb-md-4">
+    <label htmlFor="participants" className="form-label">Participants</label>
+    
+    {/* Show participant error */}
+    {participantError && meetingData.status !== 'canceled' && (
+      <div className="alert alert-danger mb-2">
+        {participantError}
       </div>
+    )}
+    
+    {/* Show phone error */}
+    {phoneError && meetingData.status !== 'canceled' && (
+      <div className="alert alert-warning mb-2">
+        {phoneError}
+      </div>
+    )}
+
+    {/* Show restriction message for non-direct meetings */}
+    {isEditing && (meetingType === 'group' || meetingType === 'round_robin') && meetingData.status !== 'canceled' && (
+      <div className="alert alert-info mb-3">
+        <strong>Note:</strong> Participants cannot be modified for {meetingType.replace('_', ' ')} meetings. 
       
-      {/* Search Results Dropdown */}
-      {searchResults.length > 0 && (
-        <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{zIndex: 1000, maxHeight: '200px', overflowY: 'auto'}}>
-          {searchResults.map(contact => (
-            <div 
-              key={contact.username} 
-              className="p-2 border-bottom d-flex align-items-center justify-content-between hover-bg-light"
-              style={{cursor: 'pointer'}}
+      </div>
+    )}
+
+    {/* Only show participant search for direct meetings */}
+    {isEditing && meetingType === 'direct' && meetingData.status !== 'canceled' && (
+      <div className="mb-3 position-relative">
+        <div className="position-relative">
+          <div className="input-group">
+            <span className="input-group-text bg-white">
+              <FaSearch />
+            </span>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by name, email, or phone"
+              value={searchContact}
+              onChange={(e) => handleSearchContacts(e.target.value)}
+              onFocus={() => {
+                if (allContacts.length > 0) {
+                  setSearchResults(allContacts.slice(0, 20)); // Show first 20 contacts
+                }
+              }}
+              disabled={isSaving}
+            />
+            <button 
+              className="btn btn-outline-secondary" 
+              type="button"
+              onClick={() => setSearchResults(searchResults.length > 0 ? [] : allContacts.slice(0, 20))}
+              disabled={isSaving}
             >
-              <div className="d-flex align-items-center flex-grow-1">
-                <img 
-                  src={userProfiles[contact.username]?.profile_pic || "/profile.png"} 
-                  alt={contact.username} 
-                  className="rounded-circle me-2"
-                  style={{width: '30px', height: '30px', objectFit: 'cover'}}
-                />
-                <div className="flex-grow-1">
-                  <div className="fw-bold">{contact.username}</div>
-                  {contact.email && <small className="text-muted d-block">{contact.email}</small>}
-                  {contact.phone && <small className="text-muted d-block">{contact.phone}</small>}
-                </div>
-              </div>
-              {isParticipantAdded(contact.username) ? (
-                <button 
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Remove participant logic
-                    const participantToRemove = participants.find(p => p.name === contact.username);
-                    if (participantToRemove) {
-                      removeParticipant(participantToRemove.id);
-                    }
-                  }}
-                  disabled={isSaving}
-                >
-                  Remove
-                </button>
-              ) : (
-                <button 
-                  className="btn btn-sm btn-primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addParticipant(contact);
-                  }}
-                  disabled={isSaving}
-                >
-                  Add
-                </button>
-              )}
-            </div>
-          ))}
+              <FaChevronDown />
+            </button>
+          </div>
           
-          {searchContact.length >= 1 && searchResults.length === 0 && (
-            <div className="p-3 text-center text-muted">
-              No contacts found matching "{searchContact}"
+          {/* Search Results Dropdown */}
+          {searchResults.length > 0 && (
+            <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{zIndex: 1000, maxHeight: '200px', overflowY: 'auto'}}>
+              {searchResults.map(contact => (
+                <div 
+                  key={contact.username} 
+                  className="p-2 border-bottom d-flex align-items-center justify-content-between hover-bg-light"
+                  style={{cursor: 'pointer'}}
+                >
+                  <div className="d-flex align-items-center flex-grow-1">
+                    <img 
+                      src={userProfiles[contact.username]?.profile_pic || "/profile.png"} 
+                      alt={contact.username} 
+                      className="rounded-circle me-2"
+                      style={{width: '30px', height: '30px', objectFit: 'cover'}}
+                    />
+                    <div className="flex-grow-1">
+                      <div className="fw-bold">{contact.username}</div>
+                      {contact.email && <small className="text-muted d-block">{contact.email}</small>}
+                      {contact.phone && <small className="text-muted d-block">{contact.phone}</small>}
+                    </div>
+                  </div>
+                  {isParticipantAdded(contact.username) ? (
+                    <button 
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Remove participant logic
+                        const participantToRemove = participants.find(p => p.name === contact.username);
+                        if (participantToRemove) {
+                          removeParticipant(participantToRemove.id);
+                        }
+                      }}
+                      disabled={isSaving}
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn btn-sm btn-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addParticipant(contact);
+                      }}
+                      disabled={isSaving}
+                    >
+                      Add
+                    </button>
+                  )}
+                </div>
+              ))}
+              
+              {searchContact.length >= 1 && searchResults.length === 0 && (
+                <div className="p-3 text-center text-muted">
+                  No contacts found matching "{searchContact}"
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
-    </div>
-  </div>
-)}
+      </div>
+    )}
 
                 {/* Display hosts section */}
                 {hosts.length > 0 && (
-                  <div className="mb-3">
-                    <h6 className="text-muted mb-2">Hosts</h6>
-                    {hosts.map((host) => (
-                      <div key={host.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
-                        <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
-                          <img 
-                            src={getProfilePicture(host.name)} 
-                            alt="host" 
-                            className="rounded-circle me-2 me-md-3"
-                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
-                          />
-                          <div>
-                            <div className="fw-bold">{host.name}</div>
-                            <small className="text-muted">Host - {host.access}</small>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+      <div className="mb-3">
+        <h6 className="text-muted mb-2">Hosts</h6>
+        {hosts.map((host) => (
+          <div key={host.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
+            <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
+              <img 
+                src={getProfilePicture(host.name)} 
+                alt="host" 
+                className="rounded-circle me-2 me-md-3"
+                style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
+              />
+              <div>
+                <div className="fw-bold">{host.name}</div>
+                <small className="text-muted">Host - {host.access}</small>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
 
                 {/* Display participants section */}
-                {participants.length > 0 && (
-                  <div>
-                    
-                    {participants.map((participant) => (
-                      <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
-                        <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
-                          <img 
-                            src={getProfilePicture(participant.name)} 
-                            alt="participant" 
-                            className="rounded-circle me-2 me-md-3"
-                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
-                          />
-                          <div>
-                            <div className="fw-bold">{participant.name}</div>
-                            <small className="text-muted">{participant.group}</small>
-                            {userProfiles[participant.name]?.company && (
-                              <small className="d-block text-muted">{userProfiles[participant.name].company}</small>
-                            )}
-                          </div>
-                        </div>
-                        {isEditing && (
-                          <div className="d-flex gap-2 align-items-center mt-2 mt-md-0">
-                            <div className="form-check form-switch me-3">
-                              <input 
-                                className="form-check-input"
-                                type="checkbox" 
-                                id={`accessSwitch-${participant.id}`}
-                                checked={participant.access === "accepted"}
-                                onChange={(e) => handleParticipantAccessChange(participant.id, e.target.checked)}
-                              />
-                              <label className="form-check-label" htmlFor={`accessSwitch-${participant.id}`}>
-                                Give access
-                              </label>
-                            </div>
-                            <button 
-                              type="button" 
-                              className="btn btn-outline-danger btn-sm"
-                              onClick={() => removeParticipant(participant.id)}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+       {participants.length > 0 && (
+      <div>
+        {participants.map((participant) => (
+          <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
+            <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
+              <img 
+                src={getProfilePicture(participant.name)} 
+                alt="participant" 
+                className="rounded-circle me-2 me-md-3"
+                style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
+              />
+              <div>
+                <div className="fw-bold">{participant.name}</div>
+                <small className="text-muted">{participant.group}</small>
+                {userProfiles[participant.name]?.company && (
+                  <small className="d-block text-muted">{userProfiles[participant.name].company}</small>
                 )}
-                
-                {participants.length === 0 && hosts.length === 0 && (
-                  <div className="alert alert-info">No participants or hosts added to this meeting.</div>
-                )}
+              </div>
             </div>
+            {/* Only show remove button for direct meetings */}
+            {isEditing && meetingType === 'direct' && meetingData.status !== 'canceled' && (
+              <div className="d-flex gap-2 align-items-center mt-2 mt-md-0">
+                <button 
+                  type="button" 
+                  className="btn btn-outline-danger btn-sm"
+                  onClick={() => removeParticipant(participant.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+    
+    {participants.length === 0 && hosts.length === 0 && (
+      <div className="alert alert-info">No participants or hosts added to this meeting.</div>
+    )}
+</div>
   
             <div className="mb-3 mb-md-4">
               <label htmlFor="description" className="form-label">Description</label>
@@ -1579,340 +1586,399 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 placeholder="A short description for the meeting"
                 value={isEditing ? description : (meetingData?.description || '')}
                 onChange={(e) => setDescription(e.target.value)}
-                readOnly={!isEditing}
+                readOnly={!isEditing || meetingData.status === 'canceled'}
+                style={{
+                  backgroundColor: (!isEditing || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+                }}
               ></textarea>
             </div>
   
-  {/* Location Input */}
-<div className="mb-3 mb-md-4">
-  <label htmlFor="location" className="form-label">Location</label>
-  <div className="input-group position-relative">
-    <input
-      type="text"
-      className="form-control"
-      readOnly={!isEditing}
-      placeholder="Choose a place for the meeting"
-      value={isEditing ? location : (meetingData?.location || '')}
-      onChange={(e) => setLocation(e.target.value)}
-      disabled={isSaving}
-    />
-    {isEditing && (
-      <button 
-        className="btn btn-outline-secondary" 
-        type="button"
-        onClick={() => setShowLocationDropdown(!showLocationDropdown)}
-        disabled={isSaving}
-      >
-        <FaChevronDown />
-      </button>
-    )}
-    
-    {/* Location Dropdown */}
-    {showLocationDropdown && isEditing && (
-      <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
-        {locationOptions.map(option => (
-          <div 
-            key={option}
-            className="p-2 border-bottom hover-bg-light"
-            style={{cursor: 'pointer'}}
-            onClick={() => {
-              setLocation(option);
-              setShowLocationDropdown(false);
-            }}
-          >
-            {option}
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-</div>
-  
-   {/*Repeat input section*/}
-
-<div className="mb-4">
-  <label htmlFor="repeat" className="form-label">Repeat</label>
-  <div className="input-group position-relative">
-    <input
-      type="text"
-      className="form-control"
-      readOnly={!isEditing}
-      placeholder="Does not repeat"
-      value={isEditing ? repeat : (meetingData?.repeat || 'Does not repeat')}
-      onChange={(e) => setRepeat(e.target.value)}
-      disabled={isSaving}
-    />
-    {isEditing && (
-      <button 
-        className="btn btn-outline-secondary" 
-        type="button"
-        onClick={() => setShowRepeatDropdown(!showRepeatDropdown)}
-        disabled={isSaving}
-      >
-        <FaChevronDown />
-      </button>
-    )}
-    
-    {/* Repeat Dropdown */}
-    {showRepeatDropdown && isEditing && (
-      <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
-        {repeatOptions.map(option => (
-          <div 
-            key={option}
-            className="p-2 border-bottom hover-bg-light"
-            style={{cursor: 'pointer'}}
-            onClick={() => {
-              setRepeat(option);
-              setShowRepeatDropdown(false);
-            }}
-          >
-            {option}
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-</div>
-
-
-{/*Add Duration section for group and round_robin meetings*/}
-{(meetingType === 'group' || meetingType === 'round_robin') && (
-  <div className="mb-4">
-    <label htmlFor="duration" className="form-label">Duration</label>
-    <div className="input-group position-relative">
-      <input
-        type="text"
-        className="form-control"
-        readOnly={!isEditing || (timeSlots && timeSlots.length > 0)} // Read-only if has scheduled time
-        placeholder="Select duration"
-        value={isEditing ? roundRobinDuration : (meetingData?.roundRobinDuration || '')}
-        onChange={(e) => setRoundRobinDuration(e.target.value)}
-        disabled={isSaving}
-        style={{
-          backgroundColor: (!isEditing || (timeSlots && timeSlots.length > 0)) ? '#f8f9fa' : 'white'
-        }}
-      />
-      {isEditing && (!timeSlots || timeSlots.length === 0) && (
-        <button 
-          className="btn btn-outline-secondary" 
-          type="button"
-          onClick={() => setShowDurationDropdown(!showDurationDropdown)}
-          disabled={isSaving}
-        >
-          <FaChevronDown />
-        </button>
-      )}
-      
-      {/* Duration Dropdown */}
-      {showDurationDropdown && isEditing && (!timeSlots || timeSlots.length === 0) && (
-        <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
-          {durationOptions.map(option => (
-            <div 
-              key={option}
-              className="p-2 border-bottom hover-bg-light"
-              style={{cursor: 'pointer'}}
-              onClick={() => {
-                setRoundRobinDuration(option);
-                setShowDurationDropdown(false);
-              }}
-            >
-              {option}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-    
-    {/* Show information message when duration is locked */}
-    {isEditing && timeSlots && timeSlots.length > 0 && (
-      <small className="text-muted mt-1 d-block">
-        <strong>Note:</strong> Duration cannot be changed as this meeting already has scheduled availability from participants.
-      </small>
-    )}
-  </div>
-)}
-  
-  <div className="d-flex flex-wrap gap-2 mt-4">
-  {isEditing ? (
-    <>
-      <button 
-        className="btn btn-success me-2" 
-        onClick={handleSaveChanges}
-        disabled={isSaving}
-      >
-        {isSaving ? (
-          <>
-            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            Saving...
-          </>
-        ) : (
-          'Save Changes'
-        )}
-      </button>
-      <button 
-        className="btn btn-secondary" 
-        onClick={() => {
-          setIsEditing(false);
-          // Reset title to original when canceling edit
-          setTitle(originalTitle);
-          // Reset other fields to original values
-          setDescription(meetingData?.description || '');
-          setLocation(meetingData?.location || '');
-          setRepeat(meetingData?.repeat || 'Does not repeat');
-          setRoundRobinDuration(meetingData?.roundRobinDuration || '');
-          // Reset participants to original
-          if (meetingData?.participants) {
-            const formattedParticipants = meetingData.participants.map((participant, index) => ({
-              id: index + 1,
-              name: participant.username,
-              group: `Access: ${participant.access}`,
-              access: participant.access,
-              phone: participant.phone || '',
-              email: participant.email || ''
-            }));
-            setParticipants(formattedParticipants);
-          }
-          // Clear errors
-          setParticipantError('');
-          setPhoneError('');
-          setTimeError('');
-          setDateError('');
-        }}
-        disabled={isSaving}
-      >
-        Cancel
-      </button>
-    </>
-  ) : (
-    <>
-      {userRole === 'creator' && (
-        <button 
-          className="btn btn-danger me-2" 
-          onClick={cancelMeeting}
-          disabled={isCancelling || isSaving}
-        >
-          {isCancelling ? (
-            <>
-              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              Processing...
-            </>
-          ) : (
-            'Cancel Meeting'
-          )}
-        </button>
-      )}
-      <Link href={`/content/${meetingId}`}>
-        <button 
-          className="btn btn-primary me-2"
-          disabled={isCancelling || isSaving}
-        >
-          Upload
-        </button>
-      </Link>
-      <Link href={`/notes/${meetingId}`}>
-        <button 
-          className="btn btn-primary"
-          disabled={isCancelling || isSaving}
-        >
-          Take notes
-        </button>
-      </Link>
-    </>
-  )}
-</div>
-
-{/* Save Confirmation Modal */}
-{showSaveModal && (
-  <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-    <div className="modal-dialog modal-dialog-centered">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">Confirm Changes</h5>
-          <button 
-            type="button" 
-            className="btn-close" 
-            onClick={() => setShowSaveModal(false)}
-          ></button>
-        </div>
-        <div className="modal-body">
-          <p>Are you sure you want to save these changes to the meeting?</p>
-          {(() => {
-            const changes = getChanges();
-            if (changes.length > 0) {
-              return (
-                <div>
-                  <strong>Changes:</strong>
-                  <ul className="mb-0 mt-2">
-                    {changes.map((change, index) => (
-                      <li key={index}>{change}</li>
+            {/* Location Input */}
+            <div className="mb-3 mb-md-4">
+              <label htmlFor="location" className="form-label">Location</label>
+              <div className="input-group position-relative">
+                <input
+                  type="text"
+                  className="form-control"
+                  readOnly={!isEditing || meetingData.status === 'canceled'}
+                  placeholder="Choose a place for the meeting"
+                  value={isEditing ? location : (meetingData?.location || '')}
+                  onChange={(e) => setLocation(e.target.value)}
+                  disabled={isSaving || meetingData.status === 'canceled'}
+                  style={{
+                    backgroundColor: (!isEditing || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+                  }}
+                />
+                {isEditing && meetingData.status !== 'canceled' && (
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    type="button"
+                    onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                    disabled={isSaving}
+                  >
+                    <FaChevronDown />
+                  </button>
+                )}
+                
+                {/* Location Dropdown */}
+                {showLocationDropdown && isEditing && meetingData.status !== 'canceled' && (
+                  <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
+                    {locationOptions.map(option => (
+                      <div 
+                        key={option}
+                        className="p-2 border-bottom hover-bg-light"
+                        style={{cursor: 'pointer'}}
+                        onClick={() => {
+                          setLocation(option);
+                          setShowLocationDropdown(false);
+                        }}
+                      >
+                        {option}
+                      </div>
                     ))}
-                  </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+  
+            {/*Repeat input section*/}
+            <div className="mb-4">
+              <label htmlFor="repeat" className="form-label">Repeat</label>
+              <div className="input-group position-relative">
+                <input
+                  type="text"
+                  className="form-control"
+                  readOnly={!isEditing || meetingData.status === 'canceled'}
+                  placeholder="Does not repeat"
+                  value={isEditing ? repeat : (meetingData?.repeat || 'Does not repeat')}
+                  onChange={(e) => setRepeat(e.target.value)}
+                  disabled={isSaving || meetingData.status === 'canceled'}
+                  style={{
+                    backgroundColor: (!isEditing || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+                  }}
+                />
+                {isEditing && meetingData.status !== 'canceled' && (
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    type="button"
+                    onClick={() => setShowRepeatDropdown(!showRepeatDropdown)}
+                    disabled={isSaving}
+                  >
+                    <FaChevronDown />
+                  </button>
+                )}
+                
+                {/* Repeat Dropdown */}
+                {showRepeatDropdown && isEditing && meetingData.status !== 'canceled' && (
+                  <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
+                    {repeatOptions.map(option => (
+                      <div 
+                        key={option}
+                        className="p-2 border-bottom hover-bg-light"
+                        style={{cursor: 'pointer'}}
+                        onClick={() => {
+                          setRepeat(option);
+                          setShowRepeatDropdown(false);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/*Add Duration section for group and round_robin meetings*/}
+            {(meetingType === 'group' || meetingType === 'round_robin') && (
+              <div className="mb-4">
+                <label htmlFor="duration" className="form-label">Duration</label>
+                <div className="input-group position-relative">
+                  <input
+                    type="text"
+                    className="form-control"
+                    readOnly={!isEditing || (timeSlots && timeSlots.length > 0) || meetingData.status === 'canceled'}
+                    placeholder="Select duration"
+                    value={isEditing ? roundRobinDuration : (meetingData?.roundRobinDuration || '')}
+                    onChange={(e) => setRoundRobinDuration(e.target.value)}
+                    disabled={isSaving || meetingData.status === 'canceled'}
+                    style={{
+                      backgroundColor: (!isEditing || (timeSlots && timeSlots.length > 0) || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+                    }}
+                  />
+                  {isEditing && (!timeSlots || timeSlots.length === 0) && meetingData.status !== 'canceled' && (
+                    <button 
+                      className="btn btn-outline-secondary" 
+                      type="button"
+                      onClick={() => setShowDurationDropdown(!showDurationDropdown)}
+                      disabled={isSaving}
+                    >
+                      <FaChevronDown />
+                    </button>
+                  )}
+                  
+                  {/* Duration Dropdown */}
+                  {showDurationDropdown && isEditing && (!timeSlots || timeSlots.length === 0) && meetingData.status !== 'canceled' && (
+                    <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
+                      {durationOptions.map(option => (
+                        <div 
+                          key={option}
+                          className="p-2 border-bottom hover-bg-light"
+                          style={{cursor: 'pointer'}}
+                          onClick={() => {
+                            setRoundRobinDuration(option);
+                            setShowDurationDropdown(false);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              );
-            } else {
-              return <p className="text-muted">No changes detected.</p>;
-            }
-          })()}
-        </div>
-        <div className="modal-footer">
-          <button 
-            type="button" 
-            className="btn btn-secondary" 
-            onClick={() => setShowSaveModal(false)}
-          >
-            Cancel
-          </button>
-          <button 
-            type="button" 
-            className="btn btn-success" 
-            onClick={performSaveChanges}
-          >
-            Yes, Save Changes
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+                
+                {/* Show information message when duration is locked */}
+                {isEditing && timeSlots && timeSlots.length > 0 && meetingData.status !== 'canceled' && (
+                  <small className="text-muted mt-1 d-block">
+                    <strong>Note:</strong> Duration cannot be changed as this meeting already has scheduled availability from participants.
+                  </small>
+                )}
+                
+                {/* Show canceled message */}
+                {meetingData.status === 'canceled' && (
+                  <small className="text-danger mt-1 d-block">
+                    <strong>Note:</strong> This meeting has been canceled and cannot be modified.
+                  </small>
+                )}
+              </div>
+            )}
+  
+            <div className="d-flex flex-wrap gap-2 mt-4">
+              {meetingData.status === 'canceled' ? (
+                /* Show message when meeting is canceled */
+                <div className="alert alert-danger w-100 text-center">
+                  <strong>This meeting has been canceled.</strong> No actions are available.
+                </div>
+              ) : isEditing ? (
+                <>
+                  <button 
+                    className="btn btn-success me-2" 
+                    onClick={handleSaveChanges}
+                    disabled={isSaving || isCancelling}
+                  >
+                    {isSaving ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </button>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={() => {
+                      setIsEditing(false);
+                      // Reset title to original when canceling edit
+                      setTitle(originalTitle);
+                      // Reset other fields to original values
+                      setDescription(meetingData?.description || '');
+                      setLocation(meetingData?.location || '');
+                      setRepeat(meetingData?.repeat || 'Does not repeat');
+                      setRoundRobinDuration(meetingData?.roundRobinDuration || '');
+                      // Reset participants to original
+                      if (meetingData?.participants) {
+                        const formattedParticipants = meetingData.participants.map((participant, index) => ({
+                          id: index + 1,
+                          name: participant.username,
+                          group: `Access: ${participant.access}`,
+                          access: participant.access,
+                          phone: participant.phone || '',
+                          email: participant.email || ''
+                        }));
+                        setParticipants(formattedParticipants);
+                      }
+                      // Clear errors
+                      setParticipantError('');
+                      setPhoneError('');
+                      setTimeError('');
+                      setDateError('');
+                    }}
+                    disabled={isSaving || isCancelling}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  {userRole === 'creator' && (
+                    <button 
+                      className="btn btn-danger me-2" 
+                      onClick={cancelMeeting}
+                      disabled={isCancelling || isSaving}
+                    >
+                      {isCancelling ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Processing...
+                        </>
+                      ) : (
+                        'Cancel Meeting'
+                      )}
+                    </button>
+                  )}
+                  
+                  {/* Upload Button - Disabled for canceled meetings */}
+                  <Link href={`/content/${meetingId}`} style={{ pointerEvents: (isCancelling || isSaving || meetingData.status === 'canceled') ? 'none' : 'auto' }}>
+                    <button 
+                      className={`btn btn-primary me-2 ${(isCancelling || isSaving || meetingData.status === 'canceled') ? 'opacity-50' : ''}`}
+                      disabled={isCancelling || isSaving || meetingData.status === 'canceled'}
+                      style={{ 
+                        cursor: (isCancelling || isSaving || meetingData.status === 'canceled') ? 'not-allowed' : 'pointer',
+                        transition: 'opacity 0.2s ease'
+                      }}
+                    >
+                      {meetingData.status === 'canceled' ? (
+                        'Upload (Canceled)'
+                      ) : isCancelling ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Processing...
+                        </>
+                      ) : isSaving ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Saving...
+                        </>
+                      ) : (
+                        'Upload'
+                      )}
+                    </button>
+                  </Link>
+                  
+                  {/* Take Notes Button - Disabled for canceled meetings */}
+                  <Link href={`/notes/${meetingId}`} style={{ pointerEvents: (isCancelling || isSaving || meetingData.status === 'canceled') ? 'none' : 'auto' }}>
+                    <button 
+                      className={`btn btn-primary ${(isCancelling || isSaving || meetingData.status === 'canceled') ? 'opacity-50' : ''}`}
+                      disabled={isCancelling || isSaving || meetingData.status === 'canceled'}
+                      style={{ 
+                        cursor: (isCancelling || isSaving || meetingData.status === 'canceled') ? 'not-allowed' : 'pointer',
+                        transition: 'opacity 0.2s ease'
+                      }}
+                    >
+                      {meetingData.status === 'canceled' ? (
+                        'Take notes (Canceled)'
+                      ) : isCancelling ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Processing...
+                        </>
+                      ) : isSaving ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Saving...
+                        </>
+                      ) : (
+                        'Take notes'
+                      )}
+                    </button>
+                  </Link>
+                </>
+              )}
+            </div>
 
-{/* Delete Confirmation Modal */}
-{showDeleteModal && (
-  <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-    <div className="modal-dialog modal-dialog-centered">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">Cancel Meeting</h5>
-          <button 
-            type="button" 
-            className="btn-close" 
-            onClick={() => setShowDeleteModal(false)}
-          ></button>
-        </div>
-        <div className="modal-body">
-          <p>Are you sure you want to cancel the meeting <strong>"{originalTitle}"</strong>?</p>
-        </div>
-        <div className="modal-footer">
-          <button 
-            type="button" 
-            className="btn btn-secondary" 
-            onClick={() => setShowDeleteModal(false)}
-          >
-            No, Keep Meeting
-          </button>
-          <button 
-            type="button" 
-            className="btn btn-danger" 
-            onClick={performCancelMeeting}
-          >
-            Yes, Cancel Meeting
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+            {/* Save Confirmation Modal */}
+            {showSaveModal && (
+              <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+                <div className="modal-dialog modal-dialog-centered">
+                  <div className="modal-content">
+                    <div className="modal-header">
+                      <h5 className="modal-title">Confirm Changes</h5>
+                      <button 
+                        type="button" 
+                        className="btn-close" 
+                        onClick={() => setShowSaveModal(false)}
+                      ></button>
+                    </div>
+                    <div className="modal-body">
+                      <p>Are you sure you want to save these changes to the meeting?</p>
+                      {(() => {
+                        const changes = getChanges();
+                        if (changes.length > 0) {
+                          return (
+                            <div>
+                              <strong>Changes:</strong>
+                              <ul className="mb-0 mt-2">
+                                {changes.map((change, index) => (
+                                  <li key={index}>{change}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          );
+                        } else {
+                          return <p className="text-muted">No changes detected.</p>;
+                        }
+                      })()}
+                    </div>
+                    <div className="modal-footer">
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        onClick={() => setShowSaveModal(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-success" 
+                        onClick={performSaveChanges}
+                      >
+                        Yes, Save Changes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-{/* Success/Error Messages will be shown by JavaScript functions */}
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+              <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+                <div className="modal-dialog modal-dialog-centered">
+                  <div className="modal-content">
+                    <div className="modal-header">
+                      <h5 className="modal-title">Cancel Meeting</h5>
+                      <button 
+                        type="button" 
+                        className="btn-close" 
+                        onClick={() => setShowDeleteModal(false)}
+                      ></button>
+                    </div>
+                    <div className="modal-body">
+                      <p>Are you sure you want to cancel the meeting <strong>"{originalTitle}"</strong>?</p>
+                    </div>
+                    <div className="modal-footer">
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        onClick={() => setShowDeleteModal(false)}
+                      >
+                        No, Keep Meeting
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-danger" 
+                        onClick={performCancelMeeting}
+                      >
+                        Yes, Cancel Meeting
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Success/Error Messages will be shown by JavaScript functions */}
           </div>
         </div>
       </div>

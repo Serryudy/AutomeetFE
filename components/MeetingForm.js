@@ -395,7 +395,7 @@ const MeetingForm = ({meetingId}) => {
       try {
         // Call the deletion API endpoint
         const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
-          method: 'DELETE',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },

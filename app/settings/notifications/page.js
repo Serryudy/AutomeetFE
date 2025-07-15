@@ -5,7 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import '@/styles/global.css';
 import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
-import { FaBars, FaTrashAlt, FaBell, FaArrowLeft } from 'react-icons/fa';
+import { FaBars, FaTrashAlt, FaBell, FaArrowLeft, FaArrowUp } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
 export default function NotificationPage() {
@@ -22,7 +22,25 @@ export default function NotificationPage() {
   const [meetingDetails, setMeetingDetails] = useState(null);
   const [meetingFetchError, setMeetingFetchError] = useState(null);
   const [currentView, setCurrentView] = useState('list');
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // Scroll to top functionality
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setShowScrollTop(scrollTop > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   useEffect(() => {
     fetchNotifications();
@@ -334,6 +352,28 @@ export default function NotificationPage() {
         ></div>
       )}
 
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          className="btn btn-primary position-fixed rounded-circle p-2 shadow-lg"
+          style={{
+            bottom: '2rem',
+            right: '2rem',
+            zIndex: 1000,
+            width: '45px',
+            height: '45px',
+            border: 'none',
+            transition: 'all 0.3s ease',
+            opacity: showScrollTop ? 1 : 0,
+            transform: showScrollTop ? 'scale(1)' : 'scale(0)'
+          }}
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+        >
+          <FaArrowUp size={15} />
+        </button>
+      )}
+
       {/* Main content */}
       <div 
         className="flex-grow-1 p-3 p-md-4"
@@ -389,10 +429,6 @@ export default function NotificationPage() {
                     <div className="mb-3">
                       <span className="fw-medium">Meeting Title: </span>
                       <span className="fw-bold">{meetingDetails.title}</span>
-                    </div>
-                    <div className="mb-3">
-                      <span className="fw-medium">Organizer: </span>
-                      <span className="fw-bold">{meetingDetails.createdBy}</span>
                     </div>
                     <div className="mb-3">
                       <span className="fw-medium">Date & Time: </span>
@@ -465,6 +501,7 @@ export default function NotificationPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   All
+                  
                 </div>
                 <div 
                   className={`p-3 ${activeTab === 'unread' ? 'active fw-bold border-bottom border-5 border-primary' : 'border-0'} cursor-pointer`}
@@ -473,7 +510,7 @@ export default function NotificationPage() {
                 >
                   Unread
                   {getUnreadCount() > 0 && (
-                    <span className="badge bg-primary rounded-pill ms-1">{getUnreadCount()}</span>
+                    <span className="badge bg-primary rounded-pill ms-2">{getUnreadCount()}</span>
                   )}
                 </div>
                 <div 
@@ -487,7 +524,28 @@ export default function NotificationPage() {
 
               {/* Notifications List */}
               <div className="notifications-list">
-                {Object.values(filteredNotifications()).flat().length === 0 ? (
+                {isLoading ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2 text-muted">Loading notifications...</p>
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-5">
+                    <div className="alert alert-danger" role="alert">
+                      <h5 className="alert-heading">Error loading notifications</h5>
+                      <p className="mb-0">{error}</p>
+                      <hr />
+                      <button 
+                        className="btn btn-outline-danger btn-sm"
+                        onClick={fetchNotifications}
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                ) : Object.values(filteredNotifications()).flat().length === 0 ? (
                   <div className="text-center py-5">
                     <FaBell className="text-muted mb-3" size={32} />
                     <h5>No notifications</h5>

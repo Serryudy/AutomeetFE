@@ -5,9 +5,10 @@
 import React, { useRef } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FiUser, FiClock, FiEdit2 } from 'react-icons/fi';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import emailjs from '@emailjs/browser';
 
 const HomePage = () => {
   const styles = {
@@ -59,6 +60,76 @@ const HomePage = () => {
       0% { transform: translateX(0); }
       100% { transform: translateX(-50%); }
     }
+
+    .feature-carousel-container {
+      overflow: hidden;
+      position: relative;
+    }
+
+    .feature-slider-track {
+      display: flex;
+      animation: slideFeatures 30s linear infinite;
+      width: 200%;
+    }
+
+    .feature-item {
+      flex: 0 0 auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      min-height: 350px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .feature-item:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .feature-slider-track:hover {
+      animation-play-state: paused;
+    }
+
+    .feature-carousel-container::before,
+    .feature-carousel-container::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      width: 100px;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .feature-carousel-container::before {
+      left: 0;
+      background: linear-gradient(to right, #f0f0f0, transparent);
+    }
+
+    .feature-carousel-container::after {
+      right: 0;
+      background: linear-gradient(to left, #f0f0f0, transparent);
+    }
+
+    @media (max-width: 768px) {
+      .feature-item {
+        width: 250px !important;
+        margin: 0 10px !important;
+        min-height: 320px;
+      }
+    }
+
+    @media (min-width: 769px) {
+      .feature-item {
+        width: 300px !important;
+        margin: 0 15px !important;
+      }
+    }
+
     .hover-opacity-100:hover {
       opacity: 1 !important;
       transition: opacity 0.3s ease;
@@ -69,7 +140,9 @@ const HomePage = () => {
       transition: all 0.3s ease;
     }
     input::placeholder { color: rgba(255, 255, 255, 0.6) !important; }
+    textarea::placeholder { color: rgba(255, 255, 255, 0.6) !important; }
     input { color: white !important; }
+    textarea { color: white !important; }
     footer .position-fixed:hover {
       transform: translateY(-3px);
       transition: transform 0.3s ease;
@@ -179,20 +252,201 @@ const HomePage = () => {
       background-color: #f0f0f0 !important;
       color: #3B3BD7 !important;
     }
+
+    .error-message {
+      color: #ff6b6b;
+      font-size: 12px;
+      margin-top: 5px;
+      display: block;
+    }
+
+    .input-error {
+      border: 1px solid #ff6b6b !important;
+      box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25) !important;
+    }
+
+    .success-message {
+      color: #51cf66;
+      font-size: 14px;
+      margin-top: 10px;
+      margin-bottom: 10px; 
+      padding: 10px;
+      background-color: rgba(81, 207, 102, 0.1);
+      border-radius: 5px;
+      border-left: 3px solid #51cf66;
+    }
   `;
 
+  // ALL HOOKS AT COMPONENT LEVEL
   const featuresRef = useRef(null);
+  const form = useRef();
+
+  // Form state
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    message: ''
+  });
+
+  const [formErrors, setFormErrors] = useState({
+    fullName: '',
+    email: '',
+    message: ''
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Carousel state - MOVED TO COMPONENT LEVEL
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Auto-clear success message
+  useEffect(() => {
+    if (submitSuccess) {
+      const timer = setTimeout(() => {
+        setSubmitSuccess(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitSuccess]);
+
+  // Handle responsive behavior - MOVED TO COMPONENT LEVEL
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Set initial value
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Scroll to Features Section
   const scrollToFeatures = (e) => {
     e.preventDefault();
     if (featuresRef.current) {
       const elementPosition = featuresRef.current.offsetTop;
-      
+
       window.scrollTo({
         top: 2320,
         behavior: "smooth"
       });
+    }
+  };
+
+  // Email validation function
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Form validation function
+  const validateForm = () => {
+    const errors = {};
+    let isValid = true;
+
+    // Full Name validation
+    if (!formData.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+      isValid = false;
+    } else if (formData.fullName.trim().length < 2) {
+      errors.fullName = 'Name must be at least 2 characters long';
+      isValid = false;
+    }
+
+    // Email validation
+    if (!formData.email.trim()) {
+      errors.email = 'Email address is required';
+      isValid = false;
+    } else if (!validateEmail(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+      isValid = false;
+    }
+
+    // Message validation
+    if (!formData.message.trim()) {
+      errors.message = 'Message is required';
+      isValid = false;
+    } else if (formData.message.trim().length < 10) {
+      errors.message = 'Message must be at least 10 characters long';
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
+
+  // Input change handler
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Clear error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+
+    // Clear success message when user starts editing
+    if (submitSuccess) {
+      setSubmitSuccess(false);
+    }
+  };
+
+  // Submit handler with proper validation
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // IMPORTANT: Validate form BEFORE proceeding
+    if (!validateForm()) {
+      console.log('Form validation failed:', formErrors);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      console.log('Sending email with data:', formData);
+      
+      // Send email using EmailJS
+      const result = await emailjs.sendForm(
+        "service_64qxpe8", 
+        "template_zf8j137", 
+        form.current, 
+        "aXIH89B0VxmHZEaO8"
+      );
+
+      console.log('EmailJS result:', result);
+
+      if (result.text === "OK") {
+        // Reset form on success
+        setFormData({
+          fullName: '',
+          email: '',
+          message: ''
+        });
+        setFormErrors({});
+        setSubmitSuccess(true);
+        console.log('Email sent successfully!');
+      }
+      
+    } catch (error) {
+      console.error('EmailJS Error:', error);
+      setFormErrors({ 
+        submit: 'Failed to send message. Please try again.' 
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -283,7 +537,6 @@ const HomePage = () => {
       },
     };
 
-
     return (
       <>
         <nav className="navbar navbar-expand-lg navbar-light navbar-container fixed-top px-3 px-md-5" style={{ backgroundColor: "#f0f0f0", height: "auto", minHeight: "80px", zIndex: 1000 }}>
@@ -300,7 +553,6 @@ const HomePage = () => {
             </Link>
 
             <div className="desktop-menu d-flex align-items-center" style={{ gap: '40px' }}>
-
               <a
                 href="#features"
                 className="nav-link"
@@ -315,7 +567,6 @@ const HomePage = () => {
               <button className="btn get-started-btn" style={navStyles.getStartedButton}>
                 Get Started
               </button>
-
             </div>
 
             <div
@@ -573,6 +824,7 @@ const HomePage = () => {
     </section>
   );
 
+  // FIXED: Feature Carousel without hooks inside function
   const renderFeatureCarousel = () => {
     const features = [
       {
@@ -608,44 +860,101 @@ const HomePage = () => {
     ];
 
     return (
-      <section className="full-section mobile-section-padding" style={styles.fullSection}>
+      <section className="full-section mobile-section-padding" style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        backgroundColor: "#f0f0f0",
+        padding: "4rem 0"
+      }}>
         <div className="container h-100 d-flex flex-column justify-content-center mobile-padding">
           <div className="row mb-5">
             <div className="col-lg-6 col-md-12 mobile-text-center mobile-mb-4">
-              <h2 className="fw-bold responsive-heading" style={{ fontSize: "2.5rem" }}>
+              <h2 className="fw-bold responsive-heading" style={{ fontSize: "2.5rem", color: "#333" }}>
                 Features That Do the Work for You
               </h2>
             </div>
             <div className="col-lg-6 col-md-12 mobile-text-center mt-2">
-              <h4 className="responsive-subheading opacity-75" style={{ fontSize: "1.4rem" }}>
+              <h4 className="responsive-subheading opacity-75" style={{ fontSize: "1.4rem", color: "#666" }}>
                 Let AutoMeet handle the details so you can focus on the conversation, not the coordination
               </h4>
             </div>
           </div>
-          <div className="position-relative overflow-hidden">
-            <div style={styles.featureSliderTrack}>
-              {[0, 1].map(setIndex => (
-                <div key={setIndex} className="d-flex">
-                  {features.map(feature => (
-                    <div key={`${setIndex}-${feature.id}`} style={{
-                      ...styles.featureItem,
-                      width: window.innerWidth < 768 ? "250px" : "300px",
-                      margin: window.innerWidth < 768 ? "0 10px" : "0 15px"
-                    }}>
-                      <div className="my-2">
-                        <h4 className="mb-4 fw-bold text-center" style={{ fontSize: "1.2rem" }}>{feature.title}</h4>
+          
+          <div className="feature-carousel-container">
+            <div className="feature-slider-track">
+              {/* First set of features */}
+              <div className="d-flex">
+                {features.map(feature => (
+                  <div 
+                    key={`first-${feature.id}`} 
+                    className="feature-item"
+                    style={{
+                      width: isMobile ? "250px" : "300px",
+                      margin: isMobile ? "0 10px" : "0 15px"
+                    }}
+                  >
+                    <div className="text-center">
+                      <h4 className="mb-3 fw-bold" style={{ fontSize: "1.2rem", color: "#333" }}>
+                        {feature.title}
+                      </h4>
+                      <div className="mb-3 d-flex justify-content-center">
                         <img
                           src={feature.image}
                           alt={feature.title}
-                          className="img-fluid mb-3"
-                          style={{ width: "90%", height: "auto" }}
+                          className="img-fluid"
+                          style={{ 
+                            width: "80%", 
+                            height: "200px", 
+                            objectFit: "cover",
+                            borderRadius: "10px"
+                          }}
                         />
-                        <p className="mt-2 fw-bold text-center" style={{ fontSize: "1rem" }}>{feature.description}</p>
                       </div>
+                      <p className="fw-500" style={{ fontSize: "0.95rem", color: "#555" }}>
+                        {feature.description}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Second set for seamless loop */}
+              <div className="d-flex">
+                {features.map(feature => (
+                  <div 
+                    key={`second-${feature.id}`} 
+                    className="feature-item"
+                    style={{
+                      width: isMobile ? "250px" : "300px",
+                      margin: isMobile ? "0 10px" : "0 15px"
+                    }}
+                  >
+                    <div className="text-center">
+                      <h4 className="mb-3 fw-bold" style={{ fontSize: "1.2rem", color: "#333" }}>
+                        {feature.title}
+                      </h4>
+                      <div className="mb-3 d-flex justify-content-center">
+                        <img
+                          src={feature.image}
+                          alt={feature.title}
+                          className="img-fluid"
+                          style={{ 
+                            width: "80%", 
+                            height: "200px", 
+                            objectFit: "cover",
+                            borderRadius: "10px"
+                          }}
+                        />
+                      </div>
+                      <p className="fw-500" style={{ fontSize: "0.95rem", color: "#555" }}>
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -653,89 +962,209 @@ const HomePage = () => {
     );
   };
 
+  // Footer with working validation and EmailJS
   const renderFooter = () => {
-    const footerLinks = {
-      "Product": ["Features", "Pricing", "Integrations", "Enterprise", "What's New"],
-      "Company": ["About Us", "Careers", "Blog", "Press", "Contact"],
-      "Resources": ["Help Center", "Documentation", "Tutorials", "Community", "Status"]
-    };
-
-
-
     return (
-      <footer className="pt-5 pb-3 mt-5" style={{ backgroundColor: "#232342", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <footer
+        className="pt-5 pb-3 mt-5"
+        style={{
+          backgroundColor: "#232342",
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+        }}
+      >
         <div className="container">
           <div className="row text-white mb-5">
-            <div className="col-lg-4 mb-4">
-              <div className="mb-4"><img src="/logo.png" alt="AutoMeet Logo" style={{ width: "180px" }} /></div>
-              <p className="opacity-75 mb-4">
-                AutoMeet transforms your meeting experience with AI-powered scheduling,
-                note-taking, and seamless integrations.
+            <div className="col-lg-5 mb-4 ">
+              <div className="mb-4">
+                <img
+                  src="/logo.png"
+                  alt="AutoMeet Logo"
+                  style={{ width: "180px" }}
+                />
+              </div>
+              <p className="opacity-75 mb-4" style={{ width: "85%" }}>
+                AutoMeet transforms your meeting experience with AI-powered
+                scheduling, note-taking, and seamless integrations.
               </p>
               <div className="d-flex gap-3">
-                {["linkedin", "twitter", "facebook", "instagram"].map(icon => (
-                  <a key={icon} href="#" className="text-decoration-none">
-                    <div className="bg-white bg-opacity-10 rounded-circle p-2 d-flex align-items-center justify-content-center"
-                      style={{ width: "40px", height: "40px" }}>
-                      <i className={`bi bi-${icon} text-white`}></i>
-                    </div>
-                  </a>
-                ))}
+                {["linkedin", "twitter", "facebook", "instagram"].map(
+                  (icon) => (
+                    <a key={icon} href="#" className="text-decoration-none">
+                      <div
+                        className="bg-white bg-opacity-10 rounded-circle p-2 d-flex align-items-center justify-content-center"
+                        style={{ width: "40px", height: "40px" }}
+                      >
+                        <i className={`bi bi-${icon} text-white`}></i>
+                      </div>
+                    </a>
+                  )
+                )}
               </div>
             </div>
 
-            {Object.entries(footerLinks).map(([category, links]) => (
-              <div key={category} className="col-lg-2 col-md-4 mb-4">
-                <h5 className="fw-bold mb-4">{category}</h5>
-                <ul className="list-unstyled">
-                  {links.map(link => (
-                    <li key={link} className="mb-2">
-                      <a href="#" className="text-decoration-none text-white opacity-75 hover-opacity-100">{link}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-
-            <div className="col-lg-2 mb-4">
-              <h5 className="fw-bold mb-4">Stay Updated</h5>
-              <p className="opacity-75 mb-3">Subscribe to our newsletter for the latest updates</p>
-              <div className="mb-3 position-relative">
-                <input type="email" className="form-control bg-white bg-opacity-10 border-0 text-white"
-                  placeholder="Your email" style={{
-                    height: "50px", borderRadius: "25px", paddingRight: "50px",
-                    backgroundColor: "rgba(255, 255, 255, 0.1)"
-                  }} />
-                <button className="btn position-absolute end-0 top-0 h-100 d-flex align-items-center justify-content-center"
-                  style={{ width: "50px", borderRadius: "0 25px 25px 0" }}>
-                  <div className="d-flex align-items-center justify-content-center"
-                    style={{ width: "32px", height: "32px", backgroundColor: "#3B3BD7", borderRadius: "50%" }}>
-                    <i className="bi bi-arrow-right text-white"></i>
+            {/* Contact Form Section with FIXED Validation */}
+            <div className="col-lg-7 mb-4">
+              <h5 className="fw-bold mb-4">Contact Us</h5>
+              {submitSuccess && (
+                <div className="success-message">
+                  ✅ Thank you! Your message has been sent successfully. We'll
+                  get back to you soon.
+                </div>
+              )}
+              
+              <form ref={form} onSubmit={handleSubmit}>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <input
+                      type="text"
+                      name="fullName"
+                      placeholder="Full Name"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      className={`form-control text-white border-0 ${
+                        formErrors.fullName ? "input-error" : ""
+                      }`}
+                      style={{
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        height: "45px",
+                        borderRadius: "8px",
+                      }}
+                    />
+                    {formErrors.fullName && (
+                      <span className="error-message">
+                        {formErrors.fullName}
+                      </span>
+                    )}
                   </div>
-                </button>
-              </div>
+                  
+                  <div className="col-md-6 mb-3">
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="Email Address"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className={`form-control text-white border-0 ${
+                        formErrors.email ? "input-error" : ""
+                      }`}
+                      style={{
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        height: "45px",
+                        borderRadius: "8px",
+                      }}
+                    />
+                    {formErrors.email && (
+                      <span className="error-message">{formErrors.email}</span>
+                    )}
+                  </div>
+                  
+                  <div className="col-12 mb-3">
+                    <textarea
+                      name="message"
+                      placeholder="Type your message here..."
+                      rows="4"
+                      value={formData.message}
+                      onChange={handleInputChange}
+                      className={`form-control text-white border-0 ${
+                        formErrors.message ? "input-error" : ""
+                      }`}
+                      style={{
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        borderRadius: "8px",
+                        resize: "vertical",
+                      }}
+                    ></textarea>
+                    {formErrors.message && (
+                      <span className="error-message">
+                        {formErrors.message}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="col-12">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="btn text-white fw-bold px-4 py-2"
+                      style={{
+                        backgroundColor: isSubmitting ? "#666" : "#3B3BD7",
+                        border: "none",
+                        borderRadius: "8px",
+                        transition: "all 0.3s ease",
+                        cursor: isSubmitting ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <span
+                            className="spinner-border spinner-border-sm me-2"
+                            role="status"
+                            aria-hidden="true"
+                          ></span>
+                          Sending...
+                        </>
+                      ) : (
+                        "Send Message"
+                      )}
+                    </button>
+                    {formErrors.submit && (
+                      <div className="error-message mt-2">
+                        {formErrors.submit}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
 
+          {/* Rest of footer */}
           <div className="row text-white py-4 mb-4">
             <div className="col-md-5 d-flex align-items-center">
               <div className="me-4">
-                <h5 className="fw-bold mb-0">Get the AutoMeet App</h5>
-                <p className="opacity-75 mb-0">Manage your meetings on the go</p>
+                <h5 className="fw-bold mb-0">Get the AutoMeet Products</h5>
+                <p className="opacity-75 mb-0">
+                  Manage your meetings on the go
+                </p>
               </div>
             </div>
             <div className="col-md-7 d-flex align-items-center">
               <div className="d-flex gap-3 flex-wrap">
                 {[
-                  { icon: "apple", title: "App Store", subtitle: "Download on the" },
-                  { icon: "google-play", title: "Google Play", subtitle: "GET IT ON" }
+                  {
+                    icon: "apple",
+                    title: "App Store",
+                    subtitle: "Download on the",
+                  },
+                  {
+                    icon: "google-play",
+                    title: "Google Play",
+                    subtitle: "GET IT ON",
+                  },
+                  {
+                    icon: "download",
+                    title: "Browser Extension",
+                    subtitle: "Add to Browser",
+                  },
                 ].map((store, i) => (
                   <a key={i} href="#" className="text-decoration-none">
-                    <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3"
-                      style={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }}>
-                      <div style={{ fontSize: "24px" }}><i className={`bi bi-${store.icon} text-white`}></i></div>
+                    <div
+                      className="d-flex align-items-center gap-2 px-3 py-2 rounded-3"
+                      style={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+                    >
+                      <div style={{ fontSize: "24px" }}>
+                        <i className={`bi bi-${store.icon} text-white`}></i>
+                      </div>
                       <div>
-                        <div className="text-white opacity-75" style={{ fontSize: "12px" }}>{store.subtitle}</div>
+                        <div
+                          className="text-white opacity-75"
+                          style={{ fontSize: "12px" }}
+                        >
+                          {store.subtitle}
+                        </div>
                         <div className="text-white fw-bold">{store.title}</div>
                       </div>
                     </div>
@@ -749,30 +1178,53 @@ const HomePage = () => {
 
           <div className="row text-white">
             <div className="col-md-6 mb-3 mb-md-0">
-              <p className="mb-0 opacity-75">© 2025 AutoMeet. All rights reserved.</p>
+              <p className="mb-0 opacity-75">
+                © 2025 AutoMeet. All rights reserved.
+              </p>
             </div>
             <div className="col-md-6">
               <div className="d-flex flex-wrap justify-content-md-end gap-4">
-                {["Terms of Service", "Privacy Policy", "Cookies"].map((link, i) => (
-                  <a key={i} href="#" className="text-white opacity-75 text-decoration-none hover-opacity-100">{link}</a>
-                ))}
+                {["Terms of Service", "Privacy Policy", "Cookies"].map(
+                  (link, i) => (
+                    <a
+                      key={i}
+                      href="#"
+                      className="text-white opacity-75 text-decoration-none hover-opacity-100"
+                    >
+                      {link}
+                    </a>
+                  )
+                )}
               </div>
             </div>
           </div>
 
-          <div className="position-fixed bottom-0 end-0 mb-4 me-4 d-flex align-items-center justify-content-center"
+          <div
+            className="position-fixed bottom-0 end-0 mb-4 me-4 d-flex align-items-center justify-content-center"
             style={{
-              width: "50px", height: "50px", backgroundColor: "#3B3BD7", borderRadius: "50%",
-              cursor: "pointer", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.3)", zIndex: 1000
+              width: "50px",
+              height: "50px",
+              backgroundColor: "#3B3BD7",
+              borderRadius: "50%",
+              cursor: "pointer",
+              boxShadow: "0 4px 10px rgba(0, 0, 0, 0.3)",
+              zIndex: 1000,
             }}
-            onClick={function () { window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            onClick={function () {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
           >
             <i className="bi bi-arrow-up text-white"></i>
           </div>
         </div>
 
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
-        <style jsx global>{animations}</style>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+        />
+        <style jsx global>
+          {animations}
+        </style>
       </footer>
     );
   };
