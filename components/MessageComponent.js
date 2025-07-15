@@ -32,6 +32,7 @@ const MessageComponent = ({ onClose }) => {
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [timezoneOffset, setTimezoneOffset] = useState(null);
 
+  
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
@@ -280,7 +281,7 @@ const MessageComponent = ({ onClose }) => {
     } finally {
       setIsLoading(false);
     }
-   
+
   }, [currentUser, searchQuery]);
 
   // Add memoized search results
@@ -419,7 +420,7 @@ const MessageComponent = ({ onClose }) => {
         chat: isNarrow ? '0.4rem' : isSmall ? '0.5rem' : '0.75rem'
       },
       buttonSize: isNarrow ? '40px' : isSmall ? '40px' : '46px',
-      buttonSize1: isNarrow ? '41px' : isSmall ? '41px' : '47px',
+      buttonSize1: isNarrow ? '40px' : isSmall ? '40px' : '46px',
       sendButtonSize: isNarrow ? '36px' : isSmall ? '40px' : '50px'
     };
   };
@@ -557,24 +558,24 @@ const MessageComponent = ({ onClose }) => {
 
     // Apply timezone offset if available
     if (timezoneOffset && typeof timezoneOffset.hours === 'number' && typeof timezoneOffset.minutes === 'number') {
-        h += timezoneOffset.hours;
-        m += timezoneOffset.minutes;
+      h += timezoneOffset.hours;
+      m += timezoneOffset.minutes;
 
-        // Handle minute overflow
-        if (m >= 60) {
-            h += Math.floor(m / 60);
-            m = m % 60;
-        } else if (m < 0) {
-            h -= Math.ceil(Math.abs(m) / 60);
-            m = ((m % 60) + 60) % 60;
-        }
+      // Handle minute overflow
+      if (m >= 60) {
+        h += Math.floor(m / 60);
+        m = m % 60;
+      } else if (m < 0) {
+        h -= Math.ceil(Math.abs(m) / 60);
+        m = ((m % 60) + 60) % 60;
+      }
 
-        // Handle hour overflow
-        if (h >= 24) {
-            h = h % 24;
-        } else if (h < 0) {
-            h = ((h % 24) + 24) % 24;
-        }
+      // Handle hour overflow
+      if (h >= 24) {
+        h = h % 24;
+      } else if (h < 0) {
+        h = ((h % 24) + 24) % 24;
+      }
     }
 
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -583,7 +584,7 @@ const MessageComponent = ({ onClose }) => {
     return `${displayHour}:${displayMinute} ${ampm}`;
   };
 
-  const formatMessageDate = (dateStr,timeStr) => {
+  const formatMessageDate = (dateStr, timeStr) => {
     if (!dateStr) return '';
     const today = new Date();
     const date = new Date(dateStr);
@@ -660,7 +661,7 @@ const MessageComponent = ({ onClose }) => {
                   ref={searchInputRef}
                   type="text"
                   className="form-control border-0 shadow-none ps-4"
-                  placeholder="Search for people or messages..."
+                  placeholder="Search people in your contacts ..."
                   value={searchQuery}
                   onChange={handleSearchInput}
                   style={{ fontSize: sizes.fontSize.message }}
@@ -834,12 +835,12 @@ const MessageComponent = ({ onClose }) => {
             style={{
               width: sizes.buttonSize,
               height: sizes.buttonSize,
-              backgroundColor: "#007bff",
+              backgroundColor: "#0076f5",
               color: "#ffffff",
             }}
             onClick={handleNewMessage}
-            onMouseEnter={(e) => (e.target.style.width = sizes.buttonSize1, e.target.style.height = sizes.buttonSize1)}
-            onMouseLeave={(e) => (e.target.style.width = sizes.buttonSize, e.target.style.height = sizes.buttonSize)}
+            onMouseEnter={(e) => (e.target.style.width = sizes.buttonSize1, e.target.style.height = sizes.buttonSize1, e.target.style.backgroundColor = "#004fa3")}
+            onMouseLeave={(e) => (e.target.style.width = sizes.buttonSize, e.target.style.height = sizes.buttonSize, e.target.style.backgroundColor = "#0076f5")}
             aria-label="New message"
           >
             <FaPlus size={windowWidth < 576 ? 16 : 20} />
@@ -941,7 +942,9 @@ const MessageComponent = ({ onClose }) => {
                         className="chat-bubble"
                         style={{
                           maxWidth: '80%',
-                          width: 'fit-content'
+                          width: 'fit-content',
+                          minHeight: 'auto', // Allow natural height
+                          height: 'auto'     // Dynamic height based on content
                         }}
                       >
                         <div
@@ -954,6 +957,9 @@ const MessageComponent = ({ onClose }) => {
                             borderTopLeftRadius: '15px',
                             fontSize: sizes.fontSize.chat,
                             padding: '8px 15px',
+                            wordWrap: 'break-word',      // Handle long words
+                            overflowWrap: 'break-word',  // Modern browsers
+                            whiteSpace: 'pre-wrap'       // Preserve line breaks
                           }}
                         >
                           {msg.content}
@@ -961,7 +967,8 @@ const MessageComponent = ({ onClose }) => {
                             className="text-end"
                             style={{
                               fontSize: sizes.fontSize.time,
-                              opacity: 0.8
+                              opacity: 0.8,
+                              marginTop: '4px'  // Small spacing between message and time
                             }}
                           >
                             {formatTime(msg.sendtime)}
@@ -1036,7 +1043,7 @@ const MessageComponent = ({ onClose }) => {
       }
     };
 
-    
+
     fetchMessages();
 
     // Poll every 1 second

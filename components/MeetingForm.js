@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React from 'react';
@@ -10,7 +11,7 @@ import { FaEdit, FaCalendarAlt, FaChevronDown, FaSearch, FaFilter, FaCheckCircle
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
-const MeetingForm = ({meetingId}) => {
+const MeetingForm = ({ meetingId }) => {
    
     
     const [title, setTitle] = useState('');
@@ -403,8 +404,18 @@ const MeetingForm = ({meetingId}) => {
         });
         
         if (!response.ok) {
-          throw new Error(`Error canceling meeting: ${response.status}`);
+        // Try to get the error message from the response
+        let errorMessage = `Error canceling meeting: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (parseError) {
+          // If response is not JSON, use the default message
         }
+        throw new Error(errorMessage);
+      }
         
         const result = await response.json();
         console.log('Meeting canceled successfully:', result);
