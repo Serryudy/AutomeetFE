@@ -32,6 +32,7 @@ const MessageComponent = ({ onClose }) => {
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [timezoneOffset, setTimezoneOffset] = useState(null);
 
+  
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
