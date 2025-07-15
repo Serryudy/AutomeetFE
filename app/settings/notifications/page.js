@@ -524,7 +524,28 @@ export default function NotificationPage() {
 
               {/* Notifications List */}
               <div className="notifications-list">
-                {Object.values(filteredNotifications()).flat().length === 0 ? (
+                {isLoading ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2 text-muted">Loading notifications...</p>
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-5">
+                    <div className="alert alert-danger" role="alert">
+                      <h5 className="alert-heading">Error loading notifications</h5>
+                      <p className="mb-0">{error}</p>
+                      <hr />
+                      <button 
+                        className="btn btn-outline-danger btn-sm"
+                        onClick={fetchNotifications}
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                ) : Object.values(filteredNotifications()).flat().length === 0 ? (
                   <div className="text-center py-5">
                     <FaBell className="text-muted mb-3" size={32} />
                     <h5>No notifications</h5>
