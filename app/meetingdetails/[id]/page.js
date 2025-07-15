@@ -1978,7 +1978,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               </div>
             )}
 
-            {/* Success/Error Messages will be shown by JavaScript functions */}
+            {/* Success and Error Messages will be shown by JavaScript functions */}
           </div>
         </div>
       </div>
