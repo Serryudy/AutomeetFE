@@ -29,10 +29,10 @@ const NotificationIcon = ({ onClick }) => {
   useEffect(() => {
     fetchNotifications();
 
-    // Check every 30 seconds
+    // Check every 3 seconds
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 30000); 
+    }, 3000); 
     
     return () => clearInterval(interval);
   }, []);

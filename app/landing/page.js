@@ -333,7 +333,7 @@ const HomePage = () => {
       const elementPosition = featuresRef.current.offsetTop;
 
       window.scrollTo({
-        top: 2320,
+        top: 2400,
         behavior: "smooth"
       });
     }
@@ -561,12 +561,16 @@ const HomePage = () => {
               >
                 Features
               </a>
-              <button className="btn login-btn" style={navStyles.loginButton}>
+              <a href="login">
+                <button className="btn login-btn" style={navStyles.loginButton}>
                 Log In
               </button>
-              <button className="btn get-started-btn" style={navStyles.getStartedButton}>
+              </a>
+              <a href="register">
+                <button className="btn get-started-btn" style={navStyles.getStartedButton}>
                 Get Started
               </button>
+              </a>
             </div>
 
             <div
@@ -881,8 +885,8 @@ const HomePage = () => {
               </h4>
             </div>
           </div>
-          
-          <div className="feature-carousel-container">
+
+          <div className="feature-carousel-container pt-2">
             <div className="feature-slider-track">
               {/* First set of features */}
               <div className="d-flex">
@@ -896,10 +900,10 @@ const HomePage = () => {
                     }}
                   >
                     <div className="text-center">
-                      <h4 className="mb-3 fw-bold" style={{ fontSize: "1.2rem", color: "#333" }}>
+                      <h4 className="mb-3 fw-bold" style={{ fontSize: "1.3rem", color: "#333" }}>
                         {feature.title}
                       </h4>
-                      <div className="mb-3 d-flex justify-content-center">
+                      <div className="mb-1 d-flex justify-content-center">
                         <img
                           src={feature.image}
                           alt={feature.title}
@@ -907,7 +911,7 @@ const HomePage = () => {
                           style={{ 
                             width: "80%", 
                             height: "200px", 
-                            objectFit: "cover",
+                            objectFit: "contain",
                             borderRadius: "10px"
                           }}
                         />
@@ -943,7 +947,43 @@ const HomePage = () => {
                           style={{ 
                             width: "80%", 
                             height: "200px", 
-                            objectFit: "cover",
+                            objectFit: "contain",
+                            borderRadius: "10px"
+                          }}
+                        />
+                      </div>
+                      <p className="fw-500" style={{ fontSize: "0.95rem", color: "#555" }}>
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Three set for seamless loop */}
+              <div className="d-flex">
+                {features.map(feature => (
+                  <div 
+                    key={`third-${feature.id}`} 
+                    className="feature-item"
+                    style={{
+                      width: isMobile ? "250px" : "300px",
+                      margin: isMobile ? "0 10px" : "0 15px"
+                    }}
+                  >
+                    <div className="text-center">
+                      <h4 className="mb-3 fw-bold" style={{ fontSize: "1.2rem", color: "#333" }}>
+                        {feature.title}
+                      </h4>
+                      <div className="mb-3 d-flex justify-content-center">
+                        <img
+                          src={feature.image}
+                          alt={feature.title}
+                          className="img-fluid"
+                          style={{ 
+                            width: "80%", 
+                            height: "200px", 
+                            objectFit: "contain",
                             borderRadius: "10px"
                           }}
                         />
@@ -1010,8 +1050,7 @@ const HomePage = () => {
               <h5 className="fw-bold mb-4">Contact Us</h5>
               {submitSuccess && (
                 <div className="success-message">
-                  ✅ Thank you! Your message has been sent successfully. We'll
-                  get back to you soon.
+                  ✅ Thank you! Your message has been sent successfully. We will get back to you soon.
                 </div>
               )}
               
