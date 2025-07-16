@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../../styles/global.css';
-import SidebarMenu from '../../components/SideMenucollapse';
+import '@/styles/global.css';
+import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
-import CreateEvent from '../../components/CreateEvent';
+import CreateEvent from '@/components/CreateEvent';
 import { FaBars } from 'react-icons/fa';
 
 export default function Create() {
