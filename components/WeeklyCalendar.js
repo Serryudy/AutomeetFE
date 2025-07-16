@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useProfile } from '@/hooks/useProfile';
+
 const WeeklyCalendar = ({ selectedDate }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [visibleDays, setVisibleDays] = useState(7);
@@ -82,7 +83,10 @@ const WeeklyCalendar = ({ selectedDate }) => {
   // Process events from API response
   const processEventData = (events) => {
     if (events && events.length > 0) {
-      const processed = events.map(event => {
+      // Filter out canceled meetings
+      const filteredEvents = events.filter(event => event.status !== 'canceled');
+      
+      const processed = filteredEvents.map(event => {
         // Parse the start and end times
         const startDate = new Date(event.directTimeSlot.startTime);
         const endDate = new Date(event.directTimeSlot.endTime);
@@ -204,26 +208,26 @@ const WeeklyCalendar = ({ selectedDate }) => {
   }, [profile]);
 
   const getGMTOffset = (timeZone) => {
-  try {
-    // Create a date in the specified timezone
-    const date = new Date();
-    const options = { timeZone, timeZoneName: 'short' };
-    
-    // Get the timezone offset in minutes
-    const offsetInMinutes = -new Date(date.toLocaleString('en-US', options)).getTimezoneOffset();
-    
-    // Convert to hours and minutes
-    const hours = Math.floor(Math.abs(offsetInMinutes) / 60);
-    const minutes = Math.abs(offsetInMinutes) % 60;
-    
-    // Format as GMT±HH:MM
-    const sign = offsetInMinutes >= 0 ? '+' : '-';
-    return `GMT${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
-  } catch (error) {
-    console.error('Error converting timezone:', error);
-    return 'GMT+0:00';
-  }
-};
+    try {
+      // Create a date in the specified timezone
+      const date = new Date();
+      const options = { timeZone, timeZoneName: 'short' };
+      
+      // Get the timezone offset in minutes
+      const offsetInMinutes = -new Date(date.toLocaleString('en-US', options)).getTimezoneOffset();
+      
+      // Convert to hours and minutes
+      const hours = Math.floor(Math.abs(offsetInMinutes) / 60);
+      const minutes = Math.abs(offsetInMinutes) % 60;
+      
+      // Format as GMT±HH:MM
+      const sign = offsetInMinutes >= 0 ? '+' : '-';
+      return `GMT${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
+    } catch (error) {
+      console.error('Error converting timezone:', error);
+      return 'GMT+0:00';
+    }
+  };
 
   // Update timeSlots generation to show 12 AM to 11 PM
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
