@@ -38,11 +38,10 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
   }, [isCollapsed, onToggle]);
 
   const menuItems = [
-    { icon: <img src="/icons/calendar.png" alt="Calendar" style={{ width: "22px" }} />, label: "Calendar", path: "/calendar" },
-    { icon: <img src="/icons/meeting.png" alt="meeting" style={{ width: "22px" }} />, label: "Meetings", path: "/meeting" },
-    { icon: <img src="/icons/community.png" alt="community" style={{ width: "22px" }} />, label: "Community", path: "/community" },
-    { icon: <img src="/icons/analytics.png" alt="analytics" style={{ width: "22px" }} />, label: "Analytics", path: "/analytics" },
-    { icon: <img src="/icons/availability.png" alt="availability" style={{ width: "22px" }} />, label: "Availability", path: "/availability" },
+    { icon: <img src="/icons/calendar.png" alt="Calendar" style={{ width: "22px" }} />, label: "Calendar", path: "/excalendar" },
+    { icon: <img src="/icons/meeting.png" alt="meetingdetails" style={{ width: "22px" }} />, label: "Meeting Details", path: "/exmeetingdetails" },
+    { icon: <img src="/icons/content.png" alt="content" style={{ width: "22px" }} />, label: "Content", path: "/excontent" },
+    { icon: <img src="/icons/notes.png" alt="notes" style={{ width: "22px" }} />, label: "Notes", path: "/exnotes" },
   ];
 
   const settingsItems = [

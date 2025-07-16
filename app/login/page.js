@@ -72,7 +72,7 @@ const Login = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Important for handling cookies
+        credentials: 'include',
         body: JSON.stringify({
           username: formData.username,
           password: formData.password
@@ -80,7 +80,17 @@ const Login = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Login failed');
+        // Try to parse error message from response
+        let errorMsg = 'Login failed';
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMsg = errorData.error;
+          }
+        } catch {
+          // Fallback to default error message
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
@@ -134,6 +144,13 @@ const Login = () => {
   // Initial token refresh check
   useEffect(() => {
     const checkAuth = async () => {
+      // Don't check auth if user just logged out
+      const isJustLoggedOut = sessionStorage.getItem('loggedOut');
+      if (isJustLoggedOut) {
+        sessionStorage.removeItem('loggedOut');
+        return;
+      }
+
       const success = await refreshAccessToken();
       if (success) {
         router.push('/');

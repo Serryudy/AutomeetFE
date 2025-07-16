@@ -149,77 +149,12 @@ const MeetingForm = () => {
               setRoundRobinDuration(data.roundRobinDuration || '');
               setUserRole(data.role || '');
               
-              // Format and set time slots - handle different meeting types
-              let timeSlotData = null;
-              
-              console.log('Meeting Type:', data.meetingType); // Debug meeting type
-              console.log('Checking for time slots based on meeting type...'); // Debug log
-              
-              // Handle different meeting types with different data structures
-              if (data.meetingType === 'direct' && data.directTimeSlot) {
-                  console.log('Found directTimeSlot for direct meeting:', data.directTimeSlot);
-                  // Convert single directTimeSlot object to array format
-                  timeSlotData = [data.directTimeSlot];
-              } else if (data.directTimeSlot && data.status === 'confirmed') {
-                  // Handle confirmed meetings (group/round_robin) that now have a directTimeSlot
-                  console.log('Found confirmed directTimeSlot for group/round_robin meeting:', data.directTimeSlot);
-                  timeSlotData = [data.directTimeSlot];
-              } else if ((data.meetingType === 'group' || data.meetingType === 'round_robin') && data.userAvailability && data.userAvailability.timeSlots) {
-                  console.log('Found timeSlots in userAvailability for group/round_robin meeting:', data.userAvailability.timeSlots);
-                  timeSlotData = data.userAvailability.timeSlots;
-              } else {
-                  // Fallback: check other possible locations
-                  if (data.timeSlots) {
-                      console.log('Found timeSlots in root:', data.timeSlots);
-                      timeSlotData = data.timeSlots;
-                  } else if (data.scheduledTimes) {
-                      console.log('Found scheduledTimes:', data.scheduledTimes);
-                      timeSlotData = data.scheduledTimes;
-                  } else if (data.availability) {
-                      console.log('Found availability:', data.availability);
-                      timeSlotData = data.availability;
-                  } else if (data.meeting_times) {
-                      console.log('Found meeting_times:', data.meeting_times);
-                      timeSlotData = data.meeting_times;
-                  } else if (data.schedule) {
-                      console.log('Found schedule:', data.schedule);
-                      timeSlotData = data.schedule;
-                  }
-              }
-              
-              console.log('Final timeSlotData:', timeSlotData); // Debug log
-              
-              if (timeSlotData && Array.isArray(timeSlotData) && timeSlotData.length > 0) {
-                  const formattedTimeSlots = timeSlotData.map((slot, index) => {
-                      console.log('Processing slot:', slot); // Debug each slot
-                      
-                      // Handle different possible date formats
-                      let startDate, endDate;
-                      
-                      if (slot.startTime && slot.endTime) {
-                          startDate = new Date(slot.startTime);
-                          endDate = new Date(slot.endTime);
-                      } else if (slot.start_time && slot.end_time) {
-                          startDate = new Date(slot.start_time);
-                          endDate = new Date(slot.end_time);
-                      } else if (slot.date && slot.startTime && slot.endTime) {
-                          startDate = new Date(`${slot.date} ${slot.startTime}`);
-                          endDate = new Date(`${slot.date} ${slot.endTime}`);
-                      } else if (slot.date && slot.start && slot.end) {
-                          startDate = new Date(`${slot.date} ${slot.start}`);
-                          endDate = new Date(`${slot.date} ${slot.end}`);
-                      } else {
-                          console.warn('Invalid time slot format:', slot);
-                          return null;
-                      }
-                      
-                      // Validate dates
-                      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                          console.warn('Invalid date in time slot:', slot);
-                          return null;
-                      }
-                      
-                      console.log('Processed dates:', { startDate, endDate }); // Debug dates
+              // Format and set time slots if they exist in userAvailability
+              if (data.userAvailability && data.userAvailability.timeSlots) {
+                  const formattedTimeSlots = data.userAvailability.timeSlots.map((slot, index) => {
+                      // Convert ISO strings to Date objects
+                      const startDate = new Date(slot.startTime);
+                      const endDate = new Date(slot.endTime);
                       
                       // Format to 12 hour time
                       const formatTime = (date) => {
@@ -1066,10 +1001,12 @@ const showErrorMessage = (message) => {
       fetchContent();
     }, [meetingId]);
 
-if (loading) return <div className="p-4 text-center"><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading meeting data...</div>;
-if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
-//if (isDeleted) return <div className="p-4 text-center text-success fs-2">Redirecting to meetings page...</div>;
-if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
+    if (loading) return <div className="p-4 text-center">Loading meeting data...</div>;
+    if (error) return <div className="p-4 text-center text-danger">Error: {error}</div>;
+    if (!meetingData) return <div className="p-4 text-center">No meeting data found</div>;
+  
+    // Check if the user can edit the meeting
+    const canEdit = userRole === 'creator' && meetingData.status !== 'confirmed';
   
     return (
       <div className="container-fluid p-0">
@@ -1081,11 +1018,10 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
                 {canEdit() ? (
                   <button 
-                    className="btn btn-secondary d-flex align-items-center px-3 py-2"
+                    className={`btn btn-secondary d-flex align-items-center px-3 py-2 ${meetingData.status === 'canceled' ? 'opacity-50' : ''}`}
                     onClick={() => setIsEditing(!isEditing)}
-                    disabled={isCancelling}
                   >
-                    <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
+                    <FaEdit className="me-2" /> {meetingData.status === 'canceled' ? 'Edit' : (isEditing ? 'Cancel' : 'Edit')}
                   </button>
                 ) : (
                   <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
@@ -1121,19 +1057,11 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               <input
                 type="text"
                 className="form-control"
-                readOnly={!isEditing || (meetingType === 'direct' && participants.length === 0) || meetingData.status === 'canceled'}
+                readOnly={!isEditing}
                 id="title"
-                value={isEditing ? title : originalTitle}
+                value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                style={{
-                  backgroundColor: (!isEditing || (meetingType === 'direct' && participants.length === 0) || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
-                }}
               />
-              {meetingType === 'direct' && participants.length === 0 && meetingData.status !== 'canceled' && (
-                <small className="text-muted">
-                  <strong>Note:</strong> Title can only be edited after adding at least one participant for direct meetings.
-                </small>
-              )}
             </div>
   
             {/* Only show Date & Time Range section when editing AND meeting type is 'direct' AND meeting not canceled */}
@@ -1290,412 +1218,210 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                       {dateError}
                     </div>
                   )}
-
-                  {/* Display time error if any */}
-                  {timeError && (
-                    <div className="text-danger mt-2 small">
-                      {timeError}
+                  {/* Display time slots with null checks */}
+                  {Array.isArray(timeSlots) && timeSlots.length > 0 && (
+                    <div className="mt-3">
+                      <h6 className="mb-2">Time Slots:</h6>
+                      {meetingType === 'round_robin' ? (
+                        // Round Robin Display
+                        <div className="bg-light p-3 rounded">
+                          <div className="fw-bold mb-2">Round Robin Sessions</div>
+                          {timeSlots.map((slot, index) => (
+                            <div key={slot?.id || Math.random()} 
+                                 className="d-flex align-items-center mb-2 p-2 bg-white rounded">
+                              <div className="me-3">
+                                <span className="badge bg-primary">Session {index + 1}</span>
+                              </div>
+                              <div>
+                                <div className="fw-bold">
+                                  {new Date(slot.startTime).toLocaleDateString()}
+                                </div>
+                                <div>{slot?.start || ''} - {slot?.end || ''}</div>
+                                {roundRobinDuration && (
+                                  <small className="text-muted">
+                                    Duration: {roundRobinDuration} minutes per participant
+                                  </small>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : meetingType === 'group' ? (
+                        // Group Meeting Display
+                        <div className="bg-light p-3 rounded">
+                          <div className="fw-bold mb-2">Group Sessions</div>
+                          {timeSlots.map((slot) => (
+                            <div key={slot?.id || Math.random()} 
+                                 className="d-flex align-items-center mb-2 p-2 bg-white rounded">
+                              <div className="flex-grow-1">
+                                <div className="fw-bold">
+                                  {new Date(slot.startTime).toLocaleDateString()}
+                                </div>
+                                <div>Group Meeting: {slot?.start || ''} - {slot?.end || ''}</div>
+                                <div className="text-muted">
+                                  All participants will join at this time
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        // Regular Meeting Display
+                        <div className="d-flex flex-wrap gap-2">
+                          {timeSlots.map((slot) => (
+                            <div key={slot?.id || Math.random()} 
+                                 className="d-flex align-items-center bg-light p-2 rounded">
+                              <div>
+                                <span className="fw-bold">
+                                  {new Date(slot.startTime).toLocaleDateString()}
+                                </span>
+                                <span className="mx-1">|</span>
+                                <span>{slot?.start || ''} - {slot?.end || ''}</span>
+                              </div>
+                              {isEditing && canEdit && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger ms-2"
+                                  onClick={() => handleRemoveTimeSlot(slot?.id)}
+                                  aria-label="Remove time slot"
+                                >
+                                  <FaTimes />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
-            )}
-
-            {/* Show message for non-direct meetings when editing */}
-            {isEditing && meetingType !== 'direct' && meetingData.status !== 'canceled' && (
-              <div className="mb-3 mb-md-4">
-                <label className="form-label">Date & Time Range</label>
-                <div className="alert alert-warning">
-                  <strong>Note:</strong> 
-                  This meeting is of type "{meetingType.replace('_', ' ')}" and its schedule can't be changed here.
-                </div>
-              </div>
-            )}
-
-            {/* Always show scheduled time information from database */}
-            {Array.isArray(timeSlots) && timeSlots.length > 0 && (
-              <div className="mb-3 mb-md-4">
-                <label className="form-label">Scheduled Time</label>
-                {/* Show status message for group/round_robin meetings */}
-                {(meetingType === 'group' || meetingType === 'round_robin') && meetingData?.status === 'confirmed' && (
-                  <div className="alert alert-success mb-2">
-                    <strong>Meeting Confirmed!</strong> The final schedule has been set based on participant availability.
-                  </div>
-                )}
-                
-                {/* Check if participant should see pending message for group/round_robin */}
-                {(meetingType === 'round_robin' && meetingData?.status === 'pending' && userRole === 'participant') ? (
-                  <div className="alert alert-warning">
-                    <strong>Schedule Time = Pending</strong>
-                    <p className="mb-0 mt-2">This round robin meeting is waiting for participants to submit their availability. 
-                    Once all participants provide their time preferences, the best meeting time will be automatically selected and displayed here.</p>
-                  </div>
-                ) : (meetingType === 'group' && meetingData?.status === 'pending' && userRole === 'participant') ? (
-                  <div className="alert alert-warning">
-                    <strong>Schedule Time = Pending</strong>
-                    <p className="mb-0 mt-2">This group meeting is waiting for participants to submit their availability. 
-                    Once all participants provide their time preferences, the best meeting time will be automatically selected and displayed here.</p>
-                  </div>
-                ) : (
-                  <div className="p-2 bg-light rounded">
-                    {meetingType === 'direct' ? (
-                      // Direct Meeting Display
-                      <div className="bg-light p-3 rounded">
-                        <div className="fw-bold mb-2">Direct Meeting</div>
-                        {timeSlots.map((slot) => (
-                          <div key={slot?.id || Math.random()} 
-                               className="d-flex align-items-center mb-2 p-2 bg-white rounded">
-                            <div className="flex-grow-1">
-                              <div className="fw-bold">
-                                {new Date(slot.startTime).toLocaleDateString()}
-                              </div>
-                              <div>Direct Meeting: {slot?.start || ''} - {slot?.end || ''}</div>
-                              <div className="text-muted">
-                                All participants will join at this time
-                              </div>
-                            </div>
-                            {isEditing && canEdit() && meetingType === 'direct' && meetingData.status !== 'canceled' && (
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger ms-2"
-                                onClick={() => handleRemoveTimeSlot(slot?.id)}
-                                aria-label="Remove time slot"
-                              >
-                                <FaTimes />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : meetingType === 'round_robin' ? (
-                      // Round Robin Display
-                      <div className="bg-light p-3 rounded">
-                        <div className="fw-bold mb-2">
-                          {meetingData?.status === 'pending' ? 'Round Robin Schedule' : 'Round Robin Sessions'}
-                          {meetingData?.status === 'confirmed' && (
-                            <span className="badge bg-success ms-2">Confirmed</span>
-                          )}
-                        </div>
-                        {timeSlots.map((slot, index) => (
-                          <div key={slot?.id || Math.random()} 
-                               className="d-flex align-items-center mb-2 p-2 bg-white rounded">
-                            {meetingData?.status === 'pending' && (
-                              <div className="me-3">
-                                <span className="badge bg-info">Available Time</span>
-                              </div>
-                            )}
-                            {meetingData?.status === 'confirmed' && (
-                              <div className="me-3">
-                                <span className="badge bg-success">Confirmed Time</span>
-                              </div>
-                            )}
-                            <div className="flex-grow-1">
-                              <div className="fw-bold">
-                                {new Date(slot.startTime).toLocaleDateString()}
-                              </div>
-                              <div>{slot?.start || ''} - {slot?.end || ''}</div>
-                              {roundRobinDuration && (
-                                <small className="text-muted">
-                                  {meetingData?.status === 'confirmed' ? 
-                                    `Duration: ${roundRobinDuration} per participant` : 
-                                    `Duration: ${roundRobinDuration} per participant`
-                                  }
-                                </small>
-                              )}
-                              {meetingData?.status === 'confirmed' && (
-                                <div className="text-success small">
-                                  <strong>Final meeting time confirmed!</strong>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : meetingType === 'group' ? (
-                      // Group Meeting Display
-                      <div className="bg-light p-3 rounded">
-                        <div className="fw-bold mb-2">
-                          {meetingData?.status === 'pending' ? 'Group Schedule' : 'Group Sessions'}
-                          {meetingData?.status === 'confirmed' && (
-                            <span className="badge bg-success ms-2">Confirmed</span>
-                          )}
-                        </div>
-                        {timeSlots.map((slot) => (
-                          <div key={slot?.id || Math.random()} 
-                               className="d-flex align-items-center mb-2 p-2 bg-white rounded">
-                            {meetingData?.status === 'pending' && (
-                              <div className="me-3">
-                                <span className="badge bg-info">Available Time</span>
-                              </div>
-                            )}
-                            {meetingData?.status === 'confirmed' && (
-                              <div className="me-3">
-                                <span className="badge bg-success">Confirmed Time</span>
-                              </div>
-                            )}
-                            <div className="flex-grow-1">
-                              <div className="fw-bold">
-                                {new Date(slot.startTime).toLocaleDateString()}
-                              </div>
-                              <div>Group Meeting: {slot?.start || ''} - {slot?.end || ''}</div>
-                              {meetingData?.status === 'pending' && roundRobinDuration && (
-                                <small className="text-muted">
-                                  Duration: {roundRobinDuration}
-                                </small>
-                              )}
-                              {meetingData?.status === 'confirmed' && (
-                                <div className="text-success small">
-                                  <strong>All participants will join at this confirmed time</strong>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      // Regular Meeting Display
-                      <div className="d-flex flex-wrap gap-2">
-                        {timeSlots.map((slot) => (
-                          <div key={slot?.id || Math.random()} 
-                               className="d-flex align-items-center bg-white p-2 rounded border">
-                            <div>
-                              <span className="fw-bold">
-                                {new Date(slot.startTime).toLocaleDateString()}
-                              </span>
-                              <span className="mx-1">|</span>
-                              <span>{slot?.start || ''} - {slot?.end || ''}</span>
-                            </div>
-                            {isEditing && canEdit() && meetingType === 'direct' && meetingData.status !== 'canceled' && (
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger ms-2"
-                                onClick={() => handleRemoveTimeSlot(slot?.id)}
-                                aria-label="Remove time slot"
-                              >
-                                <FaTimes />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Show different messages based on meeting type and status when no scheduled time exists */}
-            {(!Array.isArray(timeSlots) || timeSlots.length === 0) && !isEditing && (
-              <div className="mb-3 mb-md-4">
-                <label className="form-label">Scheduled Time</label>
-                {(meetingType === 'group' || meetingType === 'round_robin') ? (
-                  meetingData?.status === 'pending' ? (
-                    <div className="alert alert-warning">
-                      <strong>Schedule Time = Pending</strong>
-                      <p className="mb-0 mt-2">This {meetingType.replace('_', ' ')} meeting is waiting for participants to submit their availability. 
-                      Once all participants provide their time preferences, the best meeting time will be automatically selected and displayed here.</p>
-                    </div>
-                  ) : meetingData?.status === 'confirmed' ? (
-                    <div className="alert alert-success">
-                      <strong>Meeting Confirmed</strong>
-                      <p className="mb-0 mt-2">This {meetingType.replace('_', ' ')} meeting has been confirmed but the scheduled time is not currently available.</p>
-                    </div>
-                  ) : (
-                    <div className="alert alert-info">
-                      <strong>Schedule Status:</strong> {meetingData?.status || 'Unknown'}
-                      <p className="mb-0 mt-2">No scheduled time available for this {meetingType.replace('_', ' ')} meeting.</p>
-                    </div>
-                  )
-                ) : (
-                  <div className="alert alert-info">
-                    No scheduled time available for this meeting.
-                  </div>
-                )}
-              </div>
-            )}
   
             <div className="mb-3 mb-md-4">
-              <label htmlFor="participants" className="form-label">Participants</label>
-              
-              {/* Show participant error */}
-              {participantError && meetingData.status !== 'canceled' && (
-                <div className="alert alert-danger mb-2">
-                  {participantError}
-                </div>
-              )}
-              
-              {/* Show phone error */}
-              {phoneError && meetingData.status !== 'canceled' && (
-                <div className="alert alert-warning mb-2">
-                  {phoneError}
-                </div>
-              )}
-
-              {/* Show restriction message for non-direct meetings */}
-              {isEditing && (meetingType === 'group' || meetingType === 'round_robin') && meetingData.status !== 'canceled' && (
-                <div className="alert alert-info mb-3">
-                  <strong>Note:</strong> Participants cannot be modified for {meetingType.replace('_', ' ')} meetings. 
+                <label htmlFor="participants" className="form-label">Participants</label>
                 
-                </div>
-              )}
-
-              {/* Only show participant search for direct meetings */}
-              {isEditing && meetingType === 'direct' && meetingData.status !== 'canceled' && (
-                <div className="mb-3 position-relative">
-                  <div className="position-relative">
-                    <div className="input-group">
-                      <span className="input-group-text bg-white">
-                        <FaSearch />
-                      </span>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Search by name, email, or phone"
-                        value={searchContact}
-                        onChange={(e) => handleSearchContacts(e.target.value)}
-                        onFocus={() => {
-                          if (allContacts.length > 0) {
-                            setSearchResults(allContacts.slice(0, 20)); // Show first 20 contacts
-                          }
-                        }}
-                        disabled={isSaving}
-                      />
-                      <button 
-                        className="btn btn-outline-secondary" 
-                        type="button"
-                        onClick={() => setSearchResults(searchResults.length > 0 ? [] : allContacts.slice(0, 20))}
-                        disabled={isSaving}
-                      >
-                        <FaChevronDown />
-                      </button>
-                    </div>
-                    
-                    {/* Search Results Dropdown */}
-                    {searchResults.length > 0 && (
-                      <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{zIndex: 1000, maxHeight: '200px', overflowY: 'auto'}}>
-                        {searchResults.map(contact => (
-                          <div 
-                            key={contact.username} 
-                            className="p-2 border-bottom d-flex align-items-center justify-content-between hover-bg-light"
-                            style={{cursor: 'pointer'}}
-                          >
-                            <div className="d-flex align-items-center flex-grow-1">
+                {isEditing && (
+                  <div className="mb-3 position-relative">
+                    <div className="position-relative">
+                      <div className="input-group">
+                        <span className="input-group-text bg-white">
+                          <FaSearch />
+                        </span>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Search by contact"
+                          value={searchContact}
+                          onChange={(e) => handleSearchContacts(e.target.value)}
+                        />
+                        <span className="input-group-text bg-white">
+                          <FaChevronDown />
+                        </span>
+                      </div>
+                      
+                      {/* Search Results Dropdown */}
+                      {searchResults.length > 0 && (
+                        <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{zIndex: 1000, maxHeight: '200px', overflowY: 'auto'}}>
+                          {searchResults.map(contact => (
+                            <div 
+                              key={contact.username} 
+                              className="p-2 border-bottom d-flex align-items-center hover-bg-light" 
+                              style={{cursor: 'pointer'}}
+                              onClick={() => addParticipant(contact)}
+                            >
                               <img 
                                 src={userProfiles[contact.username]?.profile_pic || "/profile.png"} 
                                 alt={contact.username} 
                                 className="rounded-circle me-2"
                                 style={{width: '30px', height: '30px', objectFit: 'cover'}}
                               />
-                              <div className="flex-grow-1">
+                              <div>
                                 <div className="fw-bold">{contact.username}</div>
-                                {contact.email && <small className="text-muted d-block">{contact.email}</small>}
-                                {contact.phone && <small className="text-muted d-block">{contact.phone}</small>}
+                                {contact.email && <small className="text-muted">{contact.email}</small>}
                               </div>
                             </div>
-                            {isParticipantAdded(contact.username) ? (
-                              <button 
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Remove participant logic
-                                  const participantToRemove = participants.find(p => p.name === contact.username);
-                                  if (participantToRemove) {
-                                    removeParticipant(participantToRemove.id);
-                                  }
-                                }}
-                                disabled={isSaving}
-                              >
-                                Remove
-                              </button>
-                            ) : (
-                              <button 
-                                className="btn btn-sm btn-primary"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  addParticipant(contact);
-                                }}
-                                disabled={isSaving}
-                              >
-                                Add
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        
-                        {searchContact.length >= 1 && searchResults.length === 0 && (
-                          <div className="p-3 text-center text-muted">
-                            No contacts found matching "{searchContact}"
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Display hosts section */}
-              {hosts.length > 0 && (
-                <div className="mb-3">
-                  <h6 className="text-muted mb-2">Hosts</h6>
-                  {hosts.map((host) => (
-                    <div key={host.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
-                      <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
-                        <img 
-                          src={getProfilePicture(host.name)} 
-                          alt="host" 
-                          className="rounded-circle me-2 me-md-3"
-                          style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
-                        />
-                        <div>
-                          <div className="fw-bold">{host.name}</div>
-                          <small className="text-muted">Host - {host.access}</small>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Display participants section */}
-              {participants.length > 0 && (
-                <div>
-                  {participants.map((participant) => (
-                    <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
-                      <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
-                        <img 
-                          src={getProfilePicture(participant.name)} 
-                          alt="participant" 
-                          className="rounded-circle me-2 me-md-3"
-                          style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
-                        />
-                        <div>
-                          <div className="fw-bold">{participant.name}</div>
-                          <small className="text-muted">{participant.group}</small>
-                          {userProfiles[participant.name]?.company && (
-                            <small className="d-block text-muted">{userProfiles[participant.name].company}</small>
-                          )}
-                        </div>
-                      </div>
-                      {/* Only show remove button for direct meetings */}
-                      {isEditing && meetingType === 'direct' && meetingData.status !== 'canceled' && (
-                        <div className="d-flex gap-2 align-items-center mt-2 mt-md-0">
-                          <button 
-                            type="button" 
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={() => removeParticipant(participant.id)}
-                          >
-                            Remove
-                          </button>
+                          ))}
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
-              
-              {participants.length === 0 && hosts.length === 0 && (
-                <div className="alert alert-info">No participants or hosts added to this meeting.</div>
-              )}
+                  </div>
+                )}
+
+                {/* Display hosts section */}
+                {hosts.length > 0 && (
+                  <div className="mb-3">
+                    <h6 className="text-muted mb-2">Hosts</h6>
+                    {hosts.map((host) => (
+                      <div key={host.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
+                        <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
+                          <img 
+                            src={getProfilePicture(host.name)} 
+                            alt="host" 
+                            className="rounded-circle me-2 me-md-3"
+                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
+                          />
+                          <div>
+                            <div className="fw-bold">{host.name}</div>
+                            <small className="text-muted">Host - {host.access}</small>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Display participants section */}
+                {participants.length > 0 && (
+                  <div>
+                    
+                    {participants.map((participant) => (
+                      <div key={participant.id} className="d-flex flex-column flex-md-row bg-light p-2 p-md-3 rounded mb-2">
+                        <div className="d-flex align-items-center mb-2 mb-md-0 me-auto">
+                          <img 
+                            src={getProfilePicture(participant.name)} 
+                            alt="participant" 
+                            className="rounded-circle me-2 me-md-3"
+                            style={{width: isMobile ? '30px' : '40px', height: isMobile ? '30px' : '40px', objectFit: 'cover'}}
+                          />
+                          <div>
+                            <div className="fw-bold">{participant.name}</div>
+                            <small className="text-muted">{participant.group}</small>
+                            {userProfiles[participant.name]?.company && (
+                              <small className="d-block text-muted">{userProfiles[participant.name].company}</small>
+                            )}
+                          </div>
+                        </div>
+                        {isEditing && (
+                          <div className="d-flex gap-2 align-items-center mt-2 mt-md-0">
+                            <div className="form-check form-switch me-3">
+                              <input 
+                                className="form-check-input"
+                                type="checkbox" 
+                                id={`accessSwitch-${participant.id}`}
+                                checked={participant.access === "accepted"}
+                                onChange={(e) => handleParticipantAccessChange(participant.id, e.target.checked)}
+                              />
+                              <label className="form-check-label" htmlFor={`accessSwitch-${participant.id}`}>
+                                Give access
+                              </label>
+                            </div>
+                            <button 
+                              type="button" 
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => removeParticipant(participant.id)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {participants.length === 0 && hosts.length === 0 && (
+                  <div className="alert alert-info">No participants or hosts added to this meeting.</div>
+                )}
             </div>
   
             <div className="mb-3 mb-md-4">
@@ -1932,175 +1658,17 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 </>
               ) : (
                 <>
-                  {/* Cancel Meeting Button - conditional based on role and meeting type */}
-                  {canCancelMeeting() && (
-                    <button 
-                      className="btn btn-danger me-2" 
-                      onClick={cancelMeeting}
-                      disabled={isCancelling || isSaving}
-                    >
-                      {isCancelling ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Processing...
-                        </>
-                      ) : (
-                        'Cancel Meeting'
-                      )}
+                  {/* Show Cancel Meeting button only if user is the creator */}
+                  {userRole === 'creator' && (
+                    <button className="btn btn-danger me-2" onClick={cancelMeeting}>
+                      Cancel Meeting
                     </button>
                   )}
-                  
-                  {/* Upload Button - available to all unless canceled */}
-                  <Link href={`/content/${meetingId}`} style={{ pointerEvents: canUploadOrTakeNotes() ? 'auto' : 'none' }}>
-                    <button 
-                      className={`btn btn-primary me-2 ${!canUploadOrTakeNotes() ? 'opacity-50' : ''}`}
-                      disabled={!canUploadOrTakeNotes() || isCancelling || isSaving}
-                      style={{ 
-                        cursor: !canUploadOrTakeNotes() ? 'not-allowed' : 'pointer',
-                        transition: 'opacity 0.2s ease'
-                      }}
-                    >
-                      {!canUploadOrTakeNotes() ? (
-                        'Upload (Canceled)'
-                      ) : isCancelling ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Processing...
-                        </>
-                      ) : isSaving ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Saving...
-                        </>
-                      ) : (
-                        'Upload'
-                      )}
-                    </button>
-                  </Link>
-                  
-                  {/* Take Notes Button - available to all unless canceled */}
-                  <Link href={`/notes/${meetingId}`} style={{ pointerEvents: canUploadOrTakeNotes() ? 'auto' : 'none' }}>
-                    <button 
-                      className={`btn btn-primary ${!canUploadOrTakeNotes() ? 'opacity-50' : ''}`}
-                      disabled={!canUploadOrTakeNotes() || isCancelling || isSaving}
-                      style={{ 
-                        cursor: !canUploadOrTakeNotes() ? 'not-allowed' : 'pointer',
-                        transition: 'opacity 0.2s ease'
-                      }}
-                    >
-                      {!canUploadOrTakeNotes() ? (
-                        'Take notes (Canceled)'
-                      ) : isCancelling ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Processing...
-                        </>
-                      ) : isSaving ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Saving...
-                        </>
-                      ) : (
-                        'Take notes'
-                      )}
-                    </button>
-                  </Link>
+                  <Link href={`/content/${meetingId}`}><button className="btn btn-primary me-2">Upload</button></Link>
+                  <Link href={`/notes/${meetingId}`}><button className="btn btn-primary">Take notes</button></Link>
                 </>
               )}
             </div>
-
-            {/* Save Confirmation Modal */}
-            {showSaveModal && (
-              <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-                <div className="modal-dialog modal-dialog-centered">
-                  <div className="modal-content">
-                    <div className="modal-header">
-                      <h5 className="modal-title">Confirm Changes</h5>
-                      <button 
-                        type="button" 
-                        className="btn-close" 
-                        onClick={() => setShowSaveModal(false)}
-                      ></button>
-                    </div>
-                    <div className="modal-body">
-                      <p>Are you sure you want to save these changes to the meeting?</p>
-                      {(() => {
-                        const changes = getChanges();
-                        if (changes.length > 0) {
-                          return (
-                            <div>
-                              <strong>Changes:</strong>
-                              <ul className="mb-0 mt-2">
-                                {changes.map((change, index) => (
-                                  <li key={index}>{change}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          );
-                        } else {
-                          return <p className="text-muted">No changes detected.</p>;
-                        }
-                      })()}
-                    </div>
-                    <div className="modal-footer">
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary" 
-                        onClick={() => setShowSaveModal(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        type="button" 
-                        className="btn btn-success" 
-                        onClick={performSaveChanges}
-                      >
-                        Yes, Save Changes
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Delete Confirmation Modal */}
-            {showDeleteModal && (
-              <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-                <div className="modal-dialog modal-dialog-centered">
-                  <div className="modal-content">
-                    <div className="modal-header">
-                      <h5 className="modal-title">Cancel Meeting</h5>
-                      <button 
-                        type="button" 
-                        className="btn-close" 
-                        onClick={() => setShowDeleteModal(false)}
-                      ></button>
-                    </div>
-                    <div className="modal-body">
-                      <p>Are you sure you want to cancel the meeting <strong>"{originalTitle}"</strong>?</p>
-                    </div>
-                    <div className="modal-footer">
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary" 
-                        onClick={() => setShowDeleteModal(false)}
-                      >
-                        No, Keep Meeting
-                      </button>
-                      <button 
-                        type="button" 
-                        className="btn btn-danger" 
-                        onClick={performCancelMeeting}
-                      >
-                        Yes, Cancel Meeting
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Success/Error Messages will be shown by JavaScript functions */}
           </div>
         </div>
       </div>
