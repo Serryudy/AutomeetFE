@@ -14,10 +14,11 @@ const useDebounce = (callback, delay) => {
   };
 };
 
-const Availability = ({ meetingId }) => {
+const Availability = ({ meetingId, selectedDate, onSlotsChange, onRoleChange }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [visibleDays, setVisibleDays] = useState(7);
   const [startDayIndex, setStartDayIndex] = useState(0);
+  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
   const [timeZone, setTimeZone] = useState('');
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [nextSlotId, setNextSlotId] = useState(1);
@@ -36,6 +37,7 @@ const Availability = ({ meetingId }) => {
   const [bestTimeSlot, setBestTimeSlot] = useState(null);
   const [hasSuggestedTime, setHasSuggestedTime] = useState(false);
   const [hoveredTimeSlot, setHoveredTimeSlot] = useState(null);
+  const [navigationDisabled, setNavigationDisabled] = useState(false); // New state for navigation control
   
   const now = new Date();
   const currentHour = now.getHours();
@@ -44,6 +46,102 @@ const Availability = ({ meetingId }) => {
   
   // Constant for the duration of a selected time slot in minutes
   const SELECTED_SLOT_DURATION = 70; // 1 hour and 10 minutes
+
+  // Function to get the start of the week for a given date
+  const getWeekStart = (date) => {
+    // Ensure we have a valid Date object
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      console.error('Invalid date passed to getWeekStart:', date);
+      return new Date(); // Return current date as fallback
+    }
+    
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const diff = d.getDate() - day; // Adjust to get Sunday as week start
+    return new Date(d.setDate(diff));
+  };
+
+  // Function to navigate to a specific date's week
+  const navigateToWeek = (date) => {
+    // Ensure we have a valid Date object
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      console.error('Invalid date passed to navigateToWeek:', date);
+      return;
+    }
+    
+    const weekStart = getWeekStart(date);
+    setCurrentWeekStart(weekStart);
+    
+    // Calculate the startDayIndex based on the selected date
+    const selectedDay = date.getDay();
+    let newStartIndex = 0;
+    
+    if (visibleDays < 7) {
+      // For mobile/smaller screens, center the selected day
+      newStartIndex = Math.max(0, Math.min(7 - visibleDays, selectedDay - Math.floor(visibleDays / 2)));
+    }
+    
+    setStartDayIndex(newStartIndex);
+    
+    console.log(`Navigating to week starting: ${weekStart.toDateString()}, selected day: ${selectedDay}`);
+  };
+
+  // Effect to handle selectedDate changes from sidebar
+  useEffect(() => {
+    // Only allow sidebar navigation for creator/host if navigation is not disabled, or participants who haven't marked availability
+    if ((userRole === 'participant' && selectedSlots.length > 0) || 
+        (['creator', 'host'].includes(userRole) && navigationDisabled)) {
+      console.log('Sidebar navigation disabled');
+      return;
+    }
+    
+    if (selectedDate) {
+      console.log('Selected date changed in Availability:', selectedDate);
+      console.log('Selected date type:', typeof selectedDate, 'Is Date:', selectedDate instanceof Date);
+      
+      // Ensure selectedDate is a valid Date object
+      let validDate;
+      if (selectedDate instanceof Date && !isNaN(selectedDate.getTime())) {
+        validDate = selectedDate;
+      } else if (typeof selectedDate === 'string' || typeof selectedDate === 'number') {
+        validDate = new Date(selectedDate);
+        if (isNaN(validDate.getTime())) {
+          console.error('Invalid selectedDate provided:', selectedDate);
+          return;
+        }
+      } else {
+        console.error('Invalid selectedDate type:', selectedDate);
+        return;
+      }
+      
+      navigateToWeek(validDate);
+    }
+  }, [selectedDate, userRole, selectedSlots.length, navigationDisabled]);
+
+  // Initialize with current date if no selectedDate
+  useEffect(() => {
+    // Initialize with a valid date
+    const initDate = (selectedDate && selectedDate instanceof Date && !isNaN(selectedDate.getTime())) 
+      ? selectedDate 
+      : new Date();
+    
+    console.log('Initializing Availability component with date:', initDate);
+    navigateToWeek(initDate);
+  }, []); // Only run once on mount
+
+  // Generate the week dates for display based on currentWeekStart
+  const getWeekDates = () => {
+    const dates = [];
+    const startDate = new Date(currentWeekStart);
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      dates.push(date);
+    }
+    
+    return dates;
+  };
 
   const confirmTimeSlot = async () => {
     if (!meetingId || !hoveredTimeSlot || !['creator', 'host'].includes(userRole)) return;
@@ -91,6 +189,9 @@ const Availability = ({ meetingId }) => {
       // Show success message
       setSuccessMessage("Meeting time confirmed successfully!");
       setShowSuccess(true);
+      
+      // Send notifications to all users
+      await sendMeetingConfirmationNotifications();
       
       // Redirect to meeting details page
       setTimeout(() => {
@@ -169,18 +270,10 @@ const Availability = ({ meetingId }) => {
 
   const submitAvailability = useDebounce(submitAvailabilityImmediate, 500);
   
-  // Helper function to convert time to ISO format
+  // Helper function to convert time to ISO format - Updated to work with currentWeekStart
   const convertTimeToISO = (dayOfWeek, hour, minute) => {
-    const now = new Date();
-    const currentDay = now.getDay();
-    
-    // Calculate how many days to add/subtract to get to the specified day
-    let daysToAdd = dayOfWeek - currentDay;
-    if (daysToAdd < 0) daysToAdd += 7; // Ensure we're looking at the next occurrence
-    
-    // Create a new date for the target day
-    const targetDate = new Date(now);
-    targetDate.setDate(now.getDate() + daysToAdd);
+    const weekDates = getWeekDates();
+    const targetDate = new Date(weekDates[dayOfWeek]);
     
     // Set the hour and minute
     targetDate.setHours(hour, minute, 0, 0);
@@ -195,13 +288,8 @@ const Availability = ({ meetingId }) => {
           You are a participant in this meeting. Click on available time slots to indicate your availability.
         </div>
       );
-    } else if (userRole === 'creator' || userRole === 'host') {
-      return (
-        <div className="alert alert-secondary mb-3" role="alert">
-          You are {userRole === 'creator' ? 'the creator' : 'a host'} of this meeting. You can view availability but cannot select time slots.
-        </div>
-      );
     }
+    // Removed the creator/host banner
     return null;
   };
   
@@ -233,6 +321,11 @@ const Availability = ({ meetingId }) => {
         // Set the meeting duration state
         setMeetingDuration(duration);
         setUserRole(data.role.toLowerCase());
+        
+        // Notify parent component of role change
+        if (onRoleChange) {
+          onRoleChange(data.role.toLowerCase());
+        }
         
         // Continue with fetching time ranges and user availability
         await fetchTimeRanges();
@@ -266,13 +359,23 @@ const Availability = ({ meetingId }) => {
         
         const data = await response.json();
         
-        // Store the best time slot
+        // Store the best time slot and check if navigation should be disabled
         if (data.bestTimeSlot) {
+          const bestStart = new Date(data.bestTimeSlot.startTime);
+          const bestEnd = new Date(data.bestTimeSlot.endTime);
+          
           setBestTimeSlot({
-            startTime: new Date(data.bestTimeSlot.startTime),
-            endTime: new Date(data.bestTimeSlot.endTime)
+            startTime: bestStart,
+            endTime: bestEnd
           });
           setHasSuggestedTime(data.hasSuggestedTime || false);
+          
+          // If there's a suggested time, navigate to that week and disable navigation
+          if (data.hasSuggestedTime) {
+            navigateToWeek(bestStart);
+            setNavigationDisabled(true);
+            console.log('Navigation disabled due to suggested time slot');
+          }
         }
         
         // Process all availabilities
@@ -300,7 +403,8 @@ const Availability = ({ meetingId }) => {
                 startMinute: startDate.getMinutes(),
                 endHour: endDate.getHours(),
                 endMinute: endDate.getMinutes(),
-                username: item.username
+                username: item.username,
+                actualDate: startDate.toDateString() // Store the actual date
               });
             });
           });
@@ -360,6 +464,11 @@ const Availability = ({ meetingId }) => {
           // Set the slots and update the next slot ID
           setSelectedSlots(formattedSlots);
           setNextSlotId(formattedSlots.length + 1);
+          
+          // Notify parent component of slots change
+          if (onSlotsChange) {
+            onSlotsChange(formattedSlots);
+          }
         }
       } catch (err) {
         console.error('Error fetching participant availability:', err);
@@ -452,21 +561,43 @@ const Availability = ({ meetingId }) => {
     getTimeZone();
   }, []);
   
-  // Handle responsive behavior
+  // Handle responsive behavior - Updated to work with currentWeekStart
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       setIsMobile(width < 768);
       
+      const weekDates = getWeekDates();
+      const today = new Date();
+      let currentDayInWeek = -1;
+      
+      // Find current day within the current week
+      for (let i = 0; i < weekDates.length; i++) {
+        if (weekDates[i].toDateString() === today.toDateString()) {
+          currentDayInWeek = i;
+          break;
+        }
+      }
+      
+      // If today is not in current week, use the selected date or middle of week
+      if (currentDayInWeek === -1) {
+        // Safe check for selectedDate
+        if (selectedDate && selectedDate instanceof Date && !isNaN(selectedDate.getTime())) {
+          currentDayInWeek = selectedDate.getDay();
+        } else {
+          currentDayInWeek = 3; // Default to Wednesday
+        }
+      }
+      
       if (width < 576) {
         setVisibleDays(1);
-        setStartDayIndex(currentDay); // Show only current day on small screens
+        setStartDayIndex(Math.max(0, currentDayInWeek)); // Show current day
       } else if (width < 768) {
         setVisibleDays(3);
-        setStartDayIndex(Math.min(4, Math.max(0, currentDay - 1))); // Show 3 days centered around current day
+        setStartDayIndex(Math.min(4, Math.max(0, currentDayInWeek - 1))); // Show 3 days centered around current day
       } else if (width < 992) {
         setVisibleDays(5);
-        setStartDayIndex(Math.min(2, Math.max(0, currentDay - 2))); // Show 5 days
+        setStartDayIndex(Math.min(2, Math.max(0, currentDayInWeek - 2))); // Show 5 days
       } else {
         setVisibleDays(7);
         setStartDayIndex(0); // Show all days
@@ -476,7 +607,7 @@ const Availability = ({ meetingId }) => {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [currentDay]);
+  }, [currentWeekStart, selectedDate]);
   
   // Generate time slots from 12:00 AM to 12:00 PM (updated)
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
@@ -489,26 +620,51 @@ const Availability = ({ meetingId }) => {
   // Week days
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   
-  // Navigation functions
+  // Navigation functions for week changes
+  const goToPreviousWeek = () => {
+    if (navigationDisabled) return;
+    const previousWeek = new Date(currentWeekStart);
+    previousWeek.setDate(previousWeek.getDate() - 7);
+    navigateToWeek(previousWeek);
+  };
+  
+  const goToNextWeek = () => {
+    if (navigationDisabled) return;
+    const nextWeek = new Date(currentWeekStart);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    navigateToWeek(nextWeek);
+  };
+
+  const goToToday = () => {
+    if (navigationDisabled) return;
+    const today = new Date();
+    navigateToWeek(today);
+  };
+
+  // Navigation functions for responsive days
   const goToPreviousDays = () => {
+    if (navigationDisabled) return;
     setStartDayIndex(Math.max(0, startDayIndex - visibleDays));
   };
   
   const goToNextDays = () => {
+    if (navigationDisabled) return;
     setStartDayIndex(Math.min(7 - visibleDays, startDayIndex + visibleDays));
   };
   
-  const goToToday = () => {
-    const newStartIndex = Math.max(0, Math.min(7 - visibleDays, currentDay - Math.floor(visibleDays / 2)));
-    setStartDayIndex(newStartIndex);
-  };
-  
-  // Visible days
-  const visibleDaysArray = days.slice(startDayIndex, startDayIndex + visibleDays);
+  // Get visible days based on current week
+  const weekDates = getWeekDates();
+  const visibleDaysArray = weekDates.slice(startDayIndex, startDayIndex + visibleDays).map(date => {
+    return {
+      name: days[date.getDay()],
+      date: date.getDate(),
+      fullDate: date,
+      dayIndex: date.getDay()
+    };
+  });
   
   // Function to get color based on adminId
-  const getAdminColor = (adminId) => {
-
+  const getAdminColor = (adminId, isBestTimeSlot = false) => {
     if (isBestTimeSlot) {
       return '#9ef0f0'; // Light turquoise for best time slot
     }
@@ -528,23 +684,29 @@ const Availability = ({ meetingId }) => {
   const isBestTimeSlot = (day, startHour, startMinute, endHour, endMinute) => {
     if (!bestTimeSlot) return false;
     
-    const rangeStart = new Date();
+    const weekDates = getWeekDates();
+    const targetDate = weekDates[day];
+    
+    const rangeStart = new Date(targetDate);
     rangeStart.setHours(startHour, startMinute, 0, 0);
-    rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay() + day);
     
-    const rangeEnd = new Date();
+    const rangeEnd = new Date(targetDate);
     rangeEnd.setHours(endHour, endMinute, 0, 0);
-    rangeEnd.setDate(rangeEnd.getDate() - rangeEnd.getDay() + day);
     
-    // Check if there's an overlap
+    // Check if there's an overlap with the best time slot
     const bestStart = bestTimeSlot.startTime;
     const bestEnd = bestTimeSlot.endTime;
     
-    return (
+    const hasTimeOverlap = (
       (rangeStart >= bestStart && rangeStart < bestEnd) ||
       (rangeEnd > bestStart && rangeEnd <= bestEnd) ||
       (rangeStart <= bestStart && rangeEnd >= bestEnd)
     );
+    
+    // Only show if there's time overlap AND the dates match exactly
+    const datesMatch = rangeStart.toDateString() === bestStart.toDateString();
+    
+    return hasTimeOverlap && datesMatch;
   };
   
   // Function to calculate time range position and style - updated for 12am start
@@ -655,7 +817,13 @@ const Availability = ({ meetingId }) => {
     };
     
     // Add the new slot to the existing slots
-    setSelectedSlots([...selectedSlots, newSlot]);
+    const newSlots = [...selectedSlots, newSlot];
+    setSelectedSlots(newSlots);
+    
+    // Notify parent component of slots change
+    if (onSlotsChange) {
+      onSlotsChange(newSlots);
+    }
     
     // Increment the slot ID for the next slot
     setNextSlotId(nextSlotId + 1);
@@ -692,7 +860,13 @@ const Availability = ({ meetingId }) => {
     if (userRole !== 'participant') {
       return;
     }
-    setSelectedSlots(selectedSlots.filter(slot => slot.id !== slotId));
+    const newSlots = selectedSlots.filter(slot => slot.id !== slotId);
+    setSelectedSlots(newSlots);
+    
+    // Notify parent component of slots change
+    if (onSlotsChange) {
+      onSlotsChange(newSlots);
+    }
     
     // Submit updated availability after removing a slot (with debounce)
     submitAvailability();
@@ -796,7 +970,6 @@ const Availability = ({ meetingId }) => {
       })
     );
   };
-
 
   const endDragging = () => {
     if (draggedSlot) {
@@ -910,7 +1083,56 @@ const Availability = ({ meetingId }) => {
   
   return (
     <div className="container-fluid p-0 position-relative">
-      {/* Calendar Content */}
+      {/* Role Banner */}
+      {getRoleBanner()}
+      
+      {/* Week Navigation */}
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <button 
+            className="btn btn-sm btn-outline-primary me-2" 
+            onClick={goToPreviousWeek}
+            disabled={
+              (userRole === 'participant' && selectedSlots.length > 0) || 
+              (['creator', 'host'].includes(userRole) && navigationDisabled)
+            }
+          >
+            &lt;
+          </button>
+        </div>
+        <div className="text-center">
+          <h6 className="mb-0 fw-bold">
+            {currentWeekStart.toLocaleDateString('en-US', { 
+              month: 'long', 
+              day: 'numeric', 
+              year: 'numeric' 
+            })} - {new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { 
+              month: 'long', 
+              day: 'numeric', 
+              year: 'numeric' 
+            })}
+          </h6>
+          {navigationDisabled && hasSuggestedTime && (
+            <div className="text-muted small mt-1">
+              Viewing suggested time slot week
+            </div>
+          )}
+        </div>
+        <div>
+          <button 
+            className="btn btn-sm btn-outline-primary" 
+            onClick={goToNextWeek}
+            disabled={
+              (userRole === 'participant' && selectedSlots.length > 0) || 
+              (['creator', 'host'].includes(userRole) && navigationDisabled)
+            }
+          >
+            &gt;
+          </button>
+        </div>
+      </div>
+
+     {/* Calendar Content */}
       <div className="d-flex border" style={{ backgroundColor: '#ffffff', borderRadius: '8px', overflow: 'hidden', width: '100%' }}>
         {/* Scrollable container */}
         <div className="d-flex flex-column" style={{ width: '100%' }}>
@@ -925,15 +1147,14 @@ const Availability = ({ meetingId }) => {
             </div>
             
             {/* Days Headers */}
-            {visibleDaysArray.map((day, index) => {
-              const dayIndex = (startDayIndex + index) % 7;
-              const isCurrentDay = dayIndex === currentDay;
-              const date = new Date(now);
-              date.setDate(now.getDate() - currentDay + dayIndex);
+            {visibleDaysArray.map((dayInfo, index) => {
+              const isCurrentDay = dayInfo.fullDate.toDateString() === new Date().toDateString();
+              
+              // Removed selectedDate yellow highlighting
               
               return (
                 <div 
-                  key={day} 
+                  key={`${dayInfo.name}-${dayInfo.date}`} 
                   className={`border-end ${isCurrentDay ? 'bg-primary bg-opacity-10' : ''}`}
                   style={{ 
                     width: `calc(100% / ${visibleDays})`, 
@@ -943,7 +1164,7 @@ const Availability = ({ meetingId }) => {
                 >
                   <div className="border-bottom p-2 text-center" style={{ height: '50px' }}>
                     <div className={`${isMobile ? 'fs-6' : 'fw-bold'}`}>
-                      {day} {date.getDate().toString().padStart(2, '0')}
+                      {dayInfo.name} {dayInfo.date.toString().padStart(2, '0')}
                     </div>
                   </div>
                 </div>
@@ -981,9 +1202,10 @@ const Availability = ({ meetingId }) => {
                 <tbody>
                   {timeSlots.map((time, timeIndex) => (
                     <tr key={timeIndex} style={{ height: '60px' }}>
-                      {visibleDaysArray.map((day, dayIndex) => {
-                        const actualDayIndex = (startDayIndex + dayIndex) % 7;
-                        const isCurrentDay = actualDayIndex === currentDay;
+                      {visibleDaysArray.map((dayInfo, dayIndex) => {
+                        const isCurrentDay = dayInfo.fullDate.toDateString() === new Date().toDateString();
+                        
+                        // Removed selectedDate yellow highlighting
                         
                         return (
                           <td 
@@ -1004,8 +1226,8 @@ const Availability = ({ meetingId }) => {
               </table>
               
               {/* Admin Time Ranges */}
-              {visibleDaysArray.map((day, dayIndex) => {
-                const actualDayIndex = (startDayIndex + dayIndex) % 7;
+              {visibleDaysArray.map((dayInfo, dayIndex) => {
+                const actualDayIndex = dayInfo.dayIndex;
                 
                 // Get all time ranges for this day
                 const dayTimeRanges = adminTimeRanges.filter(range => range.day === actualDayIndex);
@@ -1015,7 +1237,7 @@ const Availability = ({ meetingId }) => {
                 const dayLeftPosition = `calc(${dayIndex} * 100% / ${visibleDays})`;
                 
                 // Get slots for this day
-                const daySlotsToDisplay = selectedSlots.filter(slot => slot.dayIndex === dayIndex);
+                const daySlotsToDisplay = selectedSlots.filter(slot => slot.dayIndex === actualDayIndex);
                 
                 // Popup dimensions for positioning calculations
                 const popupHeight = 100; // Approximate height of popup in pixels
@@ -1045,7 +1267,7 @@ const Availability = ({ meetingId }) => {
                     return (
                       <div 
                         key={`range-${rangeIndex}`}
-                        onClick={(e) => userRole === 'participant' ? handleTimeRangeClick(e, actualDayIndex, timeRange, dayIndex) : null}
+                        onClick={(e) => userRole === 'participant' ? handleTimeRangeClick(e, actualDayIndex, timeRange, actualDayIndex) : null}
                         onMouseEnter={() => handleTimeRangeMouseEnter(timeRange)}
                         onMouseLeave={handleTimeRangeMouseLeave}
                         style={{
@@ -1131,7 +1353,6 @@ const Availability = ({ meetingId }) => {
                           {slot.startTime}
                           <br />
                           {slot.endTime}
-                          
                         </div>
                       </div>
                     ))}
@@ -1162,8 +1383,8 @@ const Availability = ({ meetingId }) => {
 
       {renderBestTimeSlotLegend()}
       
-      {/* Navigation Controls - Only shown when needed */}
-      {navigationNeeded && (
+      {/* Navigation Controls - Only shown when needed and not disabled */}
+      {navigationNeeded && !navigationDisabled && (
         <div className="d-flex justify-content-between align-items-center mt-2 px-2">
           <div>
             <button 
@@ -1171,13 +1392,7 @@ const Availability = ({ meetingId }) => {
               onClick={goToPreviousDays}
               disabled={startDayIndex === 0}
             >
-              &lt; Prev
-            </button>
-            <button 
-              className="btn btn-sm btn-outline-primary" 
-              onClick={goToToday}
-            >
-              Today
+              &lt;
             </button>
           </div>
           <div>
@@ -1186,12 +1401,11 @@ const Availability = ({ meetingId }) => {
               onClick={goToNextDays}
               disabled={startDayIndex + visibleDays >= 7}
             >
-              Next &gt;
+              &gt;
             </button>
           </div>
         </div>
       )}
-      
       
       {/* Error Toast */}
       {showError && (
