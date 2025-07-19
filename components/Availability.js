@@ -37,6 +37,9 @@ const Availability = ({ meetingId }) => {
   const [hasSuggestedTime, setHasSuggestedTime] = useState(false);
   const [hoveredTimeSlot, setHoveredTimeSlot] = useState(null);
   
+  // Week navigation state
+  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
+  
   const now = new Date();
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
@@ -44,6 +47,97 @@ const Availability = ({ meetingId }) => {
   
   // Constant for the duration of a selected time slot in minutes
   const SELECTED_SLOT_DURATION = 70; // 1 hour and 10 minutes
+
+  // Helper function to get the start of a week (Sunday)
+  const getWeekStart = (referenceDate = new Date()) => {
+    const date = new Date(referenceDate);
+    const day = date.getDay();
+    const diff = date.getDate() - day; // Subtract days to get to Sunday
+    date.setDate(diff);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  };
+
+  // Helper function to check if a date falls within the current week being displayed
+  const isDateInCurrentWeek = (dateToCheck) => {
+    const weekStart = new Date(currentWeekStart);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    
+    const checkDate = new Date(dateToCheck);
+    return checkDate >= weekStart && checkDate <= weekEnd;
+  };
+
+  // Week navigation functions
+  const goToPreviousWeek = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(currentWeekStart.getDate() - 7);
+    setCurrentWeekStart(newWeekStart);
+  };
+
+  const goToNextWeek = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(currentWeekStart.getDate() + 7);
+    setCurrentWeekStart(newWeekStart);
+  };
+
+  const goToCurrentWeek = () => {
+    const today = new Date();
+    setCurrentWeekStart(getWeekStart(today));
+  };
+
+  // Get the dates for the current week being displayed
+  const getWeekDates = () => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(currentWeekStart);
+      date.setDate(currentWeekStart.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+
+  // Check if the current week being displayed is the current week
+  const isCurrentWeek = () => {
+    const today = new Date();
+    const todayWeekStart = getWeekStart(today);
+    return currentWeekStart.getTime() === todayWeekStart.getTime();
+  };
+
+  // Modified processing for API time slots
+  const processTimeSlots = (apiData) => {
+    const formattedRanges = [];
+    let adminId = 1;
+    const userMap = {};
+    
+    apiData.forEach(item => {
+      if (!userMap[item.username]) {
+        userMap[item.username] = adminId++;
+      }
+      
+      item.timeSlots.forEach(slot => {
+        const startDate = new Date(slot.startTime);
+        const endDate = new Date(slot.endTime);
+        
+        // Only include time slots that are in the current week being displayed
+        if (isDateInCurrentWeek(startDate)) {
+          formattedRanges.push({
+            adminId: userMap[item.username],
+            day: startDate.getDay(),
+            startHour: startDate.getHours(),
+            startMinute: startDate.getMinutes(),
+            endHour: endDate.getHours(),
+            endMinute: endDate.getMinutes(),
+            username: item.username,
+            actualDate: startDate.toDateString() // Store the actual date for reference
+          });
+        }
+      });
+    });
+    
+    return formattedRanges;
+  };
 
   const confirmTimeSlot = async () => {
     if (!meetingId || !hoveredTimeSlot || !['creator', 'host'].includes(userRole)) return;
@@ -169,18 +263,11 @@ const Availability = ({ meetingId }) => {
 
   const submitAvailability = useDebounce(submitAvailabilityImmediate, 500);
   
-  // Helper function to convert time to ISO format
+  // Helper function to convert time to ISO format with week context
   const convertTimeToISO = (dayOfWeek, hour, minute) => {
-    const now = new Date();
-    const currentDay = now.getDay();
-    
-    // Calculate how many days to add/subtract to get to the specified day
-    let daysToAdd = dayOfWeek - currentDay;
-    if (daysToAdd < 0) daysToAdd += 7; // Ensure we're looking at the next occurrence
-    
-    // Create a new date for the target day
-    const targetDate = new Date(now);
-    targetDate.setDate(now.getDate() + daysToAdd);
+    // Use the current week being displayed instead of always using "now"
+    const weekDates = getWeekDates();
+    const targetDate = new Date(weekDates[dayOfWeek]);
     
     // Set the hour and minute
     targetDate.setHours(hour, minute, 0, 0);
@@ -204,226 +291,253 @@ const Availability = ({ meetingId }) => {
     }
     return null;
   };
-  
+
+  // Fetch data whenever the current week changes
   useEffect(() => {
-    const fetchMeetingDetails = async () => {
-      if (!meetingId) {
-        setIsLoading(false);
-        return;
+    if (meetingId) {
+      fetchMeetingDetails();
+    }
+  }, [meetingId, currentWeekStart]);
+  
+  const fetchMeetingDetails = async () => {
+    if (!meetingId) {
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Meeting details API request failed with status ${response.status}`);
       }
       
-      try {
-        const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Meeting details API request failed with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Extract duration from meeting details
-        const duration = parseInt(data.groupDuration || data.duration || 70, 10);
-        
-        // Set the meeting duration state
-        setMeetingDuration(duration);
-        setUserRole(data.role.toLowerCase());
-        
-        // Continue with fetching time ranges and user availability
-        await fetchTimeRanges();
-        
-        // Choose which availability data to fetch based on role
-        if (data.role.toLowerCase() === 'participant') {
-          await fetchUserAvailability();
-        } else if (['creator', 'host'].includes(data.role.toLowerCase())) {
-          await fetchMeetingAvailabilities();
-        }
-      } catch (err) {
-        console.error('Error fetching meeting details:', err);
-        setError('Failed to load meeting details. Please try again later.');
-        setIsLoading(false);
+      const data = await response.json();
+      
+      // Extract duration from meeting details
+      const duration = parseInt(data.groupDuration || data.duration || 70, 10);
+      
+      // Set the meeting duration state
+      setMeetingDuration(duration);
+      setUserRole(data.role.toLowerCase());
+      
+      // Continue with fetching time ranges and user availability
+      await fetchTimeRanges();
+      
+      // Choose which availability data to fetch based on role
+      if (data.role.toLowerCase() === 'participant') {
+        await fetchUserAvailability();
+      } else if (['creator', 'host'].includes(data.role.toLowerCase())) {
+        await fetchMeetingAvailabilities();
       }
-    };
+    } catch (err) {
+      console.error('Error fetching meeting details:', err);
+      setError('Failed to load meeting details. Please try again later.');
+      setIsLoading(false);
+    }
+  };
 
-    const fetchMeetingAvailabilities = async () => {
-      try {
-        const response = await fetch(`http://localhost:8080/api/meeting/${meetingId}/availabilities`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Meeting availabilities API request failed with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Store the best time slot
-        if (data.bestTimeSlot) {
+  const fetchMeetingAvailabilities = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/meeting/${meetingId}/availabilities`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Meeting availabilities API request failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Auto-navigate to relevant week before processing if we have availabilities
+      if (data.availabilities && Array.isArray(data.availabilities)) {
+        autoNavigateToRelevantWeek(data.availabilities);
+      }
+      
+      // Store the best time slot if it's in the current week
+      if (data.bestTimeSlot) {
+        const bestStart = new Date(data.bestTimeSlot.startTime);
+        if (isDateInCurrentWeek(bestStart)) {
           setBestTimeSlot({
-            startTime: new Date(data.bestTimeSlot.startTime),
+            startTime: bestStart,
             endTime: new Date(data.bestTimeSlot.endTime)
           });
           setHasSuggestedTime(data.hasSuggestedTime || false);
+        } else {
+          setBestTimeSlot(null);
+          setHasSuggestedTime(false);
         }
-        
-        // Process all availabilities
-        if (data.availabilities && Array.isArray(data.availabilities)) {
-          // Transform availabilities to the format our component uses
-          const formattedRanges = [];
-          let adminId = 1;
-          
-          // Group time slots by username to assign consistent colors
-          const userMap = {};
-          
-          data.availabilities.forEach(item => {
-            if (!userMap[item.username]) {
-              userMap[item.username] = adminId++;
-            }
-            
-            item.timeSlots.forEach(slot => {
-              const startDate = new Date(slot.startTime);
-              const endDate = new Date(slot.endTime);
-              
-              formattedRanges.push({
-                adminId: userMap[item.username],
-                day: startDate.getDay(),
-                startHour: startDate.getHours(),
-                startMinute: startDate.getMinutes(),
-                endHour: endDate.getHours(),
-                endMinute: endDate.getMinutes(),
-                username: item.username
-              });
-            });
-          });
-          
-          setAdminTimeRanges(formattedRanges);
-        }
-        
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Error fetching meeting availabilities:', err);
-        setError('Failed to load availability data. Please try again later.');
-        setIsLoading(false);
       }
-    };
+      
+      // Process all availabilities using the new function
+      if (data.availabilities && Array.isArray(data.availabilities)) {
+        const formattedRanges = processTimeSlots(data.availabilities);
+        setAdminTimeRanges(formattedRanges);
+      }
+      
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching meeting availabilities:', err);
+      setError('Failed to load availability data. Please try again later.');
+      setIsLoading(false);
+    }
+  };
 
-    const fetchUserAvailability = async () => {
-      try {
-        const response = await fetch(`http://localhost:8080/api/participant/availability/${meetingId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
+  const fetchUserAvailability = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/participant/availability/${meetingId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Participant availability API request failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Auto-navigate to relevant week if user has availability
+      if (data.length > 0) {
+        autoNavigateToRelevantWeek(data);
         
-        if (!response.ok) {
-          throw new Error(`Participant availability API request failed with status ${response.status}`);
-        }
+        const userAvailability = data[0];
         
-        const data = await response.json();
-        
-        // If user has existing availability, populate the slots
-        if (data.length > 0) {
-          // Assuming the first entry is the user's availability
-          const userAvailability = data[0];
-          
-          // Convert API time slots to the component's slot format
-          const formattedSlots = userAvailability.timeSlots.map((slot, index) => {
+        // Convert API time slots to the component's slot format, filtering for current week
+        const formattedSlots = userAvailability.timeSlots
+          .filter(slot => isDateInCurrentWeek(new Date(slot.startTime)))
+          .map((slot, index) => {
             const startDate = new Date(slot.startTime);
             const endDate = new Date(slot.endTime);
             
             return {
-              id: index + 1, // Generate unique ID
+              id: index + 1,
               day: startDate.getDay(),
-              dayIndex: startDate.getDay(), // Assuming dayIndex is the same as day
+              dayIndex: startDate.getDay(),
               startTime: formatTimeDisplay(startDate.getHours(), startDate.getMinutes()),
               endTime: formatTimeDisplay(endDate.getHours(), endDate.getMinutes()),
               hour: startDate.getHours(),
               minute: startDate.getMinutes(),
               verticalPosition: (startDate.getHours() + startDate.getMinutes() / 60) * 60,
               endPosition: (endDate.getHours() + endDate.getMinutes() / 60) * 60,
-              admin: 1, // Default admin ID
+              admin: 1,
               adminName: userAvailability.username || 'You'
             };
           });
-          
-          // Set the slots and update the next slot ID
-          setSelectedSlots(formattedSlots);
-          setNextSlotId(formattedSlots.length + 1);
-        }
-      } catch (err) {
-        console.error('Error fetching participant availability:', err);
-        // Optionally set an error state or show a toast
+        
+        setSelectedSlots(formattedSlots);
+        setNextSlotId(formattedSlots.length + 1);
+      } else {
+        setSelectedSlots([]);
+        setNextSlotId(1);
       }
-    };
-    
-    // Fetch time ranges from API
-    const fetchTimeRanges = async () => {
-      try {
-        const response = await fetch(`http://localhost:8080/api/availability/${meetingId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`API request failed with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Transform API data to the format our component uses
-        const formattedRanges = [];
-        let adminId = 1;
-        
-        // Group time slots by username to assign consistent colors
-        const userMap = {};
-        
-        data.forEach(item => {
-          if (!userMap[item.username]) {
-            userMap[item.username] = adminId++;
-          }
-          
-          item.timeSlots.forEach(slot => {
-            const startDate = new Date(slot.startTime);
-            const endDate = new Date(slot.endTime);
-            
-            formattedRanges.push({
-              adminId: userMap[item.username], // Consistent color based on username
-              day: startDate.getDay(), // 0 for Sunday, 1 for Monday, etc.
-              startHour: startDate.getHours(),
-              startMinute: startDate.getMinutes(),
-              endHour: endDate.getHours(),
-              endMinute: endDate.getMinutes(),
-              username: item.username // Store username for display
-            });
-          });
-        });
-        
-        setAdminTimeRanges(formattedRanges);
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Error fetching availability data:', err);
-        setError('Failed to load availability data. Please try again later.');
-        setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching participant availability:', err);
+      setSelectedSlots([]);
+      setNextSlotId(1);
+    }
+  };
+  
+  const fetchTimeRanges = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/availability/${meetingId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
       }
-    };
+      
+      const data = await response.json();
+      
+      // Auto-navigate to relevant week before processing time slots
+      autoNavigateToRelevantWeek(data);
+      
+      const formattedRanges = processTimeSlots(data);
+      
+      setAdminTimeRanges(formattedRanges);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching availability data:', err);
+      setError('Failed to load availability data. Please try again later.');
+      setIsLoading(false);
+    }
+  };
+
+  // Initialize current week on component mount
+  useEffect(() => {
+    const today = new Date();
+    setCurrentWeekStart(getWeekStart(today));
+  }, []);
+
+  // Auto-navigate to relevant week based on availability data
+  const autoNavigateToRelevantWeek = (apiData) => {
+    if (!apiData || apiData.length === 0) return;
+
+    // Get all time slots from the API data
+    const allTimeSlots = [];
+    apiData.forEach(item => {
+      if (item.timeSlots && Array.isArray(item.timeSlots)) {
+        item.timeSlots.forEach(slot => {
+          allTimeSlots.push(new Date(slot.startTime));
+        });
+      }
+    });
+
+    if (allTimeSlots.length === 0) return;
+
+    // Sort time slots by date to find the earliest or most relevant one
+    allTimeSlots.sort((a, b) => a - b);
+
+    // Find the most relevant week to navigate to
+    const today = new Date();
+    const currentWeekStart = getWeekStart(today);
     
-    // Start the fetch chain with meeting details
-    fetchMeetingDetails();
-  }, [meetingId]);
+    // Look for time slots in the current week first
+    const currentWeekSlots = allTimeSlots.filter(slot => {
+      const slotWeekStart = getWeekStart(slot);
+      return slotWeekStart.getTime() === currentWeekStart.getTime();
+    });
+
+    let targetWeek;
+    if (currentWeekSlots.length > 0) {
+      // If there are slots in the current week, stay here
+      targetWeek = currentWeekStart;
+    } else {
+      // Find the closest future week with availability, or earliest if all are in the past
+      const futureSlots = allTimeSlots.filter(slot => slot >= today);
+      
+      if (futureSlots.length > 0) {
+        // Navigate to the earliest future availability
+        targetWeek = getWeekStart(futureSlots[0]);
+      } else {
+        // If all slots are in the past, navigate to the most recent one
+        targetWeek = getWeekStart(allTimeSlots[allTimeSlots.length - 1]);
+      }
+    }
+
+    // Only navigate if we're not already viewing the target week
+    if (targetWeek.getTime() !== currentWeekStart.getTime()) {
+      console.log('Auto-navigating to week starting:', targetWeek.toDateString());
+      setCurrentWeekStart(targetWeek);
+    }
+  };
   
   // Get user's time zone
   useEffect(() => {
@@ -460,23 +574,23 @@ const Availability = ({ meetingId }) => {
       
       if (width < 576) {
         setVisibleDays(1);
-        setStartDayIndex(currentDay); // Show only current day on small screens
+        setStartDayIndex(isCurrentWeek() ? currentDay : 0);
       } else if (width < 768) {
         setVisibleDays(3);
-        setStartDayIndex(Math.min(4, Math.max(0, currentDay - 1))); // Show 3 days centered around current day
+        setStartDayIndex(isCurrentWeek() ? Math.min(4, Math.max(0, currentDay - 1)) : 0);
       } else if (width < 992) {
         setVisibleDays(5);
-        setStartDayIndex(Math.min(2, Math.max(0, currentDay - 2))); // Show 5 days
+        setStartDayIndex(isCurrentWeek() ? Math.min(2, Math.max(0, currentDay - 2)) : 0);
       } else {
         setVisibleDays(7);
-        setStartDayIndex(0); // Show all days
+        setStartDayIndex(0);
       }
     };
     
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [currentDay]);
+  }, [currentDay, currentWeekStart]);
   
   // Generate time slots from 12:00 AM to 12:00 PM (updated)
   const timeSlots = Array.from({ length: 24 }, (_, i) => {
@@ -489,7 +603,7 @@ const Availability = ({ meetingId }) => {
   // Week days
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   
-  // Navigation functions
+  // Navigation functions for days within a week
   const goToPreviousDays = () => {
     setStartDayIndex(Math.max(0, startDayIndex - visibleDays));
   };
@@ -499,17 +613,23 @@ const Availability = ({ meetingId }) => {
   };
   
   const goToToday = () => {
-    const newStartIndex = Math.max(0, Math.min(7 - visibleDays, currentDay - Math.floor(visibleDays / 2)));
-    setStartDayIndex(newStartIndex);
+    if (!isCurrentWeek()) {
+      goToCurrentWeek();
+    } else {
+      const newStartIndex = Math.max(0, Math.min(7 - visibleDays, currentDay - Math.floor(visibleDays / 2)));
+      setStartDayIndex(newStartIndex);
+    }
   };
   
-  // Visible days
-  const visibleDaysArray = days.slice(startDayIndex, startDayIndex + visibleDays);
+  // Get visible days for the current week
+  const getVisibleDays = () => {
+    const weekDates = getWeekDates();
+    return weekDates.slice(startDayIndex, startDayIndex + visibleDays);
+  };
   
   // Function to get color based on adminId
-  const getAdminColor = (adminId) => {
-
-    if (isBestTimeSlot) {
+  const getAdminColor = (adminId, isBest = false) => {
+    if (isBest) {
       return '#9ef0f0'; // Light turquoise for best time slot
     }
     const colors = {
@@ -528,13 +648,12 @@ const Availability = ({ meetingId }) => {
   const isBestTimeSlot = (day, startHour, startMinute, endHour, endMinute) => {
     if (!bestTimeSlot) return false;
     
-    const rangeStart = new Date();
+    const weekDates = getWeekDates();
+    const rangeStart = new Date(weekDates[day]);
     rangeStart.setHours(startHour, startMinute, 0, 0);
-    rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay() + day);
     
-    const rangeEnd = new Date();
+    const rangeEnd = new Date(weekDates[day]);
     rangeEnd.setHours(endHour, endMinute, 0, 0);
-    rangeEnd.setDate(rangeEnd.getDate() - rangeEnd.getDay() + day);
     
     // Check if there's an overlap
     const bestStart = bestTimeSlot.startTime;
@@ -602,8 +721,8 @@ const Availability = ({ meetingId }) => {
     return null;
   };
   
-   // Click handler for time slots - updated to use dynamic meetingDuration
-   const handleTimeRangeClick = (e, day, timeRange, dayIndex) => {
+  // Click handler for time slots - updated to use dynamic meetingDuration
+  const handleTimeRangeClick = (e, day, timeRange, dayIndex) => {
     e.stopPropagation();
     
     if (userRole !== 'participant') {
@@ -797,7 +916,6 @@ const Availability = ({ meetingId }) => {
     );
   };
 
-
   const endDragging = () => {
     if (draggedSlot) {
       const slot = selectedSlots.find(s => s.id === draggedSlot.id);
@@ -862,11 +980,11 @@ const Availability = ({ meetingId }) => {
   }, [draggedSlot]);
   
   useEffect(() => {
-    if (calendarRef.current) {
-      // Scroll to current time (with some offset)
+    if (calendarRef.current && isCurrentWeek()) {
+      // Only scroll to current time if we're viewing the current week
       calendarRef.current.scrollTop = currentTimePosition - 100;
     }
-  }, [currentTimePosition]);
+  }, [currentTimePosition, currentWeekStart]);
   
   // Define column sizes consistently for headers and content
   const timeColumnWidth = isMobile ? '40px' : '60px';
@@ -889,6 +1007,24 @@ const Availability = ({ meetingId }) => {
     // Ensure the position stays within bounds
     return Math.min(Math.max(position, minPosition), maxPosition);
   };
+
+  // Get week range display string
+  const getWeekRangeDisplay = () => {
+    const weekDates = getWeekDates();
+    const startDate = weekDates[0];
+    const endDate = weekDates[6];
+    
+    const options = { month: 'short', day: 'numeric' };
+    const startStr = startDate.toLocaleDateString('en-US', options);
+    const endStr = endDate.toLocaleDateString('en-US', options);
+    
+    // If both dates are in the same month, show "Jan 1 - 7, 2025"
+    if (startDate.getMonth() === endDate.getMonth()) {
+      return `${startStr} - ${endDate.getDate()}, ${endDate.getFullYear()}`;
+    }
+    // If different months, show "Jan 30 - Feb 5, 2025"
+    return `${startStr} - ${endStr}, ${endDate.getFullYear()}`;
+  };
   
   if (isLoading) {
     return (
@@ -910,6 +1046,53 @@ const Availability = ({ meetingId }) => {
   
   return (
     <div className="container-fluid p-0 position-relative">
+      {/* Week Navigation Header */}
+      <div className="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+        <div className="d-flex align-items-center">
+          <button 
+            className="btn btn-outline-primary btn-sm me-2" 
+            onClick={goToPreviousWeek}
+            title="Previous Week"
+          >
+            &lt;&lt;
+          </button>
+          <button 
+            className="btn btn-primary btn-sm me-2" 
+            onClick={goToCurrentWeek}
+            title="Go to Current Week"
+          >
+            {isCurrentWeek() ? 'This Week' : 'Today'}
+          </button>
+          <button 
+            className="btn btn-outline-primary btn-sm" 
+            onClick={goToNextWeek}
+            title="Next Week"
+          >
+            &gt;&gt;
+          </button>
+        </div>
+        
+        <div className="text-center">
+          <h5 className="mb-0">{getWeekRangeDisplay()}</h5>
+          {!isCurrentWeek() && (
+            <small className="text-muted">
+              {Math.abs(Math.floor((currentWeekStart - getWeekStart(new Date())) / (7 * 24 * 60 * 60 * 1000)))} 
+              {currentWeekStart < getWeekStart(new Date()) ? ' weeks ago' : ' weeks from now'}
+            </small>
+          )}
+        </div>
+        
+        <div className="d-flex align-items-center">
+          <span className="badge bg-info me-2">{timeZone}</span>
+          {isCurrentWeek() && (
+            <span className="badge bg-success">Current Week</span>
+          )}
+        </div>
+      </div>
+
+      {/* Role Banner */}
+      {getRoleBanner()}
+
       {/* Calendar Content */}
       <div className="d-flex border" style={{ backgroundColor: '#ffffff', borderRadius: '8px', overflow: 'hidden', width: '100%' }}>
         {/* Scrollable container */}
@@ -925,16 +1108,14 @@ const Availability = ({ meetingId }) => {
             </div>
             
             {/* Days Headers */}
-            {visibleDaysArray.map((day, index) => {
+            {getVisibleDays().map((date, index) => {
               const dayIndex = (startDayIndex + index) % 7;
-              const isCurrentDay = dayIndex === currentDay;
-              const date = new Date(now);
-              date.setDate(now.getDate() - currentDay + dayIndex);
+              const isToday = isCurrentWeek() && dayIndex === currentDay;
               
               return (
                 <div 
-                  key={day} 
-                  className={`border-end ${isCurrentDay ? 'bg-primary bg-opacity-10' : ''}`}
+                  key={`${date.getTime()}-${index}`}
+                  className={`border-end ${isToday ? 'bg-primary bg-opacity-10' : ''}`}
                   style={{ 
                     width: `calc(100% / ${visibleDays})`, 
                     minWidth: dayColumnWidth,
@@ -943,7 +1124,7 @@ const Availability = ({ meetingId }) => {
                 >
                   <div className="border-bottom p-2 text-center" style={{ height: '50px' }}>
                     <div className={`${isMobile ? 'fs-6' : 'fw-bold'}`}>
-                      {day} {date.getDate().toString().padStart(2, '0')}
+                      {days[date.getDay()]} {date.getDate().toString().padStart(2, '0')}
                     </div>
                   </div>
                 </div>
@@ -981,19 +1162,19 @@ const Availability = ({ meetingId }) => {
                 <tbody>
                   {timeSlots.map((time, timeIndex) => (
                     <tr key={timeIndex} style={{ height: '60px' }}>
-                      {visibleDaysArray.map((day, dayIndex) => {
-                        const actualDayIndex = (startDayIndex + dayIndex) % 7;
-                        const isCurrentDay = actualDayIndex === currentDay;
+                      {getVisibleDays().map((date, dayIndex) => {
+                        const actualDayIndex = date.getDay();
+                        const isToday = isCurrentWeek() && actualDayIndex === currentDay;
                         
                         return (
                           <td 
-                            key={`${timeIndex}-${dayIndex}`} 
-                            className={`position-relative p-0 cell-hover ${isCurrentDay ? 'bg-primary bg-opacity-10' : ''}`}
+                            key={`${timeIndex}-${dayIndex}-${date.getTime()}`}
+                            className={`position-relative p-0 cell-hover ${isToday ? 'bg-primary bg-opacity-10' : ''}`}
                             style={{ 
                               height: '60px',
                               width: `${100 / visibleDays}%`,
                               borderBottom: '1px solid #dee2e6',
-                              borderRight: dayIndex < visibleDaysArray.length - 1 ? '1px solid #dee2e6' : 'none'
+                              borderRight: dayIndex < getVisibleDays().length - 1 ? '1px solid #dee2e6' : 'none'
                             }}
                           />
                         );
@@ -1004,8 +1185,8 @@ const Availability = ({ meetingId }) => {
               </table>
               
               {/* Admin Time Ranges */}
-              {visibleDaysArray.map((day, dayIndex) => {
-                const actualDayIndex = (startDayIndex + dayIndex) % 7;
+              {getVisibleDays().map((date, dayIndex) => {
+                const actualDayIndex = date.getDay();
                 
                 // Get all time ranges for this day
                 const dayTimeRanges = adminTimeRanges.filter(range => range.day === actualDayIndex);
@@ -1021,7 +1202,7 @@ const Availability = ({ meetingId }) => {
                 const popupHeight = 100; // Approximate height of popup in pixels
                 
                 return (
-                  <div key={`ranges-${dayIndex}`} className="position-absolute" style={{ 
+                  <div key={`ranges-${dayIndex}-${date.getTime()}`} className="position-absolute" style={{ 
                     top: 0, 
                     left: dayLeftPosition, 
                     width: dayWidth,
@@ -1131,7 +1312,6 @@ const Availability = ({ meetingId }) => {
                           {slot.startTime}
                           <br />
                           {slot.endTime}
-                          
                         </div>
                       </div>
                     ))}
@@ -1139,22 +1319,24 @@ const Availability = ({ meetingId }) => {
                 );
               })}
               
-              {/* Current Time Indicator */}
-              <div className="position-absolute d-flex align-items-center"
-                   style={{ 
-                     top: `${currentTimePosition}px`, 
-                     height: '2px', 
-                     backgroundColor: '#1a1aff', 
-                     zIndex: 3, 
-                     left: '0',
-                     right: '0',
-                     width: '100%'
-                   }}>
-                <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
-                     style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
-                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {/* Current Time Indicator - Only show if viewing current week */}
+              {isCurrentWeek() && (
+                <div className="position-absolute d-flex align-items-center"
+                     style={{ 
+                       top: `${currentTimePosition}px`, 
+                       height: '2px', 
+                       backgroundColor: '#1a1aff', 
+                       zIndex: 3, 
+                       left: '0',
+                       right: '0',
+                       width: '100%'
+                     }}>
+                  <div className="position-absolute text-white px-1 py-1 rounded-pill fw-bold"
+                       style={{ left: '2px', backgroundColor: '#1a1aff', fontSize: isMobile ? '8px' : '12px' }}>
+                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -1162,36 +1344,35 @@ const Availability = ({ meetingId }) => {
 
       {renderBestTimeSlotLegend()}
       
-      {/* Navigation Controls - Only shown when needed */}
+      {/* Navigation Controls - Only shown when needed for days within week */}
       {navigationNeeded && (
         <div className="d-flex justify-content-between align-items-center mt-2 px-2">
           <div>
             <button 
-              className="btn btn-sm btn-outline-primary me-2" 
+              className="btn btn-sm btn-outline-secondary me-2" 
               onClick={goToPreviousDays}
               disabled={startDayIndex === 0}
             >
-              &lt; Prev
+              &lt; Prev Days
             </button>
             <button 
-              className="btn btn-sm btn-outline-primary" 
+              className="btn btn-sm btn-outline-secondary" 
               onClick={goToToday}
             >
-              Today
+              {isCurrentWeek() ? 'Today' : 'Current Week'}
             </button>
           </div>
           <div>
             <button 
-              className="btn btn-sm btn-outline-primary" 
+              className="btn btn-sm btn-outline-secondary" 
               onClick={goToNextDays}
               disabled={startDayIndex + visibleDays >= 7}
             >
-              Next &gt;
+              Next Days &gt;
             </button>
           </div>
         </div>
       )}
-      
       
       {/* Error Toast */}
       {showError && (

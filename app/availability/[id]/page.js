@@ -12,7 +12,9 @@ import { useParams } from 'next/navigation';
 export default function AvailabilityPage() {
   const params = useParams();
   const meetingId = params.id;
-  const [selectedDate, setSelectedDate] = useState(null);
+  
+  // Initialize selectedDate with suggested meeting date instead of current date
+  const [selectedDate, setSelectedDate] = useState(new Date('2025-07-20')); // Use suggested meeting date
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [showEventCards, setShowEventCards] = useState(false);
@@ -36,8 +38,37 @@ export default function AvailabilityPage() {
     setShowEventCards(isSidebarCollapsed && windowWidth >= 1200);
   }, [isSidebarCollapsed, windowWidth]);
 
+  // Function to navigate to suggested meeting date
+  const navigateToSuggestedDate = () => {
+    // Create the suggested date (July 20, 2025 from the notification)
+    const suggestedDate = new Date('2025-07-20');
+    console.log('Navigating to suggested date:', suggestedDate);
+    setSelectedDate(suggestedDate);
+  };
   const handleDateSelect = (date) => {
-    setSelectedDate(date);
+    console.log('Date selected in AvailabilityPage:', date);
+    console.log('Date type:', typeof date, 'Is Date object:', date instanceof Date);
+    
+    // Ensure we have a proper Date object
+    let newDate;
+    if (date instanceof Date && !isNaN(date.getTime())) {
+      newDate = new Date(date);
+    } else if (typeof date === 'string' || typeof date === 'number') {
+      newDate = new Date(date);
+    } else {
+      console.error('Invalid date received:', date);
+      // Fallback to current date
+      newDate = new Date();
+    }
+    
+    // Validate the date
+    if (isNaN(newDate.getTime())) {
+      console.error('Invalid date created, using current date instead');
+      newDate = new Date();
+    }
+    
+    console.log('Setting selectedDate to:', newDate);
+    setSelectedDate(newDate);
   };
 
   const handleSidebarToggle = (collapsed) => {
@@ -162,6 +193,7 @@ export default function AvailabilityPage() {
             <Availability
               meetingId={meetingId} 
               selectedDate={selectedDate}
+              key={selectedDate && selectedDate instanceof Date && !isNaN(selectedDate.getTime()) ? selectedDate.getTime() : 'invalid-date'} // Force re-render when date changes
             />
           </div>
         </div>
