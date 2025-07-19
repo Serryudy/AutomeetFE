@@ -246,12 +246,16 @@ function MeetingTab({ selectedMeeting }) {
     );
   }
 
-  // Update chart data with API response
+  // Update chart data with API response - add array checks
   const rescheduleChartData = {
-    labels: analyticsData?.reschedulingFrequency.map(item => item.day.substring(0, 3).toUpperCase()) || [],
+    labels: Array.isArray(analyticsData?.reschedulingFrequency) 
+      ? analyticsData.reschedulingFrequency.map(item => item.day.substring(0, 3).toUpperCase()) 
+      : [],
     datasets: [{
       label: 'Continuity',
-      data: analyticsData?.reschedulingFrequency.map(item => item.frequency) || [],
+      data: Array.isArray(analyticsData?.reschedulingFrequency) 
+        ? analyticsData.reschedulingFrequency.map(item => item.frequency) 
+        : [],
       borderColor: '#2E9AFE',
       backgroundColor: 'rgba(46, 154, 254, 0.1)',
       tension: 0.4,
@@ -265,9 +269,13 @@ function MeetingTab({ selectedMeeting }) {
   };
 
   const schedulingChartData = {
-    labels: analyticsData?.schedulingAccuracy.map(item => item.day.substring(0, 1)) || [],
+    labels: Array.isArray(analyticsData?.schedulingAccuracy) 
+      ? analyticsData.schedulingAccuracy.map(item => item.day.substring(0, 1)) 
+      : [],
     datasets: [{
-      data: analyticsData?.schedulingAccuracy.map(item => item.accuracy * 100) || [],
+      data: Array.isArray(analyticsData?.schedulingAccuracy) 
+        ? analyticsData.schedulingAccuracy.map(item => item.accuracy * 100) 
+        : [],
       backgroundColor: (context) => {
         const index = context.dataIndex;
         const value = context.dataset.data[index];
@@ -278,12 +286,14 @@ function MeetingTab({ selectedMeeting }) {
     }]
   };
 
-  // Update engagement metrics with API data
-  const engagementData = analyticsData?.engagement || {
-    speakingTime: 0,
-    participantEngagement: 0,
-    chatEngagement: 0
-  };
+  // Update engagement metrics with API data - add safety checks
+  const engagementData = analyticsData?.engagement && typeof analyticsData.engagement === 'object' 
+    ? analyticsData.engagement 
+    : {
+        speakingTime: 0,
+        participantEngagement: 0,
+        chatEngagement: 0
+      };
 
   // Chart options for rescheduling frequency
   const rescheduleChartOptions = {
@@ -378,7 +388,7 @@ function MeetingTab({ selectedMeeting }) {
     }
   };
 
-  // Chart data for engagement metrics - now using API data
+  // Chart data for engagement metrics - now using API data with safety checks
   const engagementDataPrepared = {
     speakingTime: engagementData.speakingTime || 0,
     participantEngagement: engagementData.participantEngagement || 0,
@@ -391,12 +401,12 @@ function MeetingTab({ selectedMeeting }) {
       <div className="row mb-4 g-3">
         {/* Rescheduling Frequency */}
         <div className="col-12 col-md-4">
-          <div className={`card shadow-sm rounded-4 h-100 ${analyticsData?.reschedulingFrequency === "not enough data" ? "bg-dark text-white" : ""}`}>
+          <div className={`card shadow-sm rounded-4 h-100 ${!Array.isArray(analyticsData?.reschedulingFrequency) ? "bg-dark text-white" : ""}`}>
             <div className="card-body p-3 p-md-4">
               <h5 className="fw-bold mb-3">Rescheduling Frequency</h5>
               <div className="text-muted small mb-2">— CONTINUITY</div>
               <div style={{ height: '200px' }}>
-                {analyticsData?.reschedulingFrequency === "not enough data" ? (
+                {!Array.isArray(analyticsData?.reschedulingFrequency) ? (
                   <div className="d-flex align-items-center justify-content-center h-100">
                     <span className="fw-bold">Not enough data</span>
                   </div>
@@ -410,12 +420,12 @@ function MeetingTab({ selectedMeeting }) {
       
         {/* Scheduling Accuracy */}
         <div className="col-12 col-md-4">
-          <div className={`card shadow-sm rounded-4 h-100 ${analyticsData?.schedulingAccuracy === "not enough data" ? "bg-dark text-white" : ""}`}>
+          <div className={`card shadow-sm rounded-4 h-100 ${!Array.isArray(analyticsData?.schedulingAccuracy) ? "bg-dark text-white" : ""}`}>
             <div className="card-body p-3 p-md-4">
               <h5 className="fw-bold mb-3">Scheduling Accuracy</h5>
               <div className="text-muted mb-2">Expectation redundancy</div>
               <div style={{ height: '200px' }}>
-                {analyticsData?.schedulingAccuracy === "not enough data" ? (
+                {!Array.isArray(analyticsData?.schedulingAccuracy) ? (
                   <div className="d-flex align-items-center justify-content-center h-100">
                     <span className="fw-bold">Not enough data</span>
                   </div>
@@ -433,11 +443,11 @@ function MeetingTab({ selectedMeeting }) {
       
         {/* Engagement Analytics */}
         <div className="col-12 col-md-4">
-          <div className={`card shadow-sm rounded-4 h-100 ${analyticsData?.engagement === "not enough data" ? "bg-dark text-white" : ""}`}>
+          <div className={`card shadow-sm rounded-4 h-100 ${analyticsData?.engagement === "not enough data" || typeof analyticsData?.engagement !== 'object' ? "bg-dark text-white" : ""}`}>
             <div className="card-body p-3 p-md-4">
               <h5 className="fw-bold mb-3">Engagement Analytics</h5>
       
-              {analyticsData?.engagement === "not enough data" ? (
+              {analyticsData?.engagement === "not enough data" || typeof analyticsData?.engagement !== 'object' ? (
                 <div className="d-flex align-items-center justify-content-center h-100">
                   <span className="fw-bold">Not enough data</span>
                 </div>
@@ -537,7 +547,7 @@ function MeetingTab({ selectedMeeting }) {
                 )}
                 <p className="mb-0">Participants:</p>
                 <ul className="list-unstyled ps-3 mb-0">
-                  {selectedMeeting?.participants ? (
+                  {selectedMeeting?.participants && Array.isArray(selectedMeeting.participants) ? (
                     selectedMeeting.participants.map((participant, index) => (
                       <li key={index}>• {typeof participant === 'object' ? 
                         participant.username || participant.email || 'N/A' : 
@@ -563,7 +573,7 @@ function MeetingTab({ selectedMeeting }) {
 
 // EngagementMetric component for displaying circular progress indicators
 function EngagementMetric({ title, subtitle, value, color }) {
-  const dashOffset = 100 - value;
+  const dashOffset = 100 - (value || 0);
   
   return (
     <div className="d-flex align-items-center mb-3">
@@ -573,7 +583,7 @@ function EngagementMetric({ title, subtitle, value, color }) {
             <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e6e6e6" strokeWidth="2.8"></circle>
             <circle cx="18" cy="18" r="15.9" fill="none" stroke={color} strokeDasharray="100, 100" strokeDashoffset={dashOffset} strokeWidth="2.8"></circle>
           </svg>
-          <div className="position-absolute top-50 start-50 translate-middle fw-bold" style={{ fontSize: '14px' }}>{value}%</div>
+          <div className="position-absolute top-50 start-50 translate-middle fw-bold" style={{ fontSize: '14px' }}>{value || 0}%</div>
         </div>
       </div>
       <div>

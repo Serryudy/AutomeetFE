@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { FaPlus, FaSearch, FaTimes, FaCircle, FaArrowLeft, FaPaperclip, FaPaperPlane } from "react-icons/fa";
 import { useProfile } from '@/hooks/useProfile';
 
-
 const getOtherParticipant = (participants, currentUser) => {
   return participants.find(p => p !== currentUser) || participants[0];
 };
@@ -31,29 +30,49 @@ const MessageComponent = ({ onClose }) => {
   const [hasUserTyped, setHasUserTyped] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [timezoneOffset, setTimezoneOffset] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'disconnected', 'connecting', 'connected', 'error'
 
-  
+  // Configuration - Update these URLs to match your Ballerina backend
+  const WEBSOCKET_URL = 'ws://localhost:9090/ws/chat';
+  const API_BASE_URL = 'http://localhost:8080/api/chat';
+  const USER_API_URL = 'http://localhost:8080/api/users'; // Keep existing user API
+  const CONTACTS_API_URL = 'http://localhost:8080/api/community/contacts'; // Keep existing contacts API
+
+  // Function to determine if an item is a contact or a room
+  const isContact = (item) => {
+    return !item.participants && (item.username || item.email);
+  };
+
+  // Add memoized search results with null safety
+  const memoizedSearchResults = useMemo(() => {
+    return searchResults.filter(item => {
+      if (!item) return false;
+      
+      if (isContact(item)) {
+        return item.username || item.email;
+      }
+      
+      return Array.isArray(item.participants);
+    });
+  }, [searchResults]);
+
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
-      // Update container width based on parent element
       if (containerRef.current) {
         setContainerWidth(containerRef.current.parentElement.clientWidth);
       }
     };
 
-    // Initialize with current width
     if (typeof window !== 'undefined') {
       setWindowWidth(window.innerWidth);
       window.addEventListener('resize', handleResize);
 
-      // Initial measurement of container width
       if (containerRef.current) {
         setContainerWidth(containerRef.current.parentElement.clientWidth);
       }
 
-      // Set a timeout to ensure proper measurement after initial render
       setTimeout(handleResize, 100);
     }
 
@@ -64,14 +83,13 @@ const MessageComponent = ({ onClose }) => {
     };
   }, []);
 
-  // Focus search input when search is shown
+  // Focus effects
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [showSearch]);
 
-  // Focus message input when chat view is shown
   useEffect(() => {
     if (showChatView && messageInputRef.current) {
       messageInputRef.current.focus();
@@ -85,130 +103,242 @@ const MessageComponent = ({ onClose }) => {
   useEffect(() => {
     if (profile) {
       setCurrentUser(profile.username);
-      // After getting user profile, fetch rooms and contacts
       fetchRoomsAndContacts(profile.username);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
-  // WebSocket connection
+  // WebSocket connection effect
   useEffect(() => {
-    // Establish WebSocket connection
-    const ws = new WebSocket(`ws://localhost:9090/ws/chat`);
+    if (!currentUser) {
+      console.log('User not authenticated, skipping WebSocket connection');
+      return;
+    }
+
+    console.log('Establishing WebSocket connection for user:', currentUser);
+    setConnectionStatus('connecting');
+    
+    // Create WebSocket connection with cookies for authentication
+    const ws = new WebSocket(WEBSOCKET_URL);
+
+    let connectionTimeout = setTimeout(() => {
+      console.error('WebSocket connection timeout');
+      setConnectionStatus('error');
+      ws.close();
+    }, 10000);
 
     ws.onopen = () => {
-      console.log('WebSocket Connected');
+      console.log('✅ WebSocket Connected successfully');
+      clearTimeout(connectionTimeout);
       setWebsocket(ws);
+      setConnectionStatus('connected');
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📨 WebSocket message received:', data);
 
-      // Handle different types of WebSocket messages
-      switch (data._type) {
-        case 'new_message':
-          // Add new message to current conversation if in the right room
-          if (selectedMessage && data.roomId === selectedMessage.id) {
-            setMessages(prevMessages => [...prevMessages, data]);
-          }
-          break;
-        case 'room_joined':
-          console.log('Joined room:', data.roomId);
-          break;
-        case 'room_created':
-          console.log('Room created:', data.roomId);
-          // Handle new room creation response
-          if (isCreatingRoom) {
-            setIsCreatingRoom(false);
-            // Fetch the newly created room details and navigate to it
-            handleMessageClick({
-              id: data.roomId,
-              participants: data.participants,
-              roomName: data.roomName
-            });
-
-            // Refresh chat rooms list
+        switch (data._type) {
+          case 'connected':
+            console.log('🔐 WebSocket authentication successful for user:', data.userId);
+            break;
+            
+          case 'new_message':
+            console.log('💬 New message received for room:', data.roomId);
+            if (selectedMessage && data.roomId === selectedMessage.id) {
+              const newMsg = {
+                id: data.messageId,
+                roomId: data.roomId,
+                senderId: data.senderId,
+                content: data.content,
+                senddate: data.timestamp?.substring(0, 10) || new Date().toISOString().substring(0, 10),
+                sendtime: data.timestamp?.substring(11, 19) || new Date().toTimeString().substring(0, 8),
+                status: 'received',
+                attachments: data.attachments || []
+              };
+              
+              setMessages(prevMessages => {
+                // Check if message already exists to prevent duplicates
+                const messageExists = prevMessages.some(msg => msg.id === data.messageId);
+                if (!messageExists) {
+                  return [...prevMessages, newMsg];
+                }
+                return prevMessages;
+              });
+            }
+            
+            // Update the room list to show latest message
             fetchRoomsAndContacts();
-          }
-          break;
-        case 'connected':
-          console.log('WebSocket connection established');
-          break;
+            break;
+            
+          case 'room_joined':
+            console.log('🏠 Successfully joined room:', data.roomId);
+            break;
+            
+          case 'room_created':
+            console.log('🆕 Room created successfully:', data.roomId);
+            if (isCreatingRoom) {
+              setIsCreatingRoom(false);
+              
+              // Create a room object that matches the expected format
+              const newRoom = {
+                id: data.roomId,
+                participants: data.participants || [],
+                roomName: data.roomName,
+                displayName: data.roomName || getOtherParticipant(data.participants, currentUser) || 'New Chat',
+                profile_pic: "/profile.png",
+                latestMessage: "",
+                latestMessageDate: "",
+                latestMessageTime: "",
+                isActive: true,
+                createdAt: data.timestamp
+              };
+              
+              console.log('Opening newly created room:', newRoom);
+              handleMessageClick(newRoom);
+              
+              // Refresh the rooms list
+              setTimeout(() => {
+                fetchRoomsAndContacts();
+              }, 1000);
+            }
+            break;
+            
+          case 'room_invitation':
+            console.log('📧 Room invitation received from:', data.creatorId);
+            fetchRoomsAndContacts();
+            break;
+            
+          case 'typing':
+            console.log('⌨️ User typing in room:', data.roomId);
+            // Handle typing indicators here if needed
+            break;
+            
+          case 'error':
+            console.error('❌ WebSocket error from server:', data.content);
+            break;
+            
+          default:
+            console.warn('⚠️ Unknown message type received:', data._type);
+        }
+      } catch (error) {
+        console.error('❌ Error parsing WebSocket message:', error, event.data);
       }
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket Error:', error);
+      console.error('❌ WebSocket Error:', error);
+      clearTimeout(connectionTimeout);
+      setConnectionStatus('error');
     };
 
-    ws.onclose = () => {
-      console.log('WebSocket Disconnected');
+    ws.onclose = (event) => {
+      console.log('🔌 WebSocket Disconnected:', event.code, event.reason);
+      clearTimeout(connectionTimeout);
+      setWebsocket(null);
+      setConnectionStatus('disconnected');
+      
+      // Auto-reconnect for non-authentication failures
+      if (event.code !== 1000 && event.code !== 4001 && currentUser) {
+        console.log('🔄 Attempting to reconnect in 3 seconds...');
+        setTimeout(() => {
+          if (currentUser) {
+            console.log('🔄 Reconnecting WebSocket...');
+          }
+        }, 3000);
+      }
     };
 
     return () => {
-      if (ws) ws.close();
+      clearTimeout(connectionTimeout);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log('🧹 Cleaning up WebSocket connection');
+        ws.close(1000, 'Component unmounting');
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMessage, isCreatingRoom]);
+  }, [selectedMessage, isCreatingRoom, currentUser]);
 
-  // Update the fetchRoomsAndContacts function
+  // Update fetchRoomsAndContacts to use Ballerina API
   const fetchRoomsAndContacts = useCallback(async (currentUsername = currentUser) => {
     if (!currentUsername) return;
 
     try {
       setIsLoading(true);
 
-      // Fetch chat rooms
-      const roomsResponse = await fetch('http://localhost:8080/api/chat/rooms', {
-        credentials: 'include'
+      // Fetch chat rooms from Ballerina backend
+      const roomsResponse = await fetch(`${API_BASE_URL}/rooms`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
-      const roomsData = await roomsResponse.json();
 
-      if (roomsData.success) {
-        // For each room, fetch the latest message
+      if (!roomsResponse.ok) {
+        throw new Error(`Failed to fetch rooms: ${roomsResponse.status}`);
+      }
+
+      const roomsData = await roomsResponse.json();
+      console.log('Rooms response:', roomsData);
+
+      if (roomsData.success && Array.isArray(roomsData.data)) {
+        // Process rooms and get additional info for each
         const updatedRooms = await Promise.all(
           roomsData.data.map(async room => {
-            const otherParticipant = getOtherParticipant(room.participants, currentUsername);
-
             try {
-              // Fetch profile
-              const profileResponse = await fetch(`http://localhost:8080/api/users/${otherParticipant}`, {
-                credentials: 'include'
-              });
-              const profileData = await profileResponse.json();
+              const otherParticipant = getOtherParticipant(room.participants, currentUsername);
 
-              // Fetch latest message
-              const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages?limit=1`, {
-                credentials: 'include'
-              });
-              const messagesData = await messagesResponse.json();
+              // Fetch profile for other participant (keep using existing user API)
+              let profileData = { name: otherParticipant, profile_pic: "/profile.png" };
+              try {
+                const profileResponse = await fetch(`${USER_API_URL}/${otherParticipant}`, {
+                  credentials: 'include'
+                });
+                if (profileResponse.ok) {
+                  profileData = await profileResponse.json();
+                }
+              } catch (err) {
+                console.warn(`Could not fetch profile for ${otherParticipant}:`, err);
+              }
 
+              // Fetch latest message from Ballerina API
               let latestMessage = "";
               let latestMessageDate = "";
               let latestMessageTime = "";
               let latestMessageDateTime = null;
 
-              if (messagesData.success && messagesData.data.length > 0) {
-                const lastMsg = messagesData.data[0];
-                latestMessage = lastMsg.content;
-                latestMessageDate = lastMsg.senddate;
-                latestMessageTime = lastMsg.sendtime;
-
-                return {
-                  ...room,
-                  displayName: profileData.name || otherParticipant,
-                  profile_pic: profileData.profile_pic || "/profile.png",
-                  latestMessage,
-                  latestMessageDate,
-                  latestMessageTime,
-                  latestMessageDateTime
-                };
+              try {
+                const messagesResponse = await fetch(`${API_BASE_URL}/rooms/${room.id}/messages?_limit=1`, {
+                  credentials: 'include'
+                });
+                
+                if (messagesResponse.ok) {
+                  const messagesData = await messagesResponse.json();
+                  if (messagesData.success && messagesData.data.length > 0) {
+                    const lastMsg = messagesData.data[0];
+                    latestMessage = lastMsg.content;
+                    latestMessageDate = lastMsg.senddate;
+                    latestMessageTime = lastMsg.sendtime;
+                    latestMessageDateTime = new Date(`${lastMsg.senddate}T${lastMsg.sendtime}`);
+                  }
+                }
+              } catch (err) {
+                console.warn(`Could not fetch messages for room ${room.id}:`, err);
               }
-            } catch (err) {
-              console.error(`Error fetching details for ${otherParticipant}:`, err);
+
               return {
                 ...room,
-                displayName: otherParticipant,
+                displayName: profileData.name || room.roomName || otherParticipant,
+                profile_pic: profileData.profile_pic && profileData.profile_pic !== "" ? profileData.profile_pic : "/profile.png",
+                latestMessage,
+                latestMessageDate,
+                latestMessageTime,
+                latestMessageDateTime
+              };
+            } catch (err) {
+              console.error(`Error processing room ${room.id}:`, err);
+              return {
+                ...room,
+                displayName: room.roomName || "Unknown Chat",
                 profile_pic: "/profile.png",
                 latestMessage: "",
                 latestMessageDate: "",
@@ -219,106 +349,135 @@ const MessageComponent = ({ onClose }) => {
           })
         );
 
-        // Sort newest first
-        updatedRooms.sort((a, b) => {
+        // Filter out invalid rooms and sort by latest message
+        const validRooms = updatedRooms.filter(room => room != null);
+        validRooms.sort((a, b) => {
           if (a.latestMessageDateTime && b.latestMessageDateTime) {
             return b.latestMessageDateTime - a.latestMessageDateTime;
           }
-          // If only one has a date, that one comes first
           if (a.latestMessageDateTime) return -1;
           if (b.latestMessageDateTime) return 1;
           return 0;
         });
 
-        setChatRooms(updatedRooms);
+        setChatRooms(validRooms);
 
         if (searchQuery.trim() === '') {
-          setSearchResults(updatedRooms);
+          setSearchResults(validRooms);
         }
+      } else {
+        console.warn('Invalid rooms response:', roomsData);
+        setChatRooms([]);
       }
 
       // Fetch all contacts at once
-      const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
-        credentials: 'include'
-      });
-      const contactsData = await contactsResponse.json();
+      try {
+        const contactsResponse = await fetch(CONTACTS_API_URL, {
+          credentials: 'include'
+        });
+        
+        if (contactsResponse.ok) {
+          const contactsData = await contactsResponse.json();
 
-      // Fetch profile for each contact and merge
-      const contactsWithProfiles = await Promise.all(
-        contactsData.map(async (contact) => {
-          try {
-            const profileResponse = await fetch(`http://localhost:8080/api/users/${contact.username}`, {
-              credentials: 'include'
-            });
-            if (profileResponse.ok) {
-              const profileData = await profileResponse.json();
-              return {
-                ...contact,
-                name: profileData.name || contact.username,
-                profile_pic: profileData.profile_pic || "/profile.png"
-              };
-            }
-            return {
-              ...contact,
-              name: contact.username,
-              profile_pic: "/profile.png"
-            };
-          } catch (err) {
-            console.error(`Error fetching profile for ${contact.username}:`, err);
-            return {
-              ...contact,
-              name: contact.username,
-              profile_pic: "/profile.png"
-            };
-          }
-        })
-      );
+          // Fetch all contacts at once
+          const contactsWithProfiles = await Promise.all(
+            contactsData.map(async (contact) => {
+              try {
+                // Use the exact username from the contact object
+                const usernameToFetch = contact.username;
+                const profileResponse = await fetch(`${USER_API_URL}/${usernameToFetch}`, {
+                  credentials: 'include'
+                });
+                if (profileResponse.ok) {
+                  const profileData = await profileResponse.json();
+                  return {
+                    ...contact,
+                    name: profileData.name || contact.username,
+                    profile_pic: profileData.profile_pic && profileData.profile_pic !== "" ? profileData.profile_pic : "/profile.png"
+                  };
+                }
+                return {
+                  ...contact,
+                  name: contact.username,
+                  profile_pic: "/profile.png"
+                };
+              } catch (err) {
+                console.error(`Error fetching profile for ${contact.username}:`, err);
+                return {
+                  ...contact,
+                  name: contact.username,
+                  profile_pic: "/profile.png"
+                };
+              }
+            })
+          );
 
-      setContacts(contactsWithProfiles);
+          const validContacts = contactsWithProfiles.filter(contact => contact != null);
+          setContacts(validContacts);
+        }
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+        setContacts([]);
+      }
 
     } catch (error) {
-      console.error('Error fetching rooms or contacts:', error);
+      console.error('Error fetching rooms:', error);
+      setChatRooms([]);
     } finally {
       setIsLoading(false);
     }
+  }, [currentUser, searchQuery, API_BASE_URL]);
 
-  }, [currentUser, searchQuery]);
-
-  // Add memoized search results
-  const memoizedSearchResults = useMemo(() => {
-    return searchResults;
-  }, [searchResults]);
-
-  // Fetch chat rooms and contacts on component load
+  // Fetch data on component load
   useEffect(() => {
     fetchRoomsAndContacts();
   }, [fetchRoomsAndContacts]);
 
   // Handle message click to load room messages
   const handleMessageClick = async (room) => {
+    console.log('Opening room:', room);
+    
     try {
-      // Join the room via WebSocket
-      if (websocket) {
+      // Join the room via WebSocket if connection is available
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        console.log('Joining room via WebSocket:', room.id);
         websocket.send(JSON.stringify({
           _type: 'join_room',
           roomId: room.id
         }));
       }
 
-      // Fetch room messages
-      const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${room.id}/messages`, {
+      // Fetch room messages from Ballerina API
+      console.log('Fetching messages for room:', room.id);
+      const messagesResponse = await fetch(`${API_BASE_URL}/rooms/${room.id}/messages`, {
         credentials: 'include'
       });
+      
+      if (!messagesResponse.ok) {
+        throw new Error(`Failed to fetch messages: ${messagesResponse.status}`);
+      }
+      
       const messagesData = await messagesResponse.json();
+      console.log('Messages response:', messagesData);
 
-      if (messagesData.success) {
-        // Reverse to show newest messages at bottom
+      if (messagesData.success && Array.isArray(messagesData.data)) {
+        // Messages are already sorted by newest first, reverse to show oldest first
         setMessages(messagesData.data.reverse());
+        setSelectedMessage(room);
+        setShowChatView(true);
+        console.log('Chat view opened successfully');
+      } else {
+        console.warn('No messages or invalid response:', messagesData);
+        setMessages([]);
         setSelectedMessage(room);
         setShowChatView(true);
       }
     } catch (error) {
-      console.error('Error fetching room messages:', error);
+      console.error('Error in handleMessageClick:', error);
+      // Still try to open the chat view
+      setMessages([]);
+      setSelectedMessage(room);
+      setShowChatView(true);
     }
   };
 
@@ -326,13 +485,12 @@ const MessageComponent = ({ onClose }) => {
   const handleContactClick = async (contact) => {
     console.log('Contact clicked:', contact);
 
-    // First, check if we already have a chat room with this contact
+    // Check if we already have a chat room with this contact
     const existingRoom = chatRooms.find(room => {
-      // Check if this is a direct message room with exactly 2 participants
-      // and one of them is the clicked contact
-      if (room.participants.length === 2) {
+      if (room.participants && room.participants.length === 2) {
         const hasCurrentUser = room.participants.includes(currentUser);
-        const hasContact = room.participants.includes(contact.username || contact.email);
+        // Use the exact username for comparison
+        const hasContact = room.participants.includes(contact.username);
         return hasCurrentUser && hasContact;
       }
       return false;
@@ -340,33 +498,55 @@ const MessageComponent = ({ onClose }) => {
 
     if (existingRoom) {
       console.log('Found existing room with contact:', existingRoom);
-      // If we found an existing room, just open it
       await handleMessageClick(existingRoom);
     } else {
       console.log('Creating new room with contact:', contact);
-      // No existing room found, we need to create a new one
-      if (websocket) {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
         setIsCreatingRoom(true);
-        // Use the contact's username or email as the participant
-        const participantId = contact.username || contact.email;
+        // Use the exact username for participant ID
+        const participantId = contact.username;
 
-        // Create room request to the websocket
+        console.log('Sending create_room request for:', participantId);
+        
         websocket.send(JSON.stringify({
           _type: 'create_room',
           participants: [participantId],
-          roomName: `${participantId}`
+          roomName: `Chat with ${contact.name || participantId}`
         }));
+
+        // Timeout for room creation
+        setTimeout(() => {
+          if (isCreatingRoom) {
+            console.error('Room creation timeout');
+            setIsCreatingRoom(false);
+            alert('Failed to create chat room. Please try again.');
+          }
+        }, 10000);
       } else {
         console.error('WebSocket connection not available');
+        alert('Connection not available. Please refresh the page and try again.');
       }
     }
   };
 
   // Handle sending a new message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedMessage || !websocket) return;
+    if (!newMessage.trim() || !selectedMessage || !websocket || websocket.readyState !== WebSocket.OPEN) {
+      console.warn('Cannot send message:', { 
+        hasMessage: !!newMessage.trim(), 
+        hasRoom: !!selectedMessage, 
+        hasWebsocket: !!websocket,
+        wsState: websocket?.readyState 
+      });
+      return;
+    }
 
     try {
+      console.log('Sending message via WebSocket:', {
+        roomId: selectedMessage.id,
+        content: newMessage
+      });
+
       // Send message via WebSocket
       websocket.send(JSON.stringify({
         _type: 'message',
@@ -374,28 +554,29 @@ const MessageComponent = ({ onClose }) => {
         content: newMessage
       }));
 
+      // Add message optimistically to UI (it will be updated when we receive the WebSocket response)
+      const optimisticMessage = {
+        id: `temp-${Date.now()}`,
+        roomId: selectedMessage.id,
+        senderId: currentUser,
+        content: newMessage,
+        senddate: new Date().toISOString().substring(0, 10),
+        sendtime: new Date().toTimeString().substring(0, 8),
+        status: 'sending'
+      };
+
+      setMessages(prevMessages => [...prevMessages, optimisticMessage]);
+
       // Clear input immediately for better UX
       setNewMessage('');
 
-      // Fetch updated messages
-      const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${selectedMessage.id}/messages`, {
-        credentials: 'include'
-      });
-
-      const messagesData = await messagesResponse.json();
-
-      if (messagesData.success) {
-        // Update messages state with newest messages
-        setMessages(messagesData.data.reverse());
-      } else {
-        console.error('Failed to fetch updated messages');
-      }
     } catch (error) {
-      console.error('Error sending/fetching messages:', error);
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
     }
   };
 
-  // Calculate responsive sizes based on viewport and container
+  // Calculate responsive sizes
   const getResponsiveSizes = () => {
     const isMobile = windowWidth < 768;
     const isSmall = windowWidth < 576;
@@ -403,7 +584,7 @@ const MessageComponent = ({ onClose }) => {
 
     return {
       containerHeight: isMobile ? '70vh' : '90vh',
-      containerWidth: '100%', // Use 100% to fit parent
+      containerWidth: '100%',
       avatarSize: isNarrow ? '40px' : isSmall ? '40px' : '50px',
       chatAvatarSize: isNarrow ? '30px' : isSmall ? '35px' : '45px',
       fontSize: {
@@ -435,28 +616,26 @@ const MessageComponent = ({ onClose }) => {
     }
   };
 
-  // Handle new message click - Updated to show search view
+  // Handle new message click
   const handleNewMessage = async () => {
-    // If search is not visible, show it
     if (!showSearch) {
       setShowSearch(true);
-      // Focus will be handled by the useEffect that watches showSearch
     }
 
-    // Try to fetch contacts if not already loaded
     if (contacts.length === 0) {
       try {
-        const contactsResponse = await fetch('http://localhost:8080/api/community/contacts', {
+        const contactsResponse = await fetch(CONTACTS_API_URL, {
           credentials: 'include'
         });
-        const contactsData = await contactsResponse.json();
-        setContacts(contactsData);
+        if (contactsResponse.ok) {
+          const contactsData = await contactsResponse.json();
+          setContacts(contactsData);
+        }
       } catch (error) {
         console.error('Error fetching contacts:', error);
       }
     }
 
-    // Clear any existing search query to start fresh
     setSearchQuery('');
   };
 
@@ -488,19 +667,14 @@ const MessageComponent = ({ onClose }) => {
     return commonTerms.filter(term => !searchQuery.toLowerCase().includes(term));
   };
 
-  // Function to determine if an item is a contact or a room
-  const isContact = (item) => {
-    return !item.participants && (item.username || item.email);
-  };
-
-  // Update the handleSearchInput function to be simpler
+  // Handle search input
   const handleSearchInput = useCallback((e) => {
     const query = e.target.value;
     setSearchQuery(query);
     setHasUserTyped(true);
   }, []);
 
-  // Add useEffect for debouncing search query
+  // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
@@ -509,7 +683,7 @@ const MessageComponent = ({ onClose }) => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Add useEffect for performing search
+  // Perform search effect
   useEffect(() => {
     const performSearch = () => {
       if (!debouncedQuery.trim()) {
@@ -522,14 +696,19 @@ const MessageComponent = ({ onClose }) => {
       const query = debouncedQuery.toLowerCase().trim();
 
       const roomResults = chatRooms.filter(room =>
-        room.displayName?.toLowerCase().includes(query) ||
-        room.participants?.some(p => p.toLowerCase().includes(query)) ||
-        (room.roomName && room.roomName.toLowerCase().includes(query))
+        room && (
+          room.displayName?.toLowerCase().includes(query) ||
+          room.participants?.some(p => p && p.toLowerCase().includes(query)) ||
+          (room.roomName && room.roomName.toLowerCase().includes(query))
+        )
       );
 
       const contactResults = contacts.filter(contact =>
-        contact.username?.toLowerCase().includes(query) ||
-        contact.email?.toLowerCase().includes(query)
+        contact && (
+          contact.username?.toLowerCase().includes(query) ||
+          contact.email?.toLowerCase().includes(query) ||
+          contact.name?.toLowerCase().includes(query)
+        )
       );
 
       requestAnimationFrame(() => {
@@ -541,7 +720,7 @@ const MessageComponent = ({ onClose }) => {
     performSearch();
   }, [debouncedQuery, chatRooms, contacts]);
 
-  // timezone offset effect
+  // Timezone effect - Added from first code
   useEffect(() => {
     if (profile && profile.username) {
       getUserTimezoneOffset(profile.username).then(result => {
@@ -550,6 +729,7 @@ const MessageComponent = ({ onClose }) => {
     }
   }, [profile]);
 
+  // Time formatting functions - Updated from first code
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
     let [hour, minute] = timeStr.split(':');
@@ -599,7 +779,7 @@ const MessageComponent = ({ onClose }) => {
     return `${dateStr} ${formattedTime}`;
   };
 
-  // fetch logged-in user details
+  // fetch logged-in user details - Added from first code
   const getUserTimezoneOffset = async (username) => {
     // Automatically get username from localStorage
     if (!username) {
@@ -608,7 +788,7 @@ const MessageComponent = ({ onClose }) => {
 
     try {
       // Fetch user profile to get timezone
-      const response = await fetch(`http://localhost:8080/api/users/${username}`, {
+      const response = await fetch(`${USER_API_URL}/${username}`, {
         credentials: 'include'
       });
       if (!response.ok) {
@@ -642,12 +822,24 @@ const MessageComponent = ({ onClose }) => {
     }
   };
 
+  // Helper functions
+  const getItemDisplayName = (item) => {
+    if (!item) return 'Unknown';
+    
+    if (isContact(item)) {
+      return item.name && item.name !== "" ? item.name : item.username || 'Unknown Contact';
+    } else {
+      return item.displayName || item.roomName || 'Unknown Room';
+    }
+  };
 
+  const getItemProfilePic = (item) => {
+    if (!item) return "/profile.png";
+    return item.profile_pic && item.profile_pic !== "" ? item.profile_pic : "/profile.png";
+  };
 
   // Render message list view
   const renderMessageListView = () => {
-    const sizes = getResponsiveSizes();
-
     return (
       <>
         {/* Header */}
@@ -680,7 +872,25 @@ const MessageComponent = ({ onClose }) => {
             </div>
           ) : (
             <div className="d-flex align-items-center justify-content-between w-100">
-              <span className="m-0 p-1 fw-bold" style={{ fontSize: sizes.fontSize.header }}>Messages</span>
+              <div className="d-flex align-items-center">
+                <span className="m-0 p-1 fw-bold" style={{ fontSize: sizes.fontSize.header }}>Messages</span>
+                {/* Connection Status Indicator */}
+                <div className="ms-2 d-flex align-items-center">
+                  <FaCircle 
+                    size={8} 
+                    className={`me-1 ${
+                      connectionStatus === 'connected' ? 'text-success' : 
+                      connectionStatus === 'connecting' ? 'text-warning' : 
+                      'text-danger'
+                    }`} 
+                  />
+                  <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                    {connectionStatus === 'connected' ? 'Online' : 
+                     connectionStatus === 'connecting' ? 'Connecting...' : 
+                     'Offline'}
+                  </small>
+                </div>
+              </div>
               <div className="d-flex align-items-center">
                 <div className="d-flex">
                   <button
@@ -741,89 +951,93 @@ const MessageComponent = ({ onClose }) => {
               </div>
             </div>
           ) : memoizedSearchResults.length > 0 ? (
-            memoizedSearchResults.map((item, index) => (
-              <div
-                key={index}
-                className="message-item d-flex align-items-start border-bottom hover-bg-light"
-                style={{ padding: sizes.padding.item, cursor: 'pointer' }}
-                onClick={() => {
-                  // Check if it's a contact or a chat room
-                  if (isContact(item)) {
-                    handleContactClick(item);
-                  } else {
-                    // It's a room, handle message click
-                    handleMessageClick(item);
-                  }
-                }}
-              >
-                <div className="position-relative me-2 flex-shrink-0">
-                  <img
-                    src={item.profile_pic && item.profile_pic !== "" ? item.profile_pic : "/profile.png"}
-                    alt={item.name && item.name !== "" ? item.name : item.username}
-                    className="rounded-circle bg-light"
-                    style={{
-                      width: sizes.avatarSize,
-                      height: sizes.avatarSize,
-                      objectFit: "cover",
-                      marginRight: '5px',
-                      border: `2px solid ${isContact(item) ? '#28a745' : '#007bff'}`,
-                    }}
-                    onError={(e) => { e.target.src = "/profile.png"; }}
-                  />
+            memoizedSearchResults.map((item, index) => {
+              if (!item) return null;
 
-                  {isContact(item) && (
-                    <span className="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle"
-                      style={{ width: '12px', height: '12px', border: '2px solid white' }}>
-                    </span>
-                  )}
-                </div>
+              const displayName = getItemDisplayName(item);
+              const profilePic = getItemProfilePic(item);
+              const isContactItem = isContact(item);
 
-                <div className="message-content flex-grow-1 overflow-hidden">
-                  <div className="d-flex justify-content-between align-items-start">
-                    <div className="sender-name fw-bold text-truncate" style={{
-                      fontSize: sizes.fontSize.name,
-                      maxWidth: containerWidth < 400 ? '60%' : '70%'
-                    }}>
-                      {searchQuery ?
-                        highlightText(isContact(item) ?
-                          (item.username || item.email) :
-                          item.displayName,
-                          searchQuery) :
-                        (isContact(item) ?
-                          (item.username || item.email) :
-                          item.displayName)
-                      }
-                      {isContact(item) && <span className="ms-2 badge bg-success">Contact</span>}
-                    </div>
-                    <div className="message-date text-muted" style={{ fontSize: sizes.fontSize.time }}>
-                      {formatMessageDate(item.latestMessageDate || item.date || "")}
-                    </div>
-                  </div>
-                  <div className="d-flex ">
-                    <div style={{ flexGrow: 1, minWidth: '0' }}>
-                      {item.latestMessage && (
-                        <div className="message-preview text-muted text-truncate" style={{
-                          fontSize: sizes.fontSize.message1,
-                          maxWidth: '90%',
-                        }}>
-                          {item.latestMessage}
-                        </div>
-                      )}
-                    </div>
-                    <div className="message-time text-muted" style={{ fontSize: sizes.fontSize.time, minWidth: '50px', textAlign: 'right' }}>
-                      {formatTime(item.latestMessageTime || item.time || "")}
-                    </div>
+              return (
+                <div
+                  key={`${isContactItem ? 'contact' : 'room'}-${item.id || item.username || index}`}
+                  className="message-item d-flex align-items-start border-bottom hover-bg-light"
+                  style={{ padding: sizes.padding.item, cursor: 'pointer' }}
+                  onClick={() => {
+                    if (isContactItem) {
+                      handleContactClick(item);
+                    } else {
+                      handleMessageClick(item);
+                    }
+                  }}
+                >
+                  <div className="position-relative me-2 flex-shrink-0">
+                    <img
+                      src={profilePic}
+                      alt={displayName}
+                      className="rounded-circle bg-light"
+                      style={{
+                        width: sizes.avatarSize,
+                        height: sizes.avatarSize,
+                        objectFit: "cover",
+                        marginRight: '5px',
+                        border: `2px solid ${isContactItem ? '#28a745' : '#007bff'}`,
+                      }}
+                      onError={(e) => { e.target.src = "/profile.png"; }}
+                    />
+
+                    {isContactItem && (
+                      <span className="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle"
+                        style={{ width: '12px', height: '12px', border: '2px solid white' }}>
+                      </span>
+                    )}
                   </div>
 
+                  <div className="message-content flex-grow-1 overflow-hidden">
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="sender-name fw-bold text-truncate" style={{
+                        fontSize: sizes.fontSize.name,
+                        maxWidth: containerWidth < 400 ? '60%' : '70%'
+                      }}>
+                        {searchQuery ?
+                          highlightText(displayName, searchQuery) :
+                          displayName
+                        }
+                        {isContactItem && <span className="ms-2 badge bg-success">Contact</span>}
+                      </div>
+                      <div className="message-date text-muted" style={{ fontSize: sizes.fontSize.time }}>
+                        {formatMessageDate(item.latestMessageDate || item.date || "")}
+                      </div>
+                    </div>
+                    <div className="d-flex ">
+                      <div style={{ flexGrow: 1, minWidth: '0' }}>
+                        {item.latestMessage && (
+                          <div className="message-preview text-muted text-truncate" style={{
+                            fontSize: sizes.fontSize.message1,
+                            maxWidth: '90%',
+                          }}>
+                            {item.latestMessage}
+                          </div>
+                        )}
+                      </div>
+                      <div className="message-time text-muted" style={{ fontSize: sizes.fontSize.time, minWidth: '50px', textAlign: 'right' }}>
+                        {formatTime(item.latestMessageTime || item.time || "")}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="d-flex flex-column align-items-center justify-content-center text-muted h-100 p-4">
               <div className="mb-3">
                 <FaSearch size={32} />
               </div>
-              <p className="text-center">No messages or contacts found.</p>
+              <p className="text-center">
+                {connectionStatus === 'connected' ? 
+                  'No messages or contacts found.' : 
+                  'Connecting to chat service...'}
+              </p>
             </div>
           )}
         </div>
@@ -842,6 +1056,7 @@ const MessageComponent = ({ onClose }) => {
             onMouseEnter={(e) => (e.target.style.width = sizes.buttonSize1, e.target.style.height = sizes.buttonSize1, e.target.style.backgroundColor = "#004fa3")}
             onMouseLeave={(e) => (e.target.style.width = sizes.buttonSize, e.target.style.height = sizes.buttonSize, e.target.style.backgroundColor = "#0076f5")}
             aria-label="New message"
+            disabled={connectionStatus !== 'connected'}
           >
             <FaPlus size={windowWidth < 576 ? 16 : 20} />
           </button>
@@ -853,8 +1068,6 @@ const MessageComponent = ({ onClose }) => {
   // Render chat view
   const renderChatView = () => {
     if (!selectedMessage) return null;
-
-    const sizes = getResponsiveSizes();
 
     return (
       <>
@@ -880,16 +1093,21 @@ const MessageComponent = ({ onClose }) => {
               }}
               onError={(e) => { e.target.src = "/profile.png" }}
             />
-            {selectedMessage.isTeam && (
-              <span className="position-absolute bottom-0 end-0 p-1 bg-primary rounded-circle"
-                style={{ width: '15px', height: '15px', border: '2px solid white' }}>
-              </span>
-            )}
+            <FaCircle 
+              size={8} 
+              className={`position-absolute bottom-0 end-0 ${
+                connectionStatus === 'connected' ? 'text-success' : 'text-danger'
+              }`}
+              style={{ margin: '2px' }}
+            />
           </div>
           <div className="chat-user-info flex-grow-1 overflow-hidden">
             <div className="fw-bold text-truncate" style={{ fontSize: "1.2rem" }}>
               {selectedMessage.displayName || selectedMessage.roomName || selectedMessage.participants?.join(', ')}
             </div>
+            <small className="text-muted">
+              {connectionStatus === 'connected' ? 'Online' : 'Offline'}
+            </small>
           </div>
         </div>
 
@@ -911,16 +1129,15 @@ const MessageComponent = ({ onClose }) => {
                 return `${dayName}, ${dateStr}`;
               };
 
-              // Check if this is the first message of a new date
               const isFirstMessageOfDate = index === 0 ||
                 (messages[index - 1] && messages[index - 1].senddate !== msg.senddate);
 
               return (
-                <div key={index}>
+                <div key={msg.id || index}>
                   {isFirstMessageOfDate && msg.senddate && (
                     <div className="d-flex justify-content-center mb-3">
                       <div
-                        className=" text-black px-3 py-1"
+                        className="text-black px-3 py-1"
                         style={{
                           fontSize: sizes.fontSize.time,
                           opacity: 0.8,
@@ -933,7 +1150,6 @@ const MessageComponent = ({ onClose }) => {
                     </div>
                   )}
 
-                  {/* Message bubble */}
                   <div className="mb-3">
                     <div
                       className={`d-flex ${isCurrentUser ? 'justify-content-end' : 'justify-content-start'}`}
@@ -943,8 +1159,8 @@ const MessageComponent = ({ onClose }) => {
                         style={{
                           maxWidth: '80%',
                           width: 'fit-content',
-                          minHeight: 'auto', // Allow natural height
-                          height: 'auto'     // Dynamic height based on content
+                          minHeight: 'auto',
+                          height: 'auto'
                         }}
                       >
                         <div
@@ -957,21 +1173,28 @@ const MessageComponent = ({ onClose }) => {
                             borderTopLeftRadius: '15px',
                             fontSize: sizes.fontSize.chat,
                             padding: '8px 15px',
-                            wordWrap: 'break-word',      // Handle long words
-                            overflowWrap: 'break-word',  // Modern browsers
-                            whiteSpace: 'pre-wrap'       // Preserve line breaks
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'pre-wrap'
                           }}
                         >
                           {msg.content}
                           <div
-                            className="text-end"
+                            className="text-end d-flex align-items-center justify-content-end"
                             style={{
                               fontSize: sizes.fontSize.time,
                               opacity: 0.8,
-                              marginTop: '4px'  // Small spacing between message and time
+                              marginTop: '4px'
                             }}
                           >
-                            {formatTime(msg.sendtime)}
+                            <span className="me-1">{formatTime(msg.sendtime)}</span>
+                            {isCurrentUser && (
+                              <span style={{ fontSize: '0.7rem' }}>
+                                {msg.status === 'sending' ? '⏳' : 
+                                 msg.status === 'sent' ? '✓' : 
+                                 msg.status === 'received' ? '✓✓' : ''}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -994,8 +1217,9 @@ const MessageComponent = ({ onClose }) => {
                 placeholder="Type a message ..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSendMessage() }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                 style={{ fontSize: sizes.fontSize.message, paddingRight: '50px', width: '85%' }}
+                disabled={connectionStatus !== 'connected'}
               />
             </div>
             <div>
@@ -1008,12 +1232,12 @@ const MessageComponent = ({ onClose }) => {
                   top: '50%',
                   transform: 'translateY(-50%)',
                   borderRadius: '40%',
-                  backgroundColor: newMessage.trim() === '' ? '#e9ecef' : '#007bff',
-                  color: newMessage.trim() === '' ? '#6c757d' : '#ffffff'
+                  backgroundColor: newMessage.trim() === '' || connectionStatus !== 'connected' ? '#e9ecef' : '#007bff',
+                  color: newMessage.trim() === '' || connectionStatus !== 'connected' ? '#6c757d' : '#ffffff'
                 }}
                 onClick={handleSendMessage}
                 aria-label="Send message"
-                disabled={newMessage.trim() === ''}
+                disabled={newMessage.trim() === '' || connectionStatus !== 'connected'}
               >
                 <FaPaperPlane size={18} />
               </button>
@@ -1023,35 +1247,6 @@ const MessageComponent = ({ onClose }) => {
       </>
     );
   };
-
-  // Polling effect for fetching messages
-  useEffect(() => {
-    // Only poll when chat view is open and a room is selected
-    if (!showChatView || !selectedMessage) return;
-
-    const fetchMessages = async () => {
-      try {
-        const messagesResponse = await fetch(`http://localhost:8080/api/chat/rooms/${selectedMessage.id}/messages`, {
-          credentials: 'include'
-        });
-        const messagesData = await messagesResponse.json();
-        if (messagesData.success) {
-          setMessages(messagesData.data.reverse());
-        }
-      } catch (error) {
-        console.error('Error fetching room messages:', error);
-      }
-    };
-
-
-    fetchMessages();
-
-    // Poll every 1 second
-    const intervalId = setInterval(fetchMessages, 1000);
-
-    // Cleanup on unmount or when chat view closes
-    return () => clearInterval(intervalId);
-  }, [showChatView, selectedMessage]);
 
   return (
     <div
@@ -1071,5 +1266,3 @@ const MessageComponent = ({ onClose }) => {
 };
 
 export default MessageComponent;
-
-
