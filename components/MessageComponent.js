@@ -19,6 +19,7 @@ const MessageComponent = ({ onClose }) => {
   const searchInputRef = useRef(null);
   const messageInputRef = useRef(null);
   const containerRef = useRef(null);
+  const chatMessagesRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(450);
   const [messages, setMessages] = useState([]);
   const [chatRooms, setChatRooms] = useState([]);
@@ -31,12 +32,21 @@ const MessageComponent = ({ onClose }) => {
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [timezoneOffset, setTimezoneOffset] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'disconnected', 'connecting', 'connected', 'error'
+  const [typingUsers, setTypingUsers] = useState(new Set());
+  const typingTimeoutRef = useRef(null);
 
-  // Configuration - Update these URLs to match your Ballerina backend
+  // Configuration - Updated ports to match Ballerina backend
   const WEBSOCKET_URL = 'ws://localhost:9090/ws/chat';
-  const API_BASE_URL = 'http://localhost:8080/api/chat';
+  const API_BASE_URL = 'http://localhost:8080/api/chat'; // Updated to use port 9090
   const USER_API_URL = 'http://localhost:8080/api/users'; // Keep existing user API
   const CONTACTS_API_URL = 'http://localhost:8080/api/community/contacts'; // Keep existing contacts API
+
+  // Auto-scroll to bottom of messages
+  const scrollToBottom = () => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  };
 
   // Function to determine if an item is a contact or a room
   const isContact = (item) => {
@@ -96,18 +106,29 @@ const MessageComponent = ({ onClose }) => {
     }
   }, [showChatView]);
 
+  // Auto-scroll to bottom when messages change or chat view opens
+  useEffect(() => {
+    if (showChatView && messages.length > 0) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [showChatView, messages]);
+
   // Replace profile fetching with useProfile hook
   const { profile, loading: profileLoading } = useProfile();
 
   // Update the profile effect
   useEffect(() => {
     if (profile) {
+      // Use username consistently with Ballerina backend
       setCurrentUser(profile.username);
       fetchRoomsAndContacts(profile.username);
     }
   }, [profile]);
 
-  // WebSocket connection effect
+  // WebSocket connection effect - Updated to handle authentication properly
   useEffect(() => {
     if (!currentUser) {
       console.log('User not authenticated, skipping WebSocket connection');
@@ -117,7 +138,7 @@ const MessageComponent = ({ onClose }) => {
     console.log('Establishing WebSocket connection for user:', currentUser);
     setConnectionStatus('connecting');
     
-    // Create WebSocket connection with cookies for authentication
+    // Create WebSocket connection - Ballerina expects cookies for authentication
     const ws = new WebSocket(WEBSOCKET_URL);
 
     let connectionTimeout = setTimeout(() => {
@@ -161,7 +182,16 @@ const MessageComponent = ({ onClose }) => {
                 // Check if message already exists to prevent duplicates
                 const messageExists = prevMessages.some(msg => msg.id === data.messageId);
                 if (!messageExists) {
-                  return [...prevMessages, newMsg];
+                  // Remove any temporary/optimistic messages with same content
+                  const filteredMessages = prevMessages.filter(msg => 
+                    !(msg.senderId === currentUser && msg.content === data.content && msg.status === 'sending')
+                  );
+                  const updatedMessages = [...filteredMessages, newMsg];
+                  // Auto-scroll to show new message
+                  setTimeout(() => {
+                    scrollToBottom();
+                  }, 100);
+                  return updatedMessages;
                 }
                 return prevMessages;
               });
@@ -211,11 +241,26 @@ const MessageComponent = ({ onClose }) => {
             
           case 'typing':
             console.log('⌨️ User typing in room:', data.roomId);
-            // Handle typing indicators here if needed
+            // Handle typing indicators
+            if (selectedMessage && data.roomId === selectedMessage.id && data.senderId !== currentUser) {
+              setTypingUsers(prev => new Set([...prev, data.senderId]));
+              
+              // Clear typing indicator after 3 seconds
+              setTimeout(() => {
+                setTypingUsers(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(data.senderId);
+                  return newSet;
+                });
+              }, 3000);
+            }
             break;
             
           case 'error':
             console.error('❌ WebSocket error from server:', data.content);
+            if (data.content.includes('Unauthorized')) {
+              setConnectionStatus('error');
+            }
             break;
             
           default:
@@ -258,7 +303,7 @@ const MessageComponent = ({ onClose }) => {
     };
   }, [selectedMessage, isCreatingRoom, currentUser]);
 
-  // Update fetchRoomsAndContacts to use Ballerina API
+  // Update fetchRoomsAndContacts to use Ballerina API correctly
   const fetchRoomsAndContacts = useCallback(async (currentUsername = currentUser) => {
     if (!currentUsername) return;
 
@@ -393,12 +438,14 @@ const MessageComponent = ({ onClose }) => {
                   return {
                     ...contact,
                     name: profileData.name || contact.username,
+                    email: profileData.email || contact.email || contact.username,
                     profile_pic: profileData.profile_pic && profileData.profile_pic !== "" ? profileData.profile_pic : "/profile.png"
                   };
                 }
                 return {
                   ...contact,
                   name: contact.username,
+                  email: contact.email || contact.username,
                   profile_pic: "/profile.png"
                 };
               } catch (err) {
@@ -406,6 +453,7 @@ const MessageComponent = ({ onClose }) => {
                 return {
                   ...contact,
                   name: contact.username,
+                  email: contact.email || contact.username,
                   profile_pic: "/profile.png"
                 };
               }
@@ -437,6 +485,13 @@ const MessageComponent = ({ onClose }) => {
   const handleMessageClick = async (room) => {
     console.log('Opening room:', room);
     
+    // Immediately show chat view and clear search
+    setShowSearch(false);
+    setSearchQuery('');
+    setShowChatView(true);
+    setSelectedMessage(room);
+    setMessages([]); // Show loading state
+    
     try {
       // Join the room via WebSocket if connection is available
       if (websocket && websocket.readyState === WebSocket.OPEN) {
@@ -449,7 +504,7 @@ const MessageComponent = ({ onClose }) => {
 
       // Fetch room messages from Ballerina API
       console.log('Fetching messages for room:', room.id);
-      const messagesResponse = await fetch(`${API_BASE_URL}/rooms/${room.id}/messages`, {
+      const messagesResponse = await fetch(`${API_BASE_URL}/rooms/${room.id}/messages?_limit=50&offset=0`, {
         credentials: 'include'
       });
       
@@ -463,34 +518,38 @@ const MessageComponent = ({ onClose }) => {
       if (messagesData.success && Array.isArray(messagesData.data)) {
         // Messages are already sorted by newest first, reverse to show oldest first
         setMessages(messagesData.data.reverse());
-        setSelectedMessage(room);
-        setShowChatView(true);
         console.log('Chat view opened successfully');
       } else {
         console.warn('No messages or invalid response:', messagesData);
         setMessages([]);
-        setSelectedMessage(room);
-        setShowChatView(true);
       }
     } catch (error) {
       console.error('Error in handleMessageClick:', error);
-      // Still try to open the chat view
+      // Still keep the chat view open with empty messages
       setMessages([]);
-      setSelectedMessage(room);
-      setShowChatView(true);
     }
   };
 
-  // Function to handle contact click
+  // Function to handle contact click - Updated for Ballerina backend
   const handleContactClick = async (contact) => {
     console.log('Contact clicked:', contact);
+
+    // Prevent multiple clicks while processing
+    if (isCreatingRoom) {
+      console.log('Room creation already in progress, ignoring click');
+      return;
+    }
+
+    // Use username consistently with Ballerina backend
+    const currentUsername = currentUser;
+    const contactUsername = contact.username;
 
     // Check if we already have a chat room with this contact
     const existingRoom = chatRooms.find(room => {
       if (room.participants && room.participants.length === 2) {
-        const hasCurrentUser = room.participants.includes(currentUser);
-        // Use the exact username for comparison
-        const hasContact = room.participants.includes(contact.username);
+        // Check if room has both usernames as participants
+        const hasCurrentUser = room.participants.includes(currentUsername);
+        const hasContact = room.participants.includes(contactUsername);
         return hasCurrentUser && hasContact;
       }
       return false;
@@ -498,20 +557,35 @@ const MessageComponent = ({ onClose }) => {
 
     if (existingRoom) {
       console.log('Found existing room with contact:', existingRoom);
+      // Immediately show chat view and clear search
+      setShowSearch(false);
+      setSearchQuery('');
       await handleMessageClick(existingRoom);
     } else {
       console.log('Creating new room with contact:', contact);
+      
+      // Immediately show chat view with loading state
+      setShowSearch(false);
+      setSearchQuery('');
+      setShowChatView(true);
+      setSelectedMessage({
+        id: 'creating',
+        displayName: contact.name || contact.username,
+        profile_pic: contact.profile_pic || "/profile.png",
+        participants: [currentUsername, contactUsername]
+      });
+      setMessages([]);
+      
       if (websocket && websocket.readyState === WebSocket.OPEN) {
         setIsCreatingRoom(true);
-        // Use the exact username for participant ID
-        const participantId = contact.username;
-
-        console.log('Sending create_room request for:', participantId);
         
+        console.log('Sending create_room request with usernames:', { currentUsername, contactUsername });
+        
+        // Send create room request with usernames (not emails)
         websocket.send(JSON.stringify({
           _type: 'create_room',
-          participants: [participantId],
-          roomName: `Chat with ${contact.name || participantId}`
+          participants: [contactUsername], // Ballerina will add current user automatically
+          roomName: `${currentUsername} & ${contactUsername}`
         }));
 
         // Timeout for room creation
@@ -519,25 +593,34 @@ const MessageComponent = ({ onClose }) => {
           if (isCreatingRoom) {
             console.error('Room creation timeout');
             setIsCreatingRoom(false);
-            alert('Failed to create chat room. Please try again.');
+            // Go back to message list on timeout
+            setShowChatView(false);
+            setSelectedMessage(null);
           }
         }, 10000);
       } else {
         console.error('WebSocket connection not available');
-        alert('Connection not available. Please refresh the page and try again.');
+        // Go back to message list on error
+        setShowChatView(false);
+        setSelectedMessage(null);
       }
     }
   };
 
-  // Handle sending a new message
+  // Handle sending a new message - Updated to match Ballerina expectations
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedMessage || !websocket || websocket.readyState !== WebSocket.OPEN) {
-      console.warn('Cannot send message:', { 
-        hasMessage: !!newMessage.trim(), 
-        hasRoom: !!selectedMessage, 
-        hasWebsocket: !!websocket,
-        wsState: websocket?.readyState 
-      });
+    if (!newMessage.trim()) {
+      console.warn('Cannot send empty message');
+      return;
+    }
+    
+    if (!selectedMessage || selectedMessage.id === 'creating') {
+      console.warn('No valid chat room selected');
+      return;
+    }
+    
+    if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+      console.warn('WebSocket connection not available');
       return;
     }
 
@@ -547,14 +630,15 @@ const MessageComponent = ({ onClose }) => {
         content: newMessage
       });
 
-      // Send message via WebSocket
+      // Send message via WebSocket - format matches Ballerina expectations
       websocket.send(JSON.stringify({
         _type: 'message',
         roomId: selectedMessage.id,
-        content: newMessage
+        content: newMessage,
+        timestamp: new Date().toISOString()
       }));
 
-      // Add message optimistically to UI (it will be updated when we receive the WebSocket response)
+      // Add message optimistically to UI
       const optimisticMessage = {
         id: `temp-${Date.now()}`,
         roomId: selectedMessage.id,
@@ -570,10 +654,53 @@ const MessageComponent = ({ onClose }) => {
       // Clear input immediately for better UX
       setNewMessage('');
 
+      // Send typing indicator stop
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+          _type: 'typing',
+          roomId: selectedMessage.id,
+          content: 'stopped'
+        }));
+      }
+
+      // Scroll to bottom to show new message
+      setTimeout(() => {
+        scrollToBottom();
+      }, 50);
+
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
     }
+  };
+
+  // Handle typing indicator
+  const handleTyping = () => {
+    if (!selectedMessage || !websocket || websocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Send typing indicator
+    websocket.send(JSON.stringify({
+      _type: 'typing',
+      roomId: selectedMessage.id,
+      content: 'typing'
+    }));
+
+    // Set timeout to stop typing indicator
+    typingTimeoutRef.current = setTimeout(() => {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+          _type: 'typing',
+          roomId: selectedMessage.id,
+          content: 'stopped'
+        }));
+      }
+    }, 2000);
   };
 
   // Calculate responsive sizes
@@ -641,9 +768,18 @@ const MessageComponent = ({ onClose }) => {
 
   // Handle back button click in chat view
   const handleBackToList = () => {
+    // Leave the room via WebSocket
+    if (websocket && websocket.readyState === WebSocket.OPEN && selectedMessage && selectedMessage.id !== 'creating') {
+      websocket.send(JSON.stringify({
+        _type: 'leave_room',
+        roomId: selectedMessage.id
+      }));
+    }
+
     setShowChatView(false);
     setSelectedMessage(null);
     setMessages([]);
+    setTypingUsers(new Set());
     fetchRoomsAndContacts();
   };
 
@@ -963,11 +1099,28 @@ const MessageComponent = ({ onClose }) => {
                   key={`${isContactItem ? 'contact' : 'room'}-${item.id || item.username || index}`}
                   className="message-item d-flex align-items-start border-bottom hover-bg-light"
                   style={{ padding: sizes.padding.item, cursor: 'pointer' }}
-                  onClick={() => {
-                    if (isContactItem) {
-                      handleContactClick(item);
-                    } else {
-                      handleMessageClick(item);
+                  onClick={async () => {
+                    console.log('🔍 Search result clicked:', item);
+                    console.log('📋 Is contact item:', isContactItem);
+                    
+                    // Prevent multiple rapid clicks
+                    if (isCreatingRoom) {
+                      console.log('⏸️ Room creation in progress, ignoring click');
+                      return;
+                    }
+                    
+                    try {
+                      if (isContactItem) {
+                        console.log('👤 Handling contact click for:', item.username);
+                        await handleContactClick(item);
+                      } else {
+                        console.log('💬 Handling room click for:', item.id);
+                        await handleMessageClick(item);
+                      }
+                      
+                      console.log('✅ Navigation completed, chat view should be active');
+                    } catch (error) {
+                      console.error('❌ Error during navigation:', error);
                     }
                   }}
                 >
@@ -1093,27 +1246,34 @@ const MessageComponent = ({ onClose }) => {
               }}
               onError={(e) => { e.target.src = "/profile.png" }}
             />
-            <FaCircle 
-              size={8} 
-              className={`position-absolute bottom-0 end-0 ${
-                connectionStatus === 'connected' ? 'text-success' : 'text-danger'
-              }`}
-              style={{ margin: '2px' }}
-            />
           </div>
           <div className="chat-user-info flex-grow-1 overflow-hidden">
             <div className="fw-bold text-truncate" style={{ fontSize: "1.2rem" }}>
               {selectedMessage.displayName || selectedMessage.roomName || selectedMessage.participants?.join(', ')}
             </div>
-            <small className="text-muted">
-              {connectionStatus === 'connected' ? 'Online' : 'Offline'}
-            </small>
+            {/* Typing indicator */}
+            {typingUsers.size > 0 && (
+              <div className="text-muted" style={{ fontSize: "0.8rem" }}>
+                {Array.from(typingUsers).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
+              </div>
+            )}
           </div>
         </div>
 
         {/* Chat Messages */}
-        <div className="chat-messages flex-grow-1 overflow-auto p-4" style={{ backgroundColor: '#ffffff' }}>
-          {messages.length === 0 ? (
+        <div 
+          ref={chatMessagesRef}
+          className="chat-messages flex-grow-1 overflow-auto p-4" 
+          style={{ backgroundColor: '#ffffff' }}
+        >
+          {selectedMessage.id === 'creating' ? (
+            <div className="d-flex flex-column align-items-center justify-content-center text-muted h-100">
+              <div className="spinner-border text-primary mb-3" role="status">
+                <span className="visually-hidden">Creating room...</span>
+              </div>
+              <p>Creating chat room...</p>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="d-flex flex-column align-items-center justify-content-center text-muted h-100">
               <p>No messages yet. Start the conversation!</p>
             </div>
@@ -1179,6 +1339,22 @@ const MessageComponent = ({ onClose }) => {
                           }}
                         >
                           {msg.content}
+                          
+                          {/* Show attachments if any */}
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="mt-2">
+                              {msg.attachments.map((attachment, idx) => (
+                                <div key={idx} className="attachment-item mb-1">
+                                  <FaPaperclip className="me-1" />
+                                  <a href={attachment.url} target="_blank" rel="noopener noreferrer" 
+                                     className={isCurrentUser ? "text-light" : "text-primary"}>
+                                    {attachment.name} ({attachment.size} bytes)
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
                           <div
                             className="text-end d-flex align-items-center justify-content-end"
                             style={{
@@ -1214,12 +1390,28 @@ const MessageComponent = ({ onClose }) => {
                 ref={messageInputRef}
                 type="text"
                 className="form-control rounded-pill"
-                placeholder="Type a message ..."
+                placeholder={
+                  selectedMessage.id === 'creating' ? "Creating room..." :
+                  connectionStatus !== 'connected' ? "Connecting... Type your message" : 
+                  "Type a message ..."
+                }
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                onChange={(e) => {
+                  setNewMessage(e.target.value);
+                  if (e.target.value.trim() && connectionStatus === 'connected') {
+                    handleTyping();
+                  }
+                }}
+                onKeyDown={(e) => { 
+                  if (e.key === 'Enter' && !e.shiftKey) { 
+                    e.preventDefault(); 
+                    if (connectionStatus === 'connected' && selectedMessage.id !== 'creating') {
+                      handleSendMessage(); 
+                    }
+                  } 
+                }}
                 style={{ fontSize: sizes.fontSize.message, paddingRight: '50px', width: '85%' }}
-                disabled={connectionStatus !== 'connected'}
+                disabled={selectedMessage.id === 'creating'}
               />
             </div>
             <div>
@@ -1232,12 +1424,19 @@ const MessageComponent = ({ onClose }) => {
                   top: '50%',
                   transform: 'translateY(-50%)',
                   borderRadius: '40%',
-                  backgroundColor: newMessage.trim() === '' || connectionStatus !== 'connected' ? '#e9ecef' : '#007bff',
-                  color: newMessage.trim() === '' || connectionStatus !== 'connected' ? '#6c757d' : '#ffffff'
+                  backgroundColor: 
+                    selectedMessage.id === 'creating' || newMessage.trim() === '' ? '#e9ecef' : '#007bff',
+                  color: 
+                    selectedMessage.id === 'creating' || newMessage.trim() === '' ? '#6c757d' : '#ffffff'
                 }}
                 onClick={handleSendMessage}
                 aria-label="Send message"
-                disabled={newMessage.trim() === '' || connectionStatus !== 'connected'}
+                disabled={selectedMessage.id === 'creating' || newMessage.trim() === '' || connectionStatus !== 'connected'}
+                title={
+                  selectedMessage.id === 'creating' ? 'Creating room...' :
+                  connectionStatus !== 'connected' ? 'Connection required to send messages' : 
+                  'Send message'
+                }
               >
                 <FaPaperPlane size={18} />
               </button>
