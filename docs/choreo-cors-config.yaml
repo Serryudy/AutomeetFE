@@ -1,0 +1,63 @@
+# Example OpenAPI CORS Configuration for your Choreo APIs
+
+# Add this to EACH of your 6 API OpenAPI specifications:
+
+# CORS Configuration Block:
+# x-wso2-cors:
+#   accessControlAllowOrigins:
+#     - "http://localhost:3000"
+#     - "https://localhost:3000"
+#     - "*"  # For development only - remove in production
+#   accessControlAllowHeaders:
+#     - "Authorization"
+#     - "Content-Type"
+#     - "Accept"
+#     - "Cookie"
+#     - "Set-Cookie"
+#     - "X-Requested-With"
+#     - "Origin"
+#   accessControlAllowMethods:
+#     - "GET"
+#     - "POST"
+#     - "PUT"
+#     - "DELETE"
+#     - "OPTIONS"
+#     - "PATCH"
+#   accessControlAllowCredentials: true
+#   accessControlExposeHeaders:
+#     - "Set-Cookie"
+#     - "Authorization"
+
+# Complete example for your auth API:
+openapi: 3.0.0
+info:
+  title: Authentication API
+  version: 1.0.0
+x-wso2-basePath: /api/auth
+x-wso2-production-endpoints:
+  urls:
+    - https://your-backend-url.com
+x-wso2-cors:
+  accessControlAllowOrigins:
+    - "http://localhost:3000"
+    - "https://localhost:3000"
+  accessControlAllowHeaders:
+    - "Authorization"
+    - "Content-Type"
+    - "Accept" 
+    - "Cookie"
+    - "Set-Cookie"
+    - "X-Requested-With"
+  accessControlAllowMethods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  accessControlAllowCredentials: true
+
+paths:
+  /login:
+    post:
+      summary: User login
+      # ... rest of your API definition

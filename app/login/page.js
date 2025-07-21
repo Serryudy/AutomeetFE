@@ -8,6 +8,9 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import { refreshAccessToken } from '@/utils/auth';
 import { fetchAndStoreProfile } from '@/utils/profileManager';
+import { buildApiUrl, getServiceURL, API_CONFIG } from '@/utils/apiConfig';
+import { testApiConnection, testLoginEndpoint } from '@/utils/testApi';
+import { authService } from '@/utils/apiServices';
 
 const Login = () => {
   const router = useRouter();
@@ -67,33 +70,49 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8080/api/auth/login', {
+      console.log('Starting login process...');
+      console.log('Auth Service URL:', getServiceURL('auth'));
+      
+      const loginUrl = buildApiUrl('auth', API_CONFIG.endpoints.auth.login);
+      console.log('Login URL:', loginUrl);
+      
+      // Direct fetch call with proper cookie handling
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        credentials: 'include',
+        mode: 'cors',
+        credentials: 'include', // This is crucial for cookies
         body: JSON.stringify({
           username: formData.username,
           password: formData.password
         })
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('Cookies after login:', document.cookie);
+
       if (!response.ok) {
-        // Try to parse error message from response
-        let errorMsg = 'Login failed';
+        let errorMsg = `HTTP error! status: ${response.status}`;
         try {
           const errorData = await response.json();
-          if (errorData && errorData.error) {
+          console.log('Error response:', errorData);
+          if (errorData && errorData.message) {
+            errorMsg = errorData.message;
+          } else if (errorData && errorData.error) {
             errorMsg = errorData.error;
           }
-        } catch {
-          // Fallback to default error message
+        } catch (parseError) {
+          console.log('Failed to parse error response:', parseError);
         }
         throw new Error(errorMsg);
       }
 
       const data = await response.json();
+      console.log('Login successful:', data);
 
       // Store non-sensitive user data
       localStorage.setItem('user', JSON.stringify({
@@ -103,7 +122,12 @@ const Login = () => {
       }));
 
       // Fetch and store profile data
-      await fetchAndStoreProfile();
+      try {
+        await fetchAndStoreProfile();
+      } catch (profileError) {
+        console.warn('Profile fetch failed, but login was successful:', profileError);
+        // Don't fail the login if profile fetch fails
+      }
 
       // Set up token refresh
       setupTokenRefresh();
@@ -111,8 +135,13 @@ const Login = () => {
       // Redirect to home page
       router.push('/');
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
-      console.error('Login error:', err);
+      console.error('Login error details:', err);
+      
+      if (err.message === 'Failed to fetch') {
+        setError('Unable to connect to the authentication server. Please check if the backend is running and accessible.');
+      } else {
+        setError(err.message || 'Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -164,7 +193,8 @@ const Login = () => {
 
   // Google Sign-In handler
   const handleGoogleSignIn = () => {
-    window.location.href = 'http://localhost:8080/api/auth/google';
+    const googleUrl = buildApiUrl('auth', API_CONFIG.endpoints.auth.google);
+    window.location.href = googleUrl;
   };
 
   return (

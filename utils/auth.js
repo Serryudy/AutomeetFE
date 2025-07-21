@@ -1,21 +1,34 @@
-// Create a new auth utility file
+import { choreoFetch, API_CONFIG } from './apiConfig';
+
+// Auth utility for Choreo auth service
 export const refreshAccessToken = async () => {
   try {
-    const response = await fetch('http://localhost:8080/api/auth/refresh', {
-      method: 'POST',
-      credentials: 'include', // Important for sending/receiving cookies
-      headers: {
-        'Content-Type': 'application/json'
-      }
+    console.log('Attempting to refresh token...');
+    console.log('Current cookies:', document.cookie);
+    
+    const response = await choreoFetch('auth', API_CONFIG.endpoints.auth.refresh, {
+      method: 'POST'
     });
 
+    console.log('Refresh response status:', response.status);
+
     if (!response.ok) {
+      console.error('Token refresh failed with status:', response.status);
+      
+      // If refresh fails, the user needs to login again
+      if (response.status === 400 || response.status === 401) {
+        localStorage.removeItem('user');
+        return false;
+      }
+      
       throw new Error('Token refresh failed');
     }
 
+    console.log('Token refreshed successfully');
     return true;
   } catch (error) {
     console.error('Error refreshing token:', error);
+    localStorage.removeItem('user'); // Clear user data on refresh failure
     return false;
   }
 };
