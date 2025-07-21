@@ -141,29 +141,16 @@ const Availability = ({ meetingId }) => {
   };
 
   const confirmTimeSlot = async () => {
-    if (!meetingId || !hoveredTimeSlot || !['creator', 'host'].includes(userRole)) return;
+    if (!meetingId || !bestTimeSlot || !['creator', 'host'].includes(userRole)) return;
     
     try {
       setSubmitting(true);
       
-      // Use the existing convertTimeToISO function to create Date objects
-      const startDate = convertTimeToISO(
-        hoveredTimeSlot.day, 
-        hoveredTimeSlot.startHour, 
-        hoveredTimeSlot.startMinute
-      );
-      
-      const endDate = convertTimeToISO(
-        hoveredTimeSlot.day, 
-        hoveredTimeSlot.endHour, 
-        hoveredTimeSlot.endMinute
-      );
-      
-      // Create the payload with the time slot in ISO string format
+      // Create the payload with the best time slot in ISO string format
       const payload = {
         timeSlot: {
-          startTime: startDate.toISOString(),
-          endTime: endDate.toISOString()
+          startTime: bestTimeSlot.startTime.toISOString(),
+          endTime: bestTimeSlot.endTime.toISOString()
         }
       };
       
@@ -286,7 +273,7 @@ const Availability = ({ meetingId }) => {
     } else if (userRole === 'creator' || userRole === 'host') {
       return (
         <div className="alert alert-secondary mb-3" role="alert">
-          You are {userRole === 'creator' ? 'the creator' : 'a host'} of this meeting. You can view availability but cannot select time slots.
+          You are {userRole === 'creator' ? 'the creator' : 'a host'} of this meeting. You can view participant availability and confirm the best time slot by hovering over the highlighted time slot.
         </div>
       );
     }
@@ -328,13 +315,13 @@ const Availability = ({ meetingId }) => {
       setMeetingDuration(duration);
       setUserRole(data.role.toLowerCase());
       
-      // Continue with fetching time ranges and user availability
-      await fetchTimeRanges();
-      
       // Choose which availability data to fetch based on role
       if (data.role.toLowerCase() === 'participant') {
+        // Continue with fetching time ranges and user availability for participants
+        await fetchTimeRanges();
         await fetchUserAvailability();
       } else if (['creator', 'host'].includes(data.role.toLowerCase())) {
+        // For creators and hosts, fetch participant availabilities directly
         await fetchMeetingAvailabilities();
       }
     } catch (err) {
@@ -346,7 +333,7 @@ const Availability = ({ meetingId }) => {
 
   const fetchMeetingAvailabilities = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/meeting/${meetingId}/availabilities`, {
+      const response = await fetch(`http://localhost:8080/api/participant/availability/${meetingId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -373,7 +360,7 @@ const Availability = ({ meetingId }) => {
             startTime: bestStart,
             endTime: new Date(data.bestTimeSlot.endTime)
           });
-          setHasSuggestedTime(data.hasSuggestedTime || false);
+          setHasSuggestedTime(data.hasBestTimeSlot || false);
         } else {
           setBestTimeSlot(null);
           setHasSuggestedTime(false);

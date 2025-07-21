@@ -4,7 +4,7 @@ import React from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@/styles/global.css';
 import SidebarMenu from '@/components/ExSidemenu';      
-import ProfileHeader from '@/components/profileHeader';
+import ExternalProfileHeader from '@/components/ExternalProfileHeader';
 import { useState, useEffect, useRef } from 'react';
 import SearchBar from '@/components/meetingsearchbar';
 import MeetingForm from '@/components/MeetingForm';
@@ -91,7 +91,7 @@ export default function Details() {
       >
         {/* Profile Header */}
         <div className="mb-3 mb-md-4">
-          <ProfileHeader />
+          <ExternalProfileHeader />
         </div>
 
         {/* Calendar Header */}

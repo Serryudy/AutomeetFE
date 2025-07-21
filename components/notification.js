@@ -6,11 +6,38 @@ const NotificationsComponent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isVisible, setIsVisible] = useState(true);
+  const [userMeetingRoles, setUserMeetingRoles] = useState({});
 
   // Fetch notifications when component mounts
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  // Function to fetch meeting details to determine meeting type and user role
+  const fetchMeetingDetails = async (meetingId) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/meetings/${meetingId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error fetching meeting details: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        meetingType: data.meetingType, // e.g., 'round_robin', 'group', etc.
+        userRole: data.role // e.g., 'host', 'creator', 'participant'
+      };
+    } catch (err) {
+      console.error('Error fetching meeting details:', err);
+      return null;
+    }
+  };
 
   //fetch notifications - limited to 20 most recent
   const fetchNotifications = async () => {
@@ -43,13 +70,49 @@ const NotificationsComponent = () => {
         createdAt: notification.createdAt
       }));
       
+      // Fetch meeting details for notifications that have meetingId
+      const meetingDetailsPromises = formattedNotifications
+        .filter(notif => notif.meetingId)
+        .map(async (notif) => {
+          const details = await fetchMeetingDetails(notif.meetingId);
+          return { meetingId: notif.meetingId, details };
+        });
+
+      const meetingDetailsResults = await Promise.all(meetingDetailsPromises);
+      const meetingRoles = {};
+      
+      meetingDetailsResults.forEach(result => {
+        if (result.details) {
+          meetingRoles[result.meetingId] = result.details;
+        }
+      });
+
+      setUserMeetingRoles(meetingRoles);
+      
+      // Filter out notifications based on meeting type and user role
+      const filteredNotifications = formattedNotifications.filter(notification => {
+        // Only filter if we have meeting details
+        if (notification.meetingId && meetingRoles[notification.meetingId]) {
+          const { meetingType, userRole } = meetingRoles[notification.meetingId];
+          
+          // Filter out availability_update and best_timeslot_found notifications 
+          // for hosts in round-robin meetings to avoid unnecessary notifications
+          if (meetingType === 'round_robin' && userRole === 'host') {
+            if (notification.type === 'availability_update' || notification.type === 'best_timeslot_found') {
+              return false; // Exclude this notification
+            }
+          }
+        }
+        return true; // Include all other notifications
+      });
+      
       // Sort notifications by createdAt (newest first)
-      formattedNotifications.sort((a, b) => 
+      filteredNotifications.sort((a, b) => 
         new Date(b.createdAt) - new Date(a.createdAt)
       );
 
       // Additional client-side limit as a safeguard
-      const limitedNotifications = formattedNotifications.slice(0, 20);
+      const limitedNotifications = filteredNotifications.slice(0, 20);
 
       setNotifications(limitedNotifications);
       setIsLoading(false);
@@ -127,7 +190,7 @@ const NotificationsComponent = () => {
   };
 
   const navigateToMeeting = (meetingId, notificationType) => {
-    if (notificationType === 'availability_request' || notificationType === 'availability_update') {
+    if (notificationType === 'availability_request' || notificationType === 'availability_update' || notificationType === 'best_timeslot_found') {
       window.location.href = `/availability/${meetingId}`;
     } else {
       window.location.href = `/meetingdetails/${meetingId}`;

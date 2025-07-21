@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@/styles/global.css';
 import SidebarMenu from '@/components/ExSidemenu';
-import ProfileHeader from '@/components/profileHeader';
+import ExternalProfileHeader from '@/components/ExternalProfileHeader';
 import { FaSearch, FaFilter, FaSortAmountDown, FaRegCheckCircle, FaDownload, FaTrash, FaCheckCircle, FaBars } from 'react-icons/fa';
 import { useParams } from 'next/navigation';
 
@@ -349,7 +349,7 @@ export default function Content() {
       >
         {/* Profile Header */}
         <div className="mb-3 mb-md-4">
-          <ProfileHeader />
+          <ExternalProfileHeader />
         </div>
 
         {/* Content Header */}
