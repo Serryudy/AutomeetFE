@@ -19,7 +19,6 @@ const Availability = ({ meetingId, selectedDate, onSlotsChange, onRoleChange }) 
   const [isMobile, setIsMobile] = useState(false);
   const [visibleDays, setVisibleDays] = useState(7);
   const [startDayIndex, setStartDayIndex] = useState(0);
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
   const [timeZone, setTimeZone] = useState('');
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [nextSlotId, setNextSlotId] = useState(1);
