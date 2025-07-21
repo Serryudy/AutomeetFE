@@ -7,7 +7,7 @@ import { FaCog, FaUser, FaBell, FaGlobe, FaCalendarAlt, FaVideo } from "react-ic
 import Link from "next/link";
 import { usePathname } from "next/navigation"; // Import usePathname
 
-const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
+const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect , uid, mid}) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const pathname = usePathname();
@@ -38,10 +38,10 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
   }, [isCollapsed, onToggle]);
 
   const menuItems = [
-    { icon: <img src="/icons/calendar.png" alt="Calendar" style={{ width: "22px" }} />, label: "Calendar", path: "/excalendar" },
-    { icon: <img src="/icons/meeting.png" alt="meetingdetails" style={{ width: "22px" }} />, label: "Meeting Details", path: "/exmeetingdetails" },
-    { icon: <img src="/icons/content.png" alt="content" style={{ width: "22px" }} />, label: "Content", path: "/excontent" },
-    { icon: <img src="/icons/notes.png" alt="notes" style={{ width: "22px" }} />, label: "Notes", path: "/exnotes" },
+    { icon: <img src="/icons/calendar.png" alt="Calendar" style={{ width: "22px" }} />, label: "Calendar", path: uid && mid ? `/exavailability/${uid}/${mid}` : '#' },
+    { icon: <img src="/icons/meeting.png" alt="meetingdetails" style={{ width: "22px" }} />, label: "Meeting Details", path: mid ? `/exmeetingdetails/${mid}` : '#' },
+    { icon: <img src="/icons/content.png" alt="content" style={{ width: "22px" }} />, label: "Content", path: mid ? `/excontent/${mid}` : '#' },
+    { icon: <img src="/icons/notes.png" alt="notes" style={{ width: "22px" }} />, label: "Notes", path: mid ? `/exnotes/${mid}` : '#' },
   ];
 
   const settingsItems = [

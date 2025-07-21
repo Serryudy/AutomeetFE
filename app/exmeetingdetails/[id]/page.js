@@ -7,8 +7,9 @@ import SidebarMenu from '@/components/ExSidemenu';
 import ExternalProfileHeader from '@/components/ExternalProfileHeader';
 import { useState, useEffect, useRef } from 'react';
 import SearchBar from '@/components/meetingsearchbar';
-import MeetingForm from '@/components/MeetingForm';
+import MeetingForm from '@/components/externalmeetingform';
 import { useParams } from 'next/navigation';
+import { FaBars, FaTimes } from 'react-icons/fa';
 
 export default function Details() {
   const params = useParams();
@@ -32,6 +33,12 @@ export default function Details() {
 
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
+  };
+
+  // Add this handler function for date selection
+  const handleDateSelect = (date) => {
+    // Handle date selection if needed
+    console.log('Date selected:', date);
   };
 
   // Add this handler function in the Details component
@@ -66,6 +73,9 @@ export default function Details() {
         <SidebarMenu 
           showmenuicon={true} 
           onToggle={handleSidebarToggle}
+          onDateSelect={handleDateSelect}
+          uid={null} // External users don't have a specific uid in this context
+          mid={meetingId}
         />
       </div>
       

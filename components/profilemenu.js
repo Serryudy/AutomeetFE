@@ -245,10 +245,7 @@ const ProfileMenu = () => {
                   <span className="badge bg-success rounded-pill ms-2">Connected</span>
                 )}
               </Link>
-              <Link href="/settings/integration" className="border-0 list-group-item list-group-item-action d-flex align-items-center px-3 py-2">
-                <FaVideo className="me-3" size={18} />
-                <span className="fs-6">Configure Zoom/Meet</span>
-              </Link>
+              
             </div>
             
             <hr className="my-3" />
@@ -259,13 +256,6 @@ const ProfileMenu = () => {
                 <span className="fs-6">Settings</span>
               </Link>
               
-              <Link href="/theme" className="border-0 list-group-item list-group-item-action d-flex align-items-center justify-content-between px-3 py-2">
-                <div className="d-flex align-items-center">
-                  <FaAdjust className="me-3" size={18} />
-                  <span className="fs-6">Theme</span>
-                </div>
-                <span>&gt;</span>
-              </Link>
             </div>
             
             <hr className="my-3" />

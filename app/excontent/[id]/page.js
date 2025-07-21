@@ -322,6 +322,7 @@ export default function Content() {
         <SidebarMenu 
           showmenuicon={true} 
           onToggle={handleSidebarToggle}
+          mid={meetingId}
         />
       </div>
 

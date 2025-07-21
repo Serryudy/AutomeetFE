@@ -447,6 +447,7 @@ export default function Notes() {
         <SidebarMenu 
           showmenuicon={true} 
           onToggle={handleSidebarToggle}
+          mid={meetingId}
         />
       </div>
 

@@ -123,6 +123,8 @@ export default function AvailabilityPage() {
           showmenuicon={true} 
           onToggle={handleSidebarToggle}
           onDateSelect={handleDateSelect}
+          mid={meetingId}
+          uid={params.uid}
         />
       </div>
 

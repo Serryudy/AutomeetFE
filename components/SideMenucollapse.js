@@ -50,7 +50,6 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
     { icon: <FaCog size={20} />, label: "Settings", path: "/settings" },
     { icon: <FaBell size={20} />, label: "Notifications", path: "/settings/notifications" },
     { icon: <FaCalendarAlt size={20} />, label: "Calendar sync", path: "/settings/calendarSync" },
-    { icon: <FaVideo size={20} />, label: "Integration", path: "/settings/integration" },
   ];
 
   // Render the settings view
