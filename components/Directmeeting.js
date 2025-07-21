@@ -5,6 +5,7 @@ import Calendar from './calendar';
 import 'react-datepicker/dist/react-datepicker.css';
 import FormStepNavigator from './formstepnav';
 import SuccessStep from './sucessstep';
+import {API_BASE_URL} from '@/utils/api';
 import axios from 'axios';
 
 const DirectScheduleForm = () => {
@@ -41,7 +42,7 @@ const DirectScheduleForm = () => {
   useEffect(() => {
     const fetchContacts = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/community/contacts', {
+        const response = await axios.get(`${API_BASE_URL}/api/community/contacts`, {
           withCredentials: true
         });
 
@@ -145,7 +146,7 @@ const DirectScheduleForm = () => {
         repeat
       };
       console.log(meetingPayload);
-      const response = await axios.post('http://localhost:8080/api/direct/meetings', meetingPayload, {
+      const response = await axios.post(`${API_BASE_URL}/api/direct/meetings`, meetingPayload, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -157,7 +158,7 @@ const DirectScheduleForm = () => {
     } catch (error) {
      console.error('Error creating meeting:', error);
       setError('Failed to create meeting. Please try again.');
-      setIsSubmitted(false); // Re-enable buton on error tsetIsSubmitted(false); // Re-enable buton on error t
+      setIsSubmitted(false); // Re-enable buton on error
     } finally {
       setIsLoading(false);
     }

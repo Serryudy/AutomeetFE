@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -11,7 +10,7 @@ import { FaEdit, FaCalendarAlt, FaChevronDown, FaSearch, FaFilter, FaCheckCircle
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import SearchBar from '@/components/meetingsearchbar';
-
+import { API_BASE_URL } from '@/utils/api';
 
 const MeetingForm = () => {
     const params = useParams();
@@ -68,7 +67,6 @@ const MeetingForm = () => {
     const [hasSubmittedAvailability, setHasSubmittedAvailability] = useState(false);
     const [availabilitySubmissionLoading, setAvailabilitySubmissionLoading] = useState(false);
 
-
     useEffect(() => {
       console.log("Params object:", params);
       console.log("Meeting ID:", meetingId);
@@ -91,7 +89,7 @@ const MeetingForm = () => {
     const checkHostAvailabilityStatus = async () => {
       try {
         // Use the correct host availability endpoint
-        const response = await fetch(`http://localhost:8080/api/availability/${meetingId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/availability/${meetingId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -447,7 +445,6 @@ const MeetingForm = () => {
         console.log('Checking host availability status for round robin host...');
         checkHostAvailabilityStatus();
       }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [meetingData, userRole]); // Run when meeting data or user role changes
 
 // Function to detect what has changed
@@ -587,7 +584,7 @@ const submitHostAvailability = async () => {
     console.log('Submitting host availability:', availabilityPayload);
     
     // Use the correct host availability endpoint
-    const response = await fetch(`http://localhost:8080/api/availability`, {
+    const response = await fetch(`${API_BASE_URL}/api/availability`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -826,7 +823,7 @@ useEffect(() => {
   const fetchAllContacts = async () => {
     if (isEditing) {
       try {
-        const response = await fetch(`http://localhost:8080/api/community/contacts`, {
+        const response = await fetch(`${API_BASE_URL}/api/community/contacts`, {
           credentials: 'include',
         });
         
@@ -859,7 +856,7 @@ useEffect(() => {
   
   try {
     // Make API call to search contacts
-    const response = await fetch(`http://localhost:8080/api/community/contacts/search?q=${encodeURIComponent(query)}`, {
+    const response = await fetch(`${API_BASE_URL}/api/community/contacts/search?q=${encodeURIComponent(query)}`, {
       credentials: 'include',
     });
     
@@ -1544,7 +1541,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 <label className="form-label">Date & Time Range</label>
                 <div className="alert alert-warning">
                   <strong>Note:</strong> 
-                  This meeting is of type &quot;{meetingType === 'round_robin' ? 'Round Robin' : meetingType === 'group' ? 'Group' : meetingType}&quot; and its schedule can&apos;t be changed here.
+                  This meeting is of type "{meetingType === 'round_robin' ? 'Round Robin' : meetingType === 'group' ? 'Group' : meetingType}" and its schedule can't be changed here.
                 </div>
               </div>
             )}
@@ -1774,7 +1771,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 <label className="form-label">Your Availability</label>
                 <div className="alert alert-warning">
                   <strong>Action Required:</strong> As a host, you need to submit your available time slots for this Round Robin meeting.
-                  <p className="mb-0 mt-2">Click &quot;Edit&quot; to add your availability and help finalize the meeting schedule.</p>
+                  <p className="mb-0 mt-2">Click "Edit" to add your availability and help finalize the meeting schedule.</p>
                 </div>
               </div>
             )}
@@ -1888,7 +1885,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                         
                         {searchContact.length >= 1 && searchResults.length === 0 && (
                           <div className="p-3 text-center text-muted">
-                            No contacts found matching &quot;{searchContact}&quot;
+                            No contacts found matching "{searchContact}"
                           </div>
                         )}
                       </div>
@@ -2421,7 +2418,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                       ></button>
                     </div>
                     <div className="modal-body">
-                      <p>Are you sure you want to cancel the meeting <strong>&quot;{originalTitle}&quot;</strong>?</p>
+                      <p>Are you sure you want to cancel the meeting <strong>"{originalTitle}"</strong>?</p>
                     </div>
                     <div className="modal-footer">
                       <button 

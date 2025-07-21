@@ -1774,7 +1774,7 @@ const MessageComponent = ({ onClose }) => {
                 >
                   <div className="position-relative me-2 flex-shrink-0">
                     <img
-                      src={isGroupItem ? "/groupm.png" : profilePic}
+                      src={isGroupItem ? "/groupm.jpg" : profilePic}
                       alt={displayName}
                       className="rounded-circle bg-light"
                       style={{
@@ -1785,7 +1785,7 @@ const MessageComponent = ({ onClose }) => {
                         border: `2px solid ${isContactItem ? '#28a745' : isGroupItem ? '#6c757d' : '#6c757d'}`,
                       }}
                       onError={(e) => { 
-                        e.target.src = isGroupItem ? "/groupm.png" : "/profile.png"; 
+                        e.target.src = isGroupItem ? "/groupm.jpg" : "/profile.png"; 
                       }}
                     />
 
@@ -1910,7 +1910,7 @@ const MessageComponent = ({ onClose }) => {
           >
             <div className="position-relative me-3 flex-shrink-0">
               <img
-                src={isGroupRoom(selectedMessage) ? "/groupm.png" : (selectedMessage.profile_pic || "/profile.png")}
+                src={isGroupRoom(selectedMessage) ? "/groupm.jpg" : (selectedMessage.profile_pic || "/profile.png")}
                 alt={selectedMessage.roomName || selectedMessage.displayName || "Chat Room"}
                 className="rounded-circle bg-light"
                 style={{
@@ -1920,7 +1920,7 @@ const MessageComponent = ({ onClose }) => {
                   border: `2px solid ${isGroupRoom(selectedMessage) ? '#6c757d' : '#6c757d'}`,
                 }}
                 onError={(e) => { 
-                  e.target.src = isGroupRoom(selectedMessage) ? "/groupm.png" : "/profile.png";
+                  e.target.src = isGroupRoom(selectedMessage) ? "/groupm.jpg" : "/profile.png";
                 }}
               />
             </div>

@@ -348,8 +348,8 @@ const SearchBar = ({
             className="btn btn-light rounded-pill d-flex align-items-center gap-2 px-2 px-md-3"
             onClick={handleFilterClick}
           >
-            {windowWidth < 576 ? <FaFilter /> : <>Filter <FaFilter /></>}
-          </button> */}
+            
+          </button>
         </div>
         
         {/* Search Results Dropdown */}

@@ -126,18 +126,24 @@ const ProfileMenu = () => {
 
   const handleLogout = async () => {
     try {
+      // Clear the refresh token interval first
+      if (window.refreshTokenInterval) {
+        clearInterval(window.refreshTokenInterval);
+        delete window.refreshTokenInterval;
+      }
+
       // Call the server-side logout endpoint
       const response = await fetch('http://localhost:8080/api/auth/logout', {
         method: 'GET',
-        credentials: 'include', // Important to include cookies
+        credentials: 'include',
       });
 
-      if (response.ok) {
-        // Redirect to login page after successful logout
-        window.location.href = '/login';
-      } else {
-        console.error('Logout failed:', await response.json());
-      }
+      // Clear all local storage and session storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Redirect to login page after clearing everything
+      window.location.href = '/login';
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -239,10 +245,7 @@ const ProfileMenu = () => {
                   <span className="badge bg-success rounded-pill ms-2">Connected</span>
                 )}
               </Link>
-              <Link href="/settings/integration" className="border-0 list-group-item list-group-item-action d-flex align-items-center px-3 py-2">
-                <FaVideo className="me-3" size={18} />
-                <span className="fs-6">Configure Zoom/Meet</span>
-              </Link>
+              
             </div>
             
             <hr className="my-3" />
@@ -253,13 +256,6 @@ const ProfileMenu = () => {
                 <span className="fs-6">Settings</span>
               </Link>
               
-              <Link href="/theme" className="border-0 list-group-item list-group-item-action d-flex align-items-center justify-content-between px-3 py-2">
-                <div className="d-flex align-items-center">
-                  <FaAdjust className="me-3" size={18} />
-                  <span className="fs-6">Theme</span>
-                </div>
-                <span>&gt;</span>
-              </Link>
             </div>
             
             <hr className="my-3" />

@@ -372,40 +372,7 @@ const WeeklyCalendar = ({ selectedDate }) => {
   return (
     <div className="container-fluid p-0 position-relative">
       
-      {/* Week Navigation */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <button 
-            className="btn btn-sm btn-outline-primary me-2" 
-            onClick={goToPreviousWeek}
-          >
-            &lt;
-          </button>
-        </div>
-        <div className="text-center">
-          {viewStartDate && (
-            <h6 className="mb-0 fw-bold">
-              {viewStartDate.toLocaleDateString('en-US', { 
-                month: 'long', 
-                day: 'numeric', 
-                year: 'numeric' 
-              })} - {new Date(viewStartDate.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { 
-                month: 'long', 
-                day: 'numeric', 
-                year: 'numeric' 
-              })}
-            </h6>
-          )}
-        </div>
-        <div>
-          <button 
-            className="btn btn-sm btn-outline-primary" 
-            onClick={goToNextWeek}
-          >
-            &gt;
-          </button>
-        </div>
-      </div>
+      
 
       {/* Calendar Content */}
       <div className="d-flex border" style={{ backgroundColor: '#ffffff', borderRadius: '8px', overflow: 'hidden', width: '100%' }}>

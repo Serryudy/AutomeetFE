@@ -7,7 +7,7 @@ import { FaCog, FaUser, FaBell, FaGlobe, FaCalendarAlt, FaVideo } from "react-ic
 import Link from "next/link";
 import { usePathname } from "next/navigation"; // Import usePathname
 
-const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
+const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect , uid, mid}) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const pathname = usePathname();
@@ -38,11 +38,10 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
   }, [isCollapsed, onToggle]);
 
   const menuItems = [
-    { icon: <img src="/icons/calendar.png" alt="Calendar" style={{ width: "22px" }} />, label: "Calendar", path: "/calendar" },
-    { icon: <img src="/icons/meeting.png" alt="meeting" style={{ width: "22px" }} />, label: "Meetings", path: "/meeting" },
-    { icon: <img src="/icons/community.png" alt="community" style={{ width: "22px" }} />, label: "Community", path: "/community" },
-    { icon: <img src="/icons/analytics.png" alt="analytics" style={{ width: "22px" }} />, label: "Analytics", path: "/analytics" },
-    { icon: <img src="/icons/availability.png" alt="availability" style={{ width: "22px" }} />, label: "Availability", path: "/availability" },
+    { icon: <img src="/icons/calendar.png" alt="Calendar" style={{ width: "22px" }} />, label: "Calendar", path: uid && mid ? `/exavailability/${uid}/${mid}` : '#' },
+    { icon: <img src="/icons/meeting.png" alt="meetingdetails" style={{ width: "22px" }} />, label: "Meeting Details", path: mid ? `/exmeetingdetails/${mid}` : '#' },
+    { icon: <img src="/icons/content.png" alt="content" style={{ width: "22px" }} />, label: "Content", path: mid ? `/excontent/${mid}` : '#' },
+    { icon: <img src="/icons/notes.png" alt="notes" style={{ width: "22px" }} />, label: "Notes", path: mid ? `/exnotes/${mid}` : '#' },
   ];
 
   const settingsItems = [
@@ -50,6 +49,7 @@ const SidebarMenu = ({ showmenuicon = true, onToggle, onDateSelect }) => {
     { icon: <FaCog size={20} />, label: "Settings", path: "/settings" },
     { icon: <FaBell size={20} />, label: "Notifications", path: "/settings/notifications" },
     { icon: <FaCalendarAlt size={20} />, label: "Calendar sync", path: "/settings/calendarSync" },
+    { icon: <FaVideo size={20} />, label: "Integration", path: "/settings/integration" },
   ];
 
   // Render the settings view
