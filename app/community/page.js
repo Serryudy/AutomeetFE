@@ -130,7 +130,6 @@ export default function Community() {
     }
   };
 
-
   const handleSidebarToggle = (collapsed) => {
     setIsSidebarCollapsed(collapsed);
   };
@@ -446,65 +445,61 @@ const Contacts = ({ setShowContactModal, setEditingContact }) => {
   }, []);
 
   const handleDelete = async (clientId) => {
-  try {
-    // Get token from localStorage or your auth context
-    const token = localStorage.getItem('token');
-    
-    const response = await fetch(`http://localhost:8080/api/community/contacts/${clientId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      credentials: 'include'
-    });
+    try {
+      // Get token from localStorage or your auth context
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`http://localhost:8080/api/community/contacts/${clientId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
 
-    // Handle different response status codes
-    if (response.status === 404) {
-      throw new Error('Contact not found');
+      // Handle different response status codes
+      if (response.status === 404) {
+        throw new Error('Contact not found');
+      }
+
+      if (response.status === 401) {
+        throw new Error('Unauthorized - Please login again');
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete contact');
+      }
+
+      // Update UI only after successful deletion
+      setClients(prevClients => prevClients.filter(client => client.id !== clientId));
+      setActivePopup(null);
+    } catch (err) {
+      console.error('Error deleting contact:', err);
+      alert(err.message || 'Failed to delete contact');
     }
-
-    if (response.status === 401) {
-      throw new Error('Unauthorized - Please login again');
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to delete contact');
-    }
-
-    // Update UI only after successful deletion
-    setClients(prevClients => prevClients.filter(client => client.id !== clientId));
-    setActivePopup(null);
-  } catch (err) {
-    console.error('Error deleting contact:', err);
-    alert(err.message || 'Failed to delete contact');
-  }
-};
-
-
-
-
+  };
 
   const togglePopup = (itemId, action) => {
-  if (action === 'edit') {
-    setActivePopup(null);
-    const contactToEdit = clients.find(client => client.id === itemId);
-    if (contactToEdit) {
-      // Set the contact data for editing
-      setEditingContact({
-        id: contactToEdit.id,
-        username: contactToEdit.username,
-        email: contactToEdit.email,
-        phone: contactToEdit.phone,
-        profileimg: contactToEdit.profileimg
-      });
-      setShowContactModal(true);
+    if (action === 'edit') {
+      setActivePopup(null);
+      const contactToEdit = clients.find(client => client.id === itemId);
+      if (contactToEdit) {
+        // Set the contact data for editing
+        setEditingContact({
+          id: contactToEdit.id,
+          username: contactToEdit.username,
+          email: contactToEdit.email,
+          phone: contactToEdit.phone,
+          profileimg: contactToEdit.profileimg
+        });
+        setShowContactModal(true);
+      }
+    } else {
+      setActivePopup(activePopup === itemId ? null : itemId);
     }
-  } else {
-    setActivePopup(activePopup === itemId ? null : itemId);
-  }
-};
+  };
 
   if (loading) {
     return <div className="text-center py-4">Loading contacts...</div>;
@@ -965,12 +960,12 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
     }, 300); // Debounce time of 300ms
   };
 
-  // Handle user selection from dropdown
+  // Handle user selection from dropdown - FIXED
   const handleUserSelect = (user) => {
     setFormData({
       ...formData,
-      name: user.username,
-      email: user.username,
+      name: user.name || user.username, // Use user.name, fallback to username if name is empty
+      email: user.username, // Email should be the username
       timezone: user.time_zone,
       phone: user.mobile_no || ''
     });
@@ -1010,7 +1005,7 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
 
       // Prepare the request body
       const contactData = {
-        username: formData.name,
+        username: formData.email, // Send email as username to backend
         email: formData.email,
         phone: formData.phone,
         profileimg: formData.profileimg || 'https://example.com/default-profile.jpg'
@@ -1109,22 +1104,23 @@ const NewContact = ({ setShowContactModal, contactModalRef, editingContact, setE
               autoComplete="off"
             />
             
-            {/* Search Results Dropdown */}
+            {/* Search Results Dropdown - ENHANCED */}
             {showDropdown && searchResults.length > 0 && (
               <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded-3 border" 
                 style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
                 {searchResults.map((user, index) => (
                   <div 
                     key={index}
-                    className="p-2 hover-bg-light cursor-pointer"
+                    className="p-2 hover-bg-light cursor-pointer border-bottom"
                     onClick={() => handleUserSelect(user)}
                     style={{ cursor: 'pointer' }}
                     onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
                     onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                   >
-                    <div className="fw-bold">{user.username}</div>
-                    {user.name !== user.username && (
-                      <div className="small text-muted">{user.name}</div>
+                    <div className="fw-bold">{user.name || user.username}</div>
+                    <div className="small text-muted">{user.username}</div>
+                    {user.company && (
+                      <div className="small text-muted">{user.company}</div>
                     )}
                   </div>
                 ))}
@@ -1279,7 +1275,6 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
     }));
   };
 
-  // Add this JSX in the form, replacing the previous members input
   return (
     <div 
       className="position-fixed top-0 start-0 w-100 h-100" 
@@ -1393,4 +1388,3 @@ const NewGroup = ({ setShowGroupModal, groupModalRef, editingGroup, setEditingGr
     </div>
   );
 };
-

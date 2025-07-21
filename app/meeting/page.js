@@ -71,27 +71,29 @@ export default function Meeting() {
 
   // Filter meetings based on active tab
   const filterMeetingsByTab = (meetings, tab) => {
-    let filtered = meetings;
+    // First filter out canceled meetings from all results
+    let filtered = meetings.filter(meeting => meeting.status !== 'canceled');
     
-    // First filter by tab
+    // Then filter by tab
     switch(tab) {
       case 'all':
-        filtered = meetings;
+        // Already filtered out canceled meetings above
         break;
       case 'created':
-        filtered = meetings.filter(meeting => meeting.role === 'creator');
+        filtered = filtered.filter(meeting => meeting.role === 'creator');
         break;
       case 'participating':
-        filtered = meetings.filter(meeting => meeting.role === 'participant');
+        filtered = filtered.filter(meeting => meeting.role === 'participant');
         break;
       case 'hosting':
-        filtered = meetings.filter(meeting => meeting.role === 'host');
+        filtered = filtered.filter(meeting => meeting.role === 'host');
         break;
       case 'pending':
-        filtered = meetings.filter(meeting => meeting.status === 'pending');
+        filtered = filtered.filter(meeting => meeting.status === 'pending');
         break;
       default:
-        filtered = meetings;
+        // Already filtered out canceled meetings above
+        break;
     }
     
     return filtered;
