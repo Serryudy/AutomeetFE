@@ -1,3 +1,5 @@
+import { choreoFetch, API_CONFIG } from './apiConfig';
+
 export const USER_PROFILE_KEY = 'userProfile';
 
 export const getStoredProfile = () => {
@@ -13,23 +15,34 @@ export const storeProfile = (profile) => {
 
 export const fetchAndStoreProfile = async () => {
   try {
-    const response = await fetch('http://localhost:8080/api/users/profile', {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+    console.log('Fetching user profile...');
+    console.log('Current cookies:', document.cookie);
+    
+    const response = await choreoFetch('users', API_CONFIG.endpoints.users.profile, {
+      method: 'GET'
     });
 
     if (!response.ok) {
+      console.error('Profile fetch failed with status:', response.status);
+      if (response.status === 401) {
+        throw new Error('Authentication failed - please login again');
+      }
       throw new Error('Failed to fetch profile');
     }
 
     const profile = await response.json();
+    console.log('Profile fetched successfully:', profile);
     storeProfile(profile);
     return profile;
   } catch (error) {
     console.error('Error fetching profile:', error);
+    
+    // If it's an auth error, clear local storage
+    if (error.message.includes('Authentication failed')) {
+      localStorage.removeItem('user');
+      clearStoredProfile();
+    }
+    
     return null;
   }
 };
