@@ -1,16 +1,17 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@/styles/global.css';
 import SidebarMenu from '@/components/SideMenucollapse';
 import ProfileHeader from '@/components/profileHeader';
 import Calendar from '@/components/calendar';
 import { FaEdit, FaCalendarAlt, FaChevronDown, FaSearch, FaFilter, FaCheckCircle, FaBars, FaTimes } from 'react-icons/fa';
-import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import SearchBar from '@/components/meetingsearchbar';
+
 
 const MeetingForm = () => {
     const params = useParams();
@@ -61,6 +62,12 @@ const MeetingForm = () => {
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [isUploadProcessing, setIsUploadProcessing] = useState(false);
     const [isTakeNotesProcessing, setIsTakeNotesProcessing] = useState(false);
+    const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+    
+    // New states for host availability management (from first file)
+    const [hasSubmittedAvailability, setHasSubmittedAvailability] = useState(false);
+    const [availabilitySubmissionLoading, setAvailabilitySubmissionLoading] = useState(false);
+
 
     useEffect(() => {
       console.log("Params object:", params);
@@ -68,11 +75,97 @@ const MeetingForm = () => {
       console.log("URL path:", window.location.pathname);
     }, [params, meetingId]);
 
+    // Function to get current username (from first file)
+    const getCurrentUsername = () => {
+      // Get username from userProfile in sessionStorage (consistent with profile management)
+      try {
+        const currentUserProfile = JSON.parse(sessionStorage.getItem('userProfile') || '{}');
+        return currentUserProfile.username || '';
+      } catch (error) {
+        console.error('Error parsing user profile from sessionStorage:', error);
+        return '';
+      }
+    };
+
+    // Function to check if host has submitted availability
+    const checkHostAvailabilityStatus = async () => {
+      try {
+        // Use the correct host availability endpoint
+        const response = await fetch(`http://localhost:8080/api/availability/${meetingId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const availabilityData = await response.json();
+          const currentUser = getCurrentUsername();
+          
+          if (!currentUser) {
+            console.log('No current user found');
+            return;
+          }
+          
+          // Check if current user (host) has submitted availability
+          const userHasSubmitted = Array.isArray(availabilityData) && 
+            availabilityData.some(avail => avail.username === currentUser);
+          setHasSubmittedAvailability(userHasSubmitted);
+          
+          console.log(`Host availability check for ${currentUser}:`, userHasSubmitted);
+          
+          // If user has submitted, load their time slots
+          if (userHasSubmitted) {
+            const userAvailability = availabilityData.find(avail => avail.username === currentUser);
+            if (userAvailability && userAvailability.timeSlots) {
+              const formattedTimeSlots = userAvailability.timeSlots.map((slot, index) => {
+                const startDate = new Date(slot.startTime);
+                const endDate = new Date(slot.endTime);
+                
+                const formatTime = (date) => {
+                  let hours = date.getHours();
+                  const minutes = date.getMinutes().toString().padStart(2, '0');
+                  const ampm = hours >= 12 ? 'PM' : 'AM';
+                  hours = hours % 12;
+                  hours = hours ? hours : 12;
+                  return `${hours}:${minutes} ${ampm}`;
+                };
+                
+                return {
+                  id: index + 1,
+                  start: formatTime(startDate),
+                  end: formatTime(endDate),
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  date: startDate.toDateString()
+                };
+              });
+              
+              setTimeSlots(formattedTimeSlots);
+              if (formattedTimeSlots.length > 0) {
+                setSelectedDate(new Date(formattedTimeSlots[0].startTime));
+              }
+            }
+          }
+        } else {
+          console.error(`Error fetching host availability: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error checking host availability status:', error);
+      }
+    };
+
     // Check if the user can edit the meeting based on status and role
     const canEdit = () => {
       // If meeting is canceled, no one can edit
       if (meetingData?.status === 'canceled') {
         return false;
+      }
+      
+      // Round robin hosts can edit their availability
+      if (userRole === 'host' && meetingData.meetingType === 'round_robin' && !hasSubmittedAvailability) {
+        return true;
       }
       
       // If meeting is confirmed, only creator can edit
@@ -151,109 +244,114 @@ const MeetingForm = () => {
               setRoundRobinDuration(data.roundRobinDuration || '');
               setUserRole(data.role || '');
               
-              // Format and set time slots - handle different meeting types
-              let timeSlotData = null;
-              
-              console.log('Meeting Type:', data.meetingType); // Debug meeting type
-              console.log('Checking for time slots based on meeting type...'); // Debug log
-              
-              // Handle different meeting types with different data structures
-              if (data.meetingType === 'direct' && data.directTimeSlot) {
-                  console.log('Found directTimeSlot for direct meeting:', data.directTimeSlot);
-                  // Convert single directTimeSlot object to array format
-                  timeSlotData = [data.directTimeSlot];
-              } else if (data.directTimeSlot && data.status === 'confirmed') {
-                  // Handle confirmed meetings (group/round_robin) that now have a directTimeSlot
-                  console.log('Found confirmed directTimeSlot for group/round_robin meeting:', data.directTimeSlot);
-                  timeSlotData = [data.directTimeSlot];
-              } else if ((data.meetingType === 'group' || data.meetingType === 'round_robin') && data.userAvailability && data.userAvailability.timeSlots) {
-                  console.log('Found timeSlots in userAvailability for group/round_robin meeting:', data.userAvailability.timeSlots);
-                  timeSlotData = data.userAvailability.timeSlots;
+              // Check if current user (if host) has submitted availability for round robin meetings
+              if (data.role === 'host' && data.meetingType === 'round_robin') {
+                await checkHostAvailabilityStatus();
               } else {
-                  // Fallback: check other possible locations
-                  if (data.timeSlots) {
-                      console.log('Found timeSlots in root:', data.timeSlots);
-                      timeSlotData = data.timeSlots;
-                  } else if (data.scheduledTimes) {
-                      console.log('Found scheduledTimes:', data.scheduledTimes);
-                      timeSlotData = data.scheduledTimes;
-                  } else if (data.availability) {
-                      console.log('Found availability:', data.availability);
-                      timeSlotData = data.availability;
-                  } else if (data.meeting_times) {
-                      console.log('Found meeting_times:', data.meeting_times);
-                      timeSlotData = data.meeting_times;
-                  } else if (data.schedule) {
-                      console.log('Found schedule:', data.schedule);
-                      timeSlotData = data.schedule;
-                  }
-              }
-              
-              console.log('Final timeSlotData:', timeSlotData); // Debug log
-              
-              if (timeSlotData && Array.isArray(timeSlotData) && timeSlotData.length > 0) {
-                  const formattedTimeSlots = timeSlotData.map((slot, index) => {
-                      console.log('Processing slot:', slot); // Debug each slot
-                      
-                      // Handle different possible date formats
-                      let startDate, endDate;
-                      
-                      if (slot.startTime && slot.endTime) {
-                          startDate = new Date(slot.startTime);
-                          endDate = new Date(slot.endTime);
-                      } else if (slot.start_time && slot.end_time) {
-                          startDate = new Date(slot.start_time);
-                          endDate = new Date(slot.end_time);
-                      } else if (slot.date && slot.startTime && slot.endTime) {
-                          startDate = new Date(`${slot.date} ${slot.startTime}`);
-                          endDate = new Date(`${slot.date} ${slot.endTime}`);
-                      } else if (slot.date && slot.start && slot.end) {
-                          startDate = new Date(`${slot.date} ${slot.start}`);
-                          endDate = new Date(`${slot.date} ${slot.end}`);
-                      } else {
-                          console.warn('Invalid time slot format:', slot);
-                          return null;
-                      }
-                      
-                      // Validate dates
-                      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                          console.warn('Invalid date in time slot:', slot);
-                          return null;
-                      }
-                      
-                      console.log('Processed dates:', { startDate, endDate }); // Debug dates
-                      
-                      // Format to 12 hour time
-                      const formatTime = (date) => {
-                          let hours = date.getHours();
-                          const minutes = date.getMinutes().toString().padStart(2, '0');
-                          const ampm = hours >= 12 ? 'PM' : 'AM';
-                          hours = hours % 12;
-                          hours = hours ? hours : 12; // the hour '0' should be '12'
-                          return `${hours}:${minutes} ${ampm}`;
-                      };
-                      
-                      return {
-                          id: slot.id || index + 1,
-                          start: formatTime(startDate),
-                          end: formatTime(endDate),
-                          startTime: slot.startTime || slot.start_time || startDate.toISOString(),
-                          endTime: slot.endTime || slot.end_time || endDate.toISOString(),
-                          date: startDate.toDateString() // Add the date string for display
-                      };
-                  }).filter(slot => slot !== null); // Remove invalid slots
-                  
-                  console.log('Formatted time slots:', formattedTimeSlots); // Debug log
-                  
-                  setTimeSlots(formattedTimeSlots);
-                  // If there's at least one time slot, set the selected date to the first one
-                  if (formattedTimeSlots.length > 0) {
-                      setSelectedDate(new Date(formattedTimeSlots[0].startTime));
-                  }
-              } else {
-                  console.log('No valid time slots found in meeting data'); // Debug log
-                  console.log('Available keys in data:', Object.keys(data)); // Show all available keys
-                  setTimeSlots([]);
+                // Format and set time slots - handle different meeting types
+                let timeSlotData = null;
+                
+                console.log('Meeting Type:', data.meetingType); // Debug meeting type
+                console.log('Checking for time slots based on meeting type...'); // Debug log
+                
+                // Handle different meeting types with different data structures
+                if (data.meetingType === 'direct' && data.directTimeSlot) {
+                    console.log('Found directTimeSlot for direct meeting:', data.directTimeSlot);
+                    // Convert single directTimeSlot object to array format
+                    timeSlotData = [data.directTimeSlot];
+                } else if (data.directTimeSlot && data.status === 'confirmed') {
+                    // Handle confirmed meetings (group/round_robin) that now have a directTimeSlot
+                    console.log('Found confirmed directTimeSlot for group/round_robin meeting:', data.directTimeSlot);
+                    timeSlotData = [data.directTimeSlot];
+                } else if ((data.meetingType === 'group' || data.meetingType === 'round_robin') && data.userAvailability && data.userAvailability.timeSlots) {
+                    console.log('Found timeSlots in userAvailability for group/round_robin meeting:', data.userAvailability.timeSlots);
+                    timeSlotData = data.userAvailability.timeSlots;
+                } else {
+                    // Fallback: check other possible locations
+                    if (data.timeSlots) {
+                        console.log('Found timeSlots in root:', data.timeSlots);
+                        timeSlotData = data.timeSlots;
+                    } else if (data.scheduledTimes) {
+                        console.log('Found scheduledTimes:', data.scheduledTimes);
+                        timeSlotData = data.scheduledTimes;
+                    } else if (data.availability) {
+                        console.log('Found availability:', data.availability);
+                        timeSlotData = data.availability;
+                    } else if (data.meeting_times) {
+                        console.log('Found meeting_times:', data.meeting_times);
+                        timeSlotData = data.meeting_times;
+                    } else if (data.schedule) {
+                        console.log('Found schedule:', data.schedule);
+                        timeSlotData = data.schedule;
+                    }
+                }
+                
+                console.log('Final timeSlotData:', timeSlotData); // Debug log
+                
+                if (timeSlotData && Array.isArray(timeSlotData) && timeSlotData.length > 0) {
+                    const formattedTimeSlots = timeSlotData.map((slot, index) => {
+                        console.log('Processing slot:', slot); // Debug each slot
+                        
+                        // Handle different possible date formats
+                        let startDate, endDate;
+                        
+                        if (slot.startTime && slot.endTime) {
+                            startDate = new Date(slot.startTime);
+                            endDate = new Date(slot.endTime);
+                        } else if (slot.start_time && slot.end_time) {
+                            startDate = new Date(slot.start_time);
+                            endDate = new Date(slot.end_time);
+                        } else if (slot.date && slot.startTime && slot.endTime) {
+                            startDate = new Date(`${slot.date} ${slot.startTime}`);
+                            endDate = new Date(`${slot.date} ${slot.endTime}`);
+                        } else if (slot.date && slot.start && slot.end) {
+                            startDate = new Date(`${slot.date} ${slot.start}`);
+                            endDate = new Date(`${slot.date} ${slot.end}`);
+                        } else {
+                            console.warn('Invalid time slot format:', slot);
+                            return null;
+                        }
+                        
+                        // Validate dates
+                        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                            console.warn('Invalid date in time slot:', slot);
+                            return null;
+                        }
+                        
+                        console.log('Processed dates:', { startDate, endDate }); // Debug dates
+                        
+                        // Format to 12 hour time
+                        const formatTime = (date) => {
+                            let hours = date.getHours();
+                            const minutes = date.getMinutes().toString().padStart(2, '0');
+                            const ampm = hours >= 12 ? 'PM' : 'AM';
+                            hours = hours % 12;
+                            hours = hours ? hours : 12; // the hour '0' should be '12'
+                            return `${hours}:${minutes} ${ampm}`;
+                        };
+                        
+                        return {
+                            id: slot.id || index + 1,
+                            start: formatTime(startDate),
+                            end: formatTime(endDate),
+                            startTime: slot.startTime || slot.start_time || startDate.toISOString(),
+                            endTime: slot.endTime || slot.end_time || endDate.toISOString(),
+                            date: startDate.toDateString() // Add the date string for display
+                        };
+                    }).filter(slot => slot !== null); // Remove invalid slots
+                    
+                    console.log('Formatted time slots:', formattedTimeSlots); // Debug log
+                    
+                    setTimeSlots(formattedTimeSlots);
+                    // If there's at least one time slot, set the selected date to the first one
+                    if (formattedTimeSlots.length > 0) {
+                        setSelectedDate(new Date(formattedTimeSlots[0].startTime));
+                    }
+                } else {
+                    console.log('No valid time slots found in meeting data'); // Debug log
+                    console.log('Available keys in data:', Object.keys(data)); // Show all available keys
+                    setTimeSlots([]);
+                }
               }
               
               // Transform participants data
@@ -299,6 +397,7 @@ const MeetingForm = () => {
       };
       
       fetchMeetingData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [meetingId]);
     
     // Function to fetch user profile
@@ -340,6 +439,16 @@ const MeetingForm = () => {
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Check host availability status after meeting data is loaded
+    useEffect(() => {
+      // Only check if we have meeting data and user is a round robin host
+      if (meetingData && userRole === 'host' && meetingData.meetingType === 'round_robin') {
+        console.log('Checking host availability status for round robin host...');
+        checkHostAvailabilityStatus();
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [meetingData, userRole]); // Run when meeting data or user role changes
 
 // Function to detect what has changed
 const getChanges = () => {
@@ -416,6 +525,7 @@ const getChanges = () => {
   
   return changes;
 };
+
 const validateForm = () => {
   let isValid = true;
   
@@ -443,9 +553,88 @@ const validateForm = () => {
   return true;
 };
 
+// Submit host availability for round robin meetings
+const submitHostAvailability = async () => {
+  try {
+    setAvailabilitySubmissionLoading(true);
+    
+    // Validate that time slots are provided
+    if (!timeSlots || timeSlots.length === 0) {
+      showErrorMessage('Please add at least one time slot for your availability');
+      return;
+    }
+    
+    // Get current user profile from sessionStorage
+    const currentUserProfile = JSON.parse(sessionStorage.getItem('userProfile') || '{}');
+    const currentUsername = currentUserProfile.username;
+    
+    if (!currentUsername) {
+      showErrorMessage('Unable to identify current user. Please log in again.');
+      return;
+    }
+    
+    // Prepare availability payload for hosts
+    const availabilityPayload = {
+      id: "", // Let backend generate ID
+      meetingId: meetingId,
+      username: currentUsername,
+      timeSlots: timeSlots.map(slot => ({
+        startTime: slot.startTime,
+        endTime: slot.endTime
+      }))
+    };
+    
+    console.log('Submitting host availability:', availabilityPayload);
+    
+    // Use the correct host availability endpoint
+    const response = await fetch(`http://localhost:8080/api/availability`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(availabilityPayload),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Error submitting availability: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Host availability submitted successfully:', result);
+    
+    // Update the hasSubmittedAvailability state
+    setHasSubmittedAvailability(true);
+    
+    // Exit edit mode
+    setIsEditing(false);
+    
+    // Show success message
+    showSuccessMessage('Your availability has been submitted successfully!');
+    
+    // Refresh the page after 3 seconds to update the meeting status
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+    
+  } catch (err) {
+    console.error('Error submitting host availability:', err);
+    showErrorMessage(`Failed to submit availability: ${err.message}`);
+  } finally {
+    setAvailabilitySubmissionLoading(false);
+  }
+};
+
     // to update the form with validation
 const handleSaveChanges = async () => {
-  // Validate form first
+  // For round robin hosts, handle availability submission
+  if (userRole === 'host' && meetingData.meetingType === 'round_robin') {
+    await submitHostAvailability();
+    return;
+  }
+  
+  // Validate form first for other types
   if (!validateForm()) {
     return;
   }
@@ -637,7 +826,7 @@ useEffect(() => {
   const fetchAllContacts = async () => {
     if (isEditing) {
       try {
-        const response = await fetch(`http://localhost:8080/api/contacts`, {
+        const response = await fetch(`http://localhost:8080/api/community/contacts`, {
           credentials: 'include',
         });
         
@@ -670,7 +859,7 @@ useEffect(() => {
   
   try {
     // Make API call to search contacts
-    const response = await fetch(`http://localhost:8080/api/contacts/search?q=${encodeURIComponent(query)}`, {
+    const response = await fetch(`http://localhost:8080/api/community/contacts/search?q=${encodeURIComponent(query)}`, {
       credentials: 'include',
     });
     
@@ -972,6 +1161,19 @@ const showErrorMessage = (message) => {
         // Replace any existing time slot with the new one
         setTimeSlots([newTimeSlot]);
         console.log('Direct meeting: Replaced time slot with new one');
+      } else if (userRole === 'host' && meetingType === 'round_robin') {
+        // For round robin hosts adding availability
+        const isDuplicate = currentTimeSlots.some(
+          slot => slot?.start === newTimeSlot.start && slot?.end === newTimeSlot.end
+        );
+
+        if (isDuplicate) {
+          setTimeError('This time slot has already been added');
+          return;
+        }
+
+        setTimeSlots([...currentTimeSlots, newTimeSlot]);
+        console.log('Round robin host: Added availability time slot');
       } else {
         // For other meeting types, check for duplicates before adding
         const isDuplicate = currentTimeSlots.some(
@@ -1081,6 +1283,11 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               <h2 className="fw-bold mb-0 fs-4 fs-md-3">{originalTitle || 'Meeting name'}</h2>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-info px-3 py-2 me-2">Role: {userRole}</span>
+                {userRole === 'host' && meetingData.meetingType === 'round_robin' && (
+                  <span className={`badge px-3 py-2 me-2 ${hasSubmittedAvailability ? 'bg-success' : 'bg-warning'}`}>
+                    Availability: {hasSubmittedAvailability ? 'Submitted' : 'Pending'}
+                  </span>
+                )}
                 {canEdit() ? (
                   <button 
                     className="btn btn-secondary d-flex align-items-center px-3 py-2"
@@ -1090,7 +1297,9 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                     <FaEdit className="me-2" /> {isEditing ? 'Cancel' : 'Edit'}
                   </button>
                 ) : (
-                  <span className="badge bg-secondary px-3 py-2">No editing allowed</span>
+                  <span className="badge bg-secondary px-3 py-2">
+                    {userRole === 'host' && hasSubmittedAvailability ? 'Availability Submitted' : 'No editing allowed'}
+                  </span>
                 )}
               </div>
             </div>
@@ -1121,7 +1330,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                    meetingType === 'direct' ? 'Direct' : 
                    meetingType}
                 </span>
-                {meetingType === 'round_robin' && roundRobinDuration && (
+                {(meetingType === 'round_robin' || meetingType === 'group') && roundRobinDuration && (
                   <span className="badge bg-info ms-2 px-3 py-2">Duration: {roundRobinDuration}</span>
                 )}
               </div>
@@ -1147,10 +1356,12 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               )}
             </div>
   
-            {/* Only show Date & Time Range section when editing AND meeting type is 'direct' AND meeting not canceled */}
-            {isEditing && meetingType === 'direct' && meetingData.status !== 'canceled' && (
+            {/* Date & Time Range section - Enhanced for round robin hosts */}
+            {isEditing && ((meetingType === 'direct') || (userRole === 'host' && meetingType === 'round_robin' && !hasSubmittedAvailability)) && meetingData.status !== 'canceled' && (
               <div className="mb-3 mb-md-4">
-                <label className="form-label">Date & Time Range</label>
+                <label className="form-label">
+                  {userRole === 'host' && meetingType === 'round_robin' ? 'Your Available Time Slots' : 'Date & Time Range'}
+                </label>
                 <div className="p-2 bg-light rounded">
                   <div className="d-flex align-items-center gap-2 flex-wrap">
                     {/* Date Picker */}
@@ -1308,17 +1519,32 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                       {timeError}
                     </div>
                   )}
+
+                  {/* Instructional alert for round robin hosts */}
+                  {userRole === 'host' && meetingData.meetingType === 'round_robin' && !hasSubmittedAvailability && isEditing && (
+                    <div className="alert alert-info mt-3">
+                      <strong>Host Instructions:</strong> Add your available time slots below. Once you submit your availability, 
+                      participants will be notified when all hosts have submitted their schedules.
+                    </div>
+                  )}
+
+                  {/* Validation message for round robin hosts */}
+                  {userRole === 'host' && meetingData.meetingType === 'round_robin' && isEditing && timeSlots.length === 0 && (
+                    <div className="alert alert-warning mt-3">
+                      <strong>Note:</strong> You need to add at least one time slot before you can submit your availability.
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Show message for non-direct meetings when editing */}
-            {isEditing && meetingType !== 'direct' && meetingData.status !== 'canceled' && (
+            {/* Show message for non-direct meetings when editing (except round robin hosts) */}
+            {isEditing && meetingType !== 'direct' && !(userRole === 'host' && meetingType === 'round_robin') && meetingData.status !== 'canceled' && (
               <div className="mb-3 mb-md-4">
                 <label className="form-label">Date & Time Range</label>
                 <div className="alert alert-warning">
                   <strong>Note:</strong> 
-                  This meeting is of type "{meetingType === 'round_robin' ? 'Round Robin' : meetingType === 'group' ? 'Group' : meetingType}" and its schedule can't be changed here.
+                  This meeting is of type &quot;{meetingType === 'round_robin' ? 'Round Robin' : meetingType === 'group' ? 'Group' : meetingType}&quot; and its schedule can&apos;t be changed here.
                 </div>
               </div>
             )}
@@ -1326,9 +1552,12 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
             {/* Always show scheduled time information from database */}
             {Array.isArray(timeSlots) && timeSlots.length > 0 && (
               <div className="mb-3 mb-md-4">
-                <label className="form-label">Scheduled Time</label>
+                <label className="form-label">
+                  {userRole === 'host' && meetingType === 'round_robin' && !hasSubmittedAvailability ? 'Your Available Time Slots' : 'Scheduled Time'}
+                </label>
+                
                 {/* Show status message for group/round_robin meetings */}
-                {(meetingType === 'group' || meetingType === 'round_robin') && meetingData?.status === 'confirmed' && (
+                {(meetingType === 'group' || meetingType === 'round_robin') && meetingData?.status === 'confirmed' && !(userRole === 'host' && !hasSubmittedAvailability) && (
                   <div className="alert alert-success mb-2">
                     <strong>Meeting Confirmed!</strong> The final schedule has been set based on participant availability.
                   </div>
@@ -1382,24 +1611,28 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                       // Round Robin Display
                       <div className="bg-light p-3 rounded">
                         <div className="fw-bold mb-2">
-                          {meetingData?.status === 'pending' ? 'Round Robin Schedule' : 'Round Robin Sessions'}
-                          {meetingData?.status === 'confirmed' && (
+                          {userRole === 'host' && !hasSubmittedAvailability ? 'Your Available Time Slots' :
+                           meetingData?.status === 'pending' ? 'Round Robin Schedule' : 'Round Robin Sessions'}
+                          {meetingData?.status === 'confirmed' && !(userRole === 'host' && !hasSubmittedAvailability) && (
                             <span className="badge bg-success ms-2">Confirmed</span>
                           )}
                         </div>
                         {timeSlots.map((slot, index) => (
                           <div key={slot?.id || Math.random()} 
                                className="d-flex align-items-center mb-2 p-2 bg-white rounded">
-                            {meetingData?.status === 'pending' && (
+                            {userRole === 'host' && !hasSubmittedAvailability ? (
+                              <div className="me-3">
+                                <span className="badge bg-warning">Your Availability</span>
+                              </div>
+                            ) : meetingData?.status === 'pending' ? (
                               <div className="me-3">
                                 <span className="badge bg-info">Available Time</span>
                               </div>
-                            )}
-                            {meetingData?.status === 'confirmed' && (
+                            ) : meetingData?.status === 'confirmed' ? (
                               <div className="me-3">
                                 <span className="badge bg-success">Confirmed Time</span>
                               </div>
-                            )}
+                            ) : null}
                             <div className="flex-grow-1">
                               <div className="fw-bold">
                                 {new Date(slot.startTime).toLocaleDateString()}
@@ -1413,12 +1646,22 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                                   }
                                 </small>
                               )}
-                              {meetingData?.status === 'confirmed' && (
+                              {meetingData?.status === 'confirmed' && !(userRole === 'host' && !hasSubmittedAvailability) && (
                                 <div className="text-success small">
                                   <strong>Final meeting time confirmed!</strong>
                                 </div>
                               )}
                             </div>
+                            {isEditing && userRole === 'host' && meetingType === 'round_robin' && !hasSubmittedAvailability && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger ms-2"
+                                onClick={() => handleRemoveTimeSlot(slot?.id)}
+                                aria-label="Remove time slot"
+                              >
+                                <FaTimes />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1524,6 +1767,17 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 )}
               </div>
             )}
+
+            {/* Special message for round robin hosts who haven't submitted availability */}
+            {userRole === 'host' && meetingType === 'round_robin' && !hasSubmittedAvailability && !isEditing && (
+              <div className="mb-3 mb-md-4">
+                <label className="form-label">Your Availability</label>
+                <div className="alert alert-warning">
+                  <strong>Action Required:</strong> As a host, you need to submit your available time slots for this Round Robin meeting.
+                  <p className="mb-0 mt-2">Click &quot;Edit&quot; to add your availability and help finalize the meeting schedule.</p>
+                </div>
+              </div>
+            )}
   
             <div className="mb-3 mb-md-4">
               <label htmlFor="participants" className="form-label">Participants</label>
@@ -1543,7 +1797,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
               )}
 
               {/* Show restriction message for non-direct meetings */}
-              {isEditing && (meetingType === 'group' || meetingType === 'round_robin') && meetingData.status !== 'canceled' && (
+              {isEditing && (meetingType === 'group' || meetingType === 'round_robin') && meetingData.status !== 'canceled' && !(userRole === 'host' && meetingType === 'round_robin') && (
                 <div className="alert alert-info mb-3">
                   <strong>Note:</strong> Participants cannot be modified for {meetingType === 'round_robin' ? 'Round Robin' : 'Group'} meetings.
                 </div>
@@ -1634,7 +1888,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                         
                         {searchContact.length >= 1 && searchResults.length === 0 && (
                           <div className="p-3 text-center text-muted">
-                            No contacts found matching "{searchContact}"
+                            No contacts found matching &quot;{searchContact}&quot;
                           </div>
                         )}
                       </div>
@@ -1686,9 +1940,21 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                           )}
                         </div>
                       </div>
-                      {/* Only show remove button for direct meetings */}
+                      {/* Show access controls for direct meetings or remove button */}
                       {isEditing && meetingType === 'direct' && meetingData.status !== 'canceled' && (
                         <div className="d-flex gap-2 align-items-center mt-2 mt-md-0">
+                          <div className="form-check form-switch me-3">
+                            <input 
+                              className="form-check-input"
+                              type="checkbox" 
+                              id={`accessSwitch-${participant.id}`}
+                              checked={participant.access === "accepted"}
+                              onChange={(e) => handleParticipantAccessChange(participant.id, e.target.checked)}
+                            />
+                            <label className="form-check-label" htmlFor={`accessSwitch-${participant.id}`}>
+                              Give access
+                            </label>
+                          </div>
                           <button 
                             type="button" 
                             className="btn btn-outline-danger btn-sm"
@@ -1717,9 +1983,9 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 placeholder="A short description for the meeting"
                 value={isEditing ? description : (meetingData?.description || '')}
                 onChange={(e) => setDescription(e.target.value)}
-                readOnly={!isEditing || meetingData.status === 'canceled'}
+                readOnly={!isEditing || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')}
                 style={{
-                  backgroundColor: (!isEditing || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+                  backgroundColor: (!isEditing || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')) ? '#f8f9fa' : 'white'
                 }}
               ></textarea>
             </div>
@@ -1731,16 +1997,16 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 <input
                   type="text"
                   className="form-control"
-                  readOnly={!isEditing || meetingData.status === 'canceled'}
+                  readOnly={!isEditing || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')}
                   placeholder="Choose a place for the meeting"
                   value={isEditing ? location : (meetingData?.location || '')}
                   onChange={(e) => setLocation(e.target.value)}
-                  disabled={isSaving || meetingData.status === 'canceled'}
+                  disabled={isSaving || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')}
                   style={{
-                    backgroundColor: (!isEditing || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+                    backgroundColor: (!isEditing || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')) ? '#f8f9fa' : 'white'
                   }}
                 />
-                {isEditing && meetingData.status !== 'canceled' && (
+                {isEditing && meetingData.status !== 'canceled' && !(userRole === 'host' && meetingType === 'round_robin') && (
                   <button 
                     className="btn btn-outline-secondary" 
                     type="button"
@@ -1752,7 +2018,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 )}
                 
                 {/* Location Dropdown */}
-                {showLocationDropdown && isEditing && meetingData.status !== 'canceled' && (
+                {showLocationDropdown && isEditing && meetingData.status !== 'canceled' && !(userRole === 'host' && meetingType === 'round_robin') && (
                   <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
                     {locationOptions.map(option => (
                       <div 
@@ -1779,16 +2045,16 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 <input
                   type="text"
                   className="form-control"
-                  readOnly={!isEditing || meetingData.status === 'canceled'}
+                  readOnly={!isEditing || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')}
                   placeholder="Does not repeat"
                   value={isEditing ? repeat : (meetingData?.repeat || 'Does not repeat')}
                   onChange={(e) => setRepeat(e.target.value)}
-                  disabled={isSaving || meetingData.status === 'canceled'}
+                  disabled={isSaving || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')}
                   style={{
-                    backgroundColor: (!isEditing || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+                    backgroundColor: (!isEditing || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')) ? '#f8f9fa' : 'white'
                   }}
                 />
-                {isEditing && meetingData.status !== 'canceled' && (
+                {isEditing && meetingData.status !== 'canceled' && !(userRole === 'host' && meetingType === 'round_robin') && (
                   <button 
                     className="btn btn-outline-secondary" 
                     type="button"
@@ -1800,7 +2066,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 )}
                 
                 {/* Repeat Dropdown */}
-                {showRepeatDropdown && isEditing && meetingData.status !== 'canceled' && (
+                {showRepeatDropdown && isEditing && meetingData.status !== 'canceled' && !(userRole === 'host' && meetingType === 'round_robin') && (
                   <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
                     {repeatOptions.map(option => (
                       <div 
@@ -1828,16 +2094,16 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                   <input
                     type="text"
                     className="form-control"
-                    readOnly={!isEditing || (timeSlots && timeSlots.length > 0) || meetingData.status === 'canceled'}
+                    readOnly={!isEditing || (timeSlots && timeSlots.length > 0) || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')}
                     placeholder="Select duration"
                     value={isEditing ? roundRobinDuration : (meetingData?.roundRobinDuration || '')}
                     onChange={(e) => setRoundRobinDuration(e.target.value)}
-                    disabled={isSaving || meetingData.status === 'canceled'}
+                    disabled={isSaving || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')}
                     style={{
-                      backgroundColor: (!isEditing || (timeSlots && timeSlots.length > 0) || meetingData.status === 'canceled') ? '#f8f9fa' : 'white'
+                      backgroundColor: (!isEditing || (timeSlots && timeSlots.length > 0) || meetingData.status === 'canceled' || (userRole === 'host' && meetingType === 'round_robin')) ? '#f8f9fa' : 'white'
                     }}
                   />
-                  {isEditing && (!timeSlots || timeSlots.length === 0) && meetingData.status !== 'canceled' && (
+                  {isEditing && (!timeSlots || timeSlots.length === 0) && meetingData.status !== 'canceled' && !(userRole === 'host' && meetingType === 'round_robin') && (
                     <button 
                       className="btn btn-outline-secondary" 
                       type="button"
@@ -1849,7 +2115,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                   )}
                   
                   {/* Duration Dropdown */}
-                  {showDurationDropdown && isEditing && (!timeSlots || timeSlots.length === 0) && meetingData.status !== 'canceled' && (
+                  {showDurationDropdown && isEditing && (!timeSlots || timeSlots.length === 0) && meetingData.status !== 'canceled' && !(userRole === 'host' && meetingType === 'round_robin') && (
                     <div className="position-absolute w-100 mt-1 shadow-sm bg-white rounded border" style={{top: '100%', zIndex: 1000}}>
                       {durationOptions.map(option => (
                         <div 
@@ -1869,7 +2135,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 </div>
                 
                 {/* Show information message when duration is locked */}
-                {isEditing && timeSlots && timeSlots.length > 0 && meetingData.status !== 'canceled' && (
+                {isEditing && timeSlots && timeSlots.length > 0 && meetingData.status !== 'canceled' && !(userRole === 'host' && meetingType === 'round_robin') && (
                   <small className="text-muted mt-1 d-block">
                     <strong>Note:</strong> Duration cannot be changed as this meeting already has scheduled availability from participants.
                   </small>
@@ -1892,53 +2158,70 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 </div>
               ) : isEditing ? (
                 <>
-                  <button 
-                    className="btn btn-success me-2" 
-                    onClick={handleSaveChanges}
-                    disabled={isSaving || isCancelling}
-                  >
-                    {isSaving ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </button>
-                  <button 
-                    className="btn btn-secondary" 
-                    onClick={() => {
-                      setIsEditing(false);
-                      // Reset title to original when canceling edit
-                      setTitle(originalTitle);
-                      // Reset other fields to original values
-                      setDescription(meetingData?.description || '');
-                      setLocation(meetingData?.location || '');
-                      setRepeat(meetingData?.repeat || 'Does not repeat');
-                      setRoundRobinDuration(meetingData?.roundRobinDuration || '');
-                      // Reset participants to original
-                      if (meetingData?.participants) {
-                        const formattedParticipants = meetingData.participants.map((participant, index) => ({
-                          id: index + 1,
-                          name: participant.username,
-                          group: `Access: ${participant.access}`,
-                          access: participant.access,
-                          phone: participant.phone || '',
-                          email: participant.email || ''
-                        }));
-                        setParticipants(formattedParticipants);
-                      }
-                      // Clear errors
-                      setParticipantError('');
-                      setPhoneError('');
-                      setTimeError('');
-                      setDateError('');
-                    }}
-                    disabled={isSaving || isCancelling}
-                  >
-                    Cancel
-                  </button>
+                  {userRole === 'host' && meetingData.meetingType === 'round_robin' ? (
+                    <>
+                      <button 
+                        className="btn btn-success me-2" 
+                        onClick={submitHostAvailability}
+                        disabled={availabilitySubmissionLoading || timeSlots.length === 0}
+                      >
+                        {availabilitySubmissionLoading ? 'Submitting...' : 'Submit Availability'}
+                      </button>
+                      <button className="btn btn-secondary" onClick={() => setIsEditing(false)}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        className="btn btn-success me-2" 
+                        onClick={handleSaveChanges}
+                        disabled={isSaving || isCancelling}
+                      >
+                        {isSaving ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </button>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => {
+                          setIsEditing(false);
+                          // Reset title to original when canceling edit
+                          setTitle(originalTitle);
+                          // Reset other fields to original values
+                          setDescription(meetingData?.description || '');
+                          setLocation(meetingData?.location || '');
+                          setRepeat(meetingData?.repeat || 'Does not repeat');
+                          setRoundRobinDuration(meetingData?.roundRobinDuration || '');
+                          // Reset participants to original
+                          if (meetingData?.participants) {
+                            const formattedParticipants = meetingData.participants.map((participant, index) => ({
+                              id: index + 1,
+                              name: participant.username,
+                              group: `Access: ${participant.access}`,
+                              access: participant.access,
+                              phone: participant.phone || '',
+                              email: participant.email || ''
+                            }));
+                            setParticipants(formattedParticipants);
+                          }
+                          // Clear errors
+                          setParticipantError('');
+                          setPhoneError('');
+                          setTimeError('');
+                          setDateError('');
+                        }}
+                        disabled={isSaving || isCancelling}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
@@ -1957,6 +2240,17 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                       ) : (
                         'Cancel Meeting'
                       )}
+                    </button>
+                  )}
+                  
+                  {/* Mark Availability Button for round robin hosts */}
+                  {userRole === 'host' && meetingData.meetingType === 'round_robin' && !hasSubmittedAvailability && (
+                    <button 
+                      className="btn btn-warning me-2" 
+                      onClick={() => setIsEditing(true)}
+                      disabled={isCancelling || isSaving || isUploadProcessing || isTakeNotesProcessing}
+                    >
+                      Mark Your Availability
                     </button>
                   )}
                   
@@ -1985,12 +2279,6 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                         <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                         Processing...
                       </>
-                    ) : isCancelling ? (
-                      'Upload'
-                    ) : isSaving ? (
-                      'Upload'
-                    ) : isTakeNotesProcessing ? (
-                      'Upload'
                     ) : (
                       'Upload'
                     )}
@@ -2021,12 +2309,6 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                         <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                         Processing...
                       </>
-                    ) : isCancelling ? (
-                      'Take notes'
-                    ) : isSaving ? (
-                      'Take notes'
-                    ) : isUploadProcessing ? (
-                      'Take notes'
                     ) : (
                       'Take notes'
                     )}
@@ -2088,6 +2370,42 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                 </div>
               </div>
             )}
+            {/* Submission Confirmation Modal */}
+{showSubmissionModal && (
+  <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+    <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title">Finalize Submission</h5>
+          <button 
+            type="button" 
+            className="btn-close" 
+            onClick={() => setShowSubmissionModal(false)}
+          ></button>
+        </div>
+        <div className="modal-body">
+          <p>Your availability has been submitted successfully!</p>
+        </div>
+        <div className="modal-footer">
+          <button 
+            type="button" 
+            className="btn btn-secondary" 
+            onClick={() => setShowSubmissionModal(false)}
+          >
+            Cancel
+          </button>
+          <button 
+            type="button" 
+            className="btn btn-success" 
+            onClick={performSubmitAvailability}
+          >
+            Yes, Save
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
             {/* Delete Confirmation Modal */}
             {showDeleteModal && (
@@ -2103,7 +2421,7 @@ if (!meetingData) return <div className="p-4 text-center">No meeting data found<
                       ></button>
                     </div>
                     <div className="modal-body">
-                      <p>Are you sure you want to cancel the meeting <strong>"{originalTitle}"</strong>?</p>
+                      <p>Are you sure you want to cancel the meeting <strong>&quot;{originalTitle}&quot;</strong>?</p>
                     </div>
                     <div className="modal-footer">
                       <button 
