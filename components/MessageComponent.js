@@ -275,7 +275,7 @@ const MessageComponent = ({ onClose }) => {
           case 'removed_from_room':
             console.log('🚪 You were removed from room:', data.roomId, 'By:', data.removedBy);
             // Show notification to user
-            alert(`You have been removed from "${data.roomName}" by ${data.removedBy}`);
+            showPopupMessage(`You have been removed from "${data.roomName}" by ${data.removedBy}`, 'error');
             
             // If user is currently in the room they were removed from, navigate back to list
             if (selectedMessage && selectedMessage.id === data.roomId) {
@@ -702,7 +702,7 @@ const MessageComponent = ({ onClose }) => {
 
       } else {
         console.error('WebSocket connection not available');
-        alert('Connection not available. Please refresh the page and try again.');
+        showPopupMessage('Connection not available. Please refresh the page and try again.', 'error');
       }
     }
   };
@@ -729,16 +729,6 @@ const MessageComponent = ({ onClose }) => {
 
   // Handle group creation
   const handleCreateGroupRoom = () => {
-    if (!groupName.trim()) {
-      alert('Please enter a group name');
-      return;
-    }
-    
-    if (selectedMembers.length === 0) {
-      alert('Please select at least one member for the group');
-      return;
-    }
-
     if (websocket && websocket.readyState === WebSocket.OPEN) {
       setIsCreatingGroup(true);
       
@@ -792,7 +782,7 @@ const MessageComponent = ({ onClose }) => {
 
     } else {
       console.error('WebSocket connection not available');
-      alert('Connection not available. Please refresh the page and try again.');
+      showPopupMessage('Connection not available. Please refresh the page and try again.', 'error');
     }
   };
 
@@ -1104,7 +1094,7 @@ const MessageComponent = ({ onClose }) => {
 
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      showPopupMessage('Failed to send message. Please try again.', 'error');
     }
   };
 
@@ -1643,13 +1633,18 @@ const MessageComponent = ({ onClose }) => {
                   <label className="form-label">Group Name</label>
                   <input
                     type="text"
-                    className="form-control"
+                    className={`form-control ${!groupName.trim() && hasUserTyped ? 'is-invalid' : ''}`}
                     placeholder="Enter group name..."
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
                     maxLength={50}
                     disabled={isCreatingGroup}
                   />
+                  {!groupName.trim() && hasUserTyped && (
+                    <div className="invalid-feedback">
+                      Please enter a group name
+                    </div>
+                  )}
                 </div>
 
                 {/* Members Selection */}
@@ -1705,8 +1700,18 @@ const MessageComponent = ({ onClose }) => {
                   <div className="d-flex gap-2">
                     <button
                       className="btn btn-primary flex-grow-1 d-flex align-items-center justify-content-center"
-                      onClick={handleCreateGroupRoom}
-                      disabled={!groupName.trim() || selectedMembers.length === 0 || connectionStatus !== 'connected'}
+                      onClick={() => {
+                        if (!groupName.trim()) {
+                          showPopupMessage('Please enter a group name', 'error');
+                          return;
+                        }
+                        if (selectedMembers.length === 0) {
+                          showPopupMessage('Please select at least one member for the group', 'error');
+                          return;
+                        }
+                        handleCreateGroupRoom();
+                      }}
+                      disabled={connectionStatus !== 'connected'}
                     >
                       Create Group
                     </button>

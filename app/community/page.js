@@ -259,9 +259,7 @@ export default function Community() {
                   ? "Looking for someone? Search by name, email, or details!" 
                   : "Search for groups by name or description"}
               />
-              <button className="btn btn-outline-secondary rounded-pill d-flex align-items-center gap-2 px-3 border-0">
-                Filter <FaFilter />
-              </button>
+              
             </div>
           </div>
           

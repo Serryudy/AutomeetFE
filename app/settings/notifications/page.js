@@ -23,6 +23,11 @@ export default function NotificationPage() {
   const [meetingFetchError, setMeetingFetchError] = useState(null);
   const [currentView, setCurrentView] = useState('list');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [popupMessage, setPopupMessage] = useState('');
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   // Scroll to top functionality
   useEffect(() => {
@@ -127,10 +132,20 @@ export default function NotificationPage() {
   };
 
   // Function to delete a notification
-  const deleteNotification = async (id, e) => {
+  const deleteNotification = (id, e) => {
     e.stopPropagation();
+    
+    // Show custom confirmation popup
+    setPendingDeleteId(id);
+    setShowConfirmPopup(true);
+  };
+
+  // Function to confirm deletion
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    
     try {
-      const response = await fetch(`http://localhost:8080/api/notifications/${id}`, {
+      const response = await fetch(`http://localhost:8080/api/notifications/${pendingDeleteId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -139,10 +154,31 @@ export default function NotificationPage() {
         throw new Error(`Error deleting notification: ${response.status}`);
       }
 
-      setNotifications(notifications.filter(notification => notification.id !== id));
+      setNotifications(notifications.filter(notification => notification.id !== pendingDeleteId));
+      
+      // Show success popup
+      setPopupMessage('Notification deleted successfully!');
+      setShowSuccessPopup(true);
+      setTimeout(() => setShowSuccessPopup(false), 3000);
+      
     } catch (err) {
       console.error('Error deleting notification:', err);
+      
+      // Show error popup
+      setPopupMessage('Failed to delete notification. Please try again.');
+      setShowErrorPopup(true);
+      setTimeout(() => setShowErrorPopup(false), 5000);
+    } finally {
+      // Reset confirmation popup state
+      setShowConfirmPopup(false);
+      setPendingDeleteId(null);
     }
+  };
+
+  // Function to cancel deletion
+  const cancelDelete = () => {
+    setShowConfirmPopup(false);
+    setPendingDeleteId(null);
   };
 
   // Helper function to format date
@@ -595,6 +631,111 @@ export default function NotificationPage() {
           </>
         )}
       </div>
+
+      {/* Confirmation Popup */}
+      {showConfirmPopup && (
+        <div 
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+          style={{ 
+            zIndex: 1070,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }}
+        >
+          <div 
+            className="bg-white rounded-4 shadow-lg p-4"
+            style={{ 
+              minWidth: '400px',
+              maxWidth: '500px',
+              animation: 'scaleIn 0.2s ease-out'
+            }}
+          >
+            <div className="text-center mb-4">
+              <div className="mb-3">
+                <svg className="text-warning" width="48" height="48" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+                </svg>
+              </div>
+              <h5 className="fw-bold mb-2">Delete Notification</h5>
+            </div>
+            <div className="d-flex gap-3 justify-content-center">
+              <button 
+                className="btn btn-outline-secondary px-4 py-2"
+                onClick={cancelDelete}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-danger px-4 py-2"
+                onClick={confirmDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div 
+          className="position-fixed top-0 start-50 translate-middle-x mt-4 alert alert-success shadow-lg"
+          style={{ 
+            zIndex: 1060,
+            minWidth: '300px',
+            animation: 'slideDown 0.3s ease-out'
+          }}
+        >
+          <div className="d-flex align-items-center">
+            <svg className="bi bi-check-circle-fill me-2" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+            </svg>
+            {popupMessage}
+          </div>
+        </div>
+      )}
+
+      {/* Error Popup */}
+      {showErrorPopup && (
+        <div 
+          className="position-fixed top-0 start-50 translate-middle-x mt-4 alert alert-danger shadow-lg"
+          style={{ 
+            zIndex: 1060,
+            minWidth: '300px',
+            animation: 'slideDown 0.3s ease-out'
+          }}
+        >
+          <div className="d-flex align-items-center">
+            <svg className="bi bi-exclamation-triangle-fill me-2" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+            </svg>
+            {popupMessage}
+          </div>
+        </div>
+      )}
+
+      {/* CSS for animation */}
+      <style jsx>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 }

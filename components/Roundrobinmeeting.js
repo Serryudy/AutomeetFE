@@ -239,7 +239,8 @@ const RoundRobinForm = () => {
 
   const filteredContacts = contacts.filter(contact => 
     (contact.username?.toLowerCase().includes(searchContact.toLowerCase()) ||
-    (contact.name?.toLowerCase().includes(searchContact.toLowerCase())))
+    (contact.name?.toLowerCase().includes(searchContact.toLowerCase()))) &&
+    !hosts.some(host => host.username === contact.username)
   );
 
   const filteredHosts = currentUserHosts.filter(host => 
